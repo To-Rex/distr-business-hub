@@ -461,7 +461,7 @@ function LiveMapPage() {
         }
 
         const polyline = L.polyline(routeCoords, {
-          color,
+          color: "#3b82f6",
           weight: 4,
           opacity: 0.8,
           smoothFactor: 1,
