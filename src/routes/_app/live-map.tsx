@@ -180,6 +180,8 @@ function LiveMapPage() {
   const [styleOpen, setStyleOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<"ALL" | WsUser["role"]>("ALL");
   const [updatedIds, setUpdatedIds] = useState<Set<number>>(new Set());
+  const historyLayerRef = useRef<L.LayerGroup | null>(null);
+  const historyPolylineRef = useRef<L.Polyline | null>(null);
 
   const filteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
 
@@ -351,6 +353,127 @@ function LiveMapPage() {
   }, [selected]);
 
   useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !accessToken) return;
+
+    if (historyLayerRef.current) {
+      historyLayerRef.current.clearLayers();
+      historyLayerRef.current.remove();
+      historyLayerRef.current = null;
+    }
+    historyPolylineRef.current = null;
+
+    if (selected === null) return;
+
+    const userId = selected;
+    const user = users.find((u) => u.id === userId);
+    const color = user ? ROLE_COLORS[user.role] || "#3b82f6" : "#3b82f6";
+
+    fetch(API.userHistory(userId), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+      })
+      .then(async (points: { id: number; latitude: number; longitude: number; created_at: string }[]) => {
+        if (!mapInstanceRef.current || selectedRef.current !== userId) return;
+
+        const filtered = points.filter((p) => p.latitude !== 0 || p.longitude !== 0);
+        if (filtered.length < 2) return;
+
+        const map = mapInstanceRef.current;
+        const group = L.layerGroup().addTo(map);
+        historyLayerRef.current = group;
+
+        filtered.forEach((p, i) => {
+          const isLast = i === filtered.length - 1;
+          L.circleMarker([p.latitude, p.longitude], {
+            radius: isLast ? 6 : 4,
+            color: isLast ? "#22c55e" : color,
+            fillColor: isLast ? "#22c55e" : color,
+            fillOpacity: isLast ? 1 : 0.7,
+            weight: 2,
+          }).addTo(group);
+        });
+
+        const deduped: { latitude: number; longitude: number }[] = [filtered[0]];
+        for (let i = 1; i < filtered.length; i++) {
+          const prev = deduped[deduped.length - 1];
+          const dLat = filtered[i].latitude - prev.latitude;
+          const dLng = filtered[i].longitude - prev.longitude;
+          if (dLat * dLat + dLng * dLng > 0.000001) {
+            deduped.push(filtered[i]);
+          }
+        }
+
+        if (deduped.length < 2) {
+          const fallback = filtered.map((p) => L.latLng(p.latitude, p.longitude));
+          const pl = L.polyline(fallback, {
+            color, weight: 4, opacity: 0.8, smoothFactor: 1, lineCap: "round", lineJoin: "round",
+          }).addTo(group);
+          historyPolylineRef.current = pl;
+          return;
+        }
+
+        const coordsStr = deduped.map((p) => `${p.longitude},${p.latitude}`).join(";");
+        let routeCoords: L.LatLngExpression[] | null = null;
+
+        try {
+          const matchRes = await fetch(
+            `https://router.project-osrm.org/match/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
+          );
+          if (matchRes.ok) {
+            const matchData = await matchRes.json();
+            if (selectedRef.current !== userId) return;
+            if (matchData.matchings && matchData.matchings.length > 0) {
+              routeCoords = matchData.matchings[0].geometry.coordinates.map(
+                (c: [number, number]) => L.latLng(c[1], c[0]),
+              );
+            }
+          }
+        } catch {}
+
+        if (!routeCoords && selectedRef.current === userId) {
+          try {
+            const routeRes = await fetch(
+              `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&alternatives=false`,
+            );
+            if (routeRes.ok) {
+              const routeData = await routeRes.json();
+              if (selectedRef.current !== userId) return;
+              if (routeData.routes && routeData.routes.length > 0) {
+                routeCoords = routeData.routes[0].geometry.coordinates.map(
+                  (c: [number, number]) => L.latLng(c[1], c[0]),
+                );
+              }
+            }
+          } catch {}
+        }
+
+        if (selectedRef.current !== userId) return;
+
+        if (!routeCoords) {
+          routeCoords = filtered.map((p) => L.latLng(p.latitude, p.longitude));
+        }
+
+        const polyline = L.polyline(routeCoords, {
+          color,
+          weight: 4,
+          opacity: 0.8,
+          smoothFactor: 1,
+          lineCap: "round",
+          lineJoin: "round",
+        }).addTo(group);
+        historyPolylineRef.current = polyline;
+      })
+      .catch(() => {});
+  }, [selected, accessToken, users]);
+
+  useEffect(() => {
     if (!accessToken) return;
 
     const wsUrl = API.wsLocations(accessToken);
@@ -455,6 +578,12 @@ function LiveMapPage() {
         marker.remove();
       }
       currentMarkers.clear();
+      if (historyLayerRef.current) {
+        historyLayerRef.current.clearLayers();
+        historyLayerRef.current.remove();
+        historyLayerRef.current = null;
+      }
+      historyPolylineRef.current = null;
     };
   }, [accessToken]);
 

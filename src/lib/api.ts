@@ -10,4 +10,5 @@ export const API = {
   login: `${BASE_URL}/v1/authentication/login`,
   profile: `${BASE_URL}/v1/authentication/profile`,
   wsLocations: (token: string) => `${WS_BASE}/v1/locations/ws/admvs?token=${token}`,
+  userHistory: (userId: number) => `${BASE_URL}/v1/locations/user-history/${userId}`,
 } as const;
