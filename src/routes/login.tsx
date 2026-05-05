@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSettings, LANGS } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
@@ -14,16 +15,28 @@ function LoginPage() {
   const { user, login } = useAuth();
   const { t, lang, setLang } = useSettings();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("admin@distr.mxsoft.uz");
-  const [password, setPassword] = useState("demo1234");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => { if (user) navigate({ to: "/dashboard" }); }, [user, navigate]);
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email || !password) return;
-    login(email);
-    navigate({ to: "/dashboard" });
+    setLoading(true);
+    setError(null);
+    const loginEmail = email.includes("@") ? email : `${email}@gmail.com`;
+    try {
+      await login(loginEmail, password);
+      navigate({ to: "/dashboard" });
+    } catch (err: any) {
+      setError(err?.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -32,7 +45,7 @@ function LoginPage() {
         <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-primary-foreground/5" />
         <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-primary-foreground/5" />
         <div className="relative flex items-center gap-2.5">
-          <div className="h-10 w-10 rounded-xl bg-primary-foreground/10 backdrop-blur flex items-center justify-center font-bold text-lg">D</div>
+          <img src="/logo.png" alt="Distr" className="h-10 w-10 rounded-xl object-contain" />
           <span className="text-lg font-semibold">Distr</span>
         </div>
         <div className="relative space-y-5 max-w-md">
@@ -58,18 +71,20 @@ function LoginPage() {
         </div>
         <div className="w-full max-w-sm space-y-8">
           <div className="lg:hidden flex items-center gap-2 justify-center">
-            <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold">D</div>
+            <img src="/logo.png" alt="Distr" className="h-10 w-10 rounded-xl object-contain" />
             <span className="text-lg font-semibold">Distr</span>
           </div>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{t("welcomeBack")}</h1>
             <p className="text-sm text-muted-foreground mt-1">{t("signInSubtitle")}</p>
           </div>
+          {error && (
+            <div className="rounded-md bg-destructive/10 text-destructive text-sm px-4 py-3">{error}</div>
+          )}
           <form onSubmit={onSubmit} className="space-y-4">
-            <div className="space-y-2"><Label htmlFor="email">{t("email")}</Label><Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></div>
-            <div className="space-y-2"><Label htmlFor="password">{t("password")}</Label><Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></div>
-            <Button type="submit" className="w-full h-11">{t("signIn")}</Button>
-            <p className="text-xs text-muted-foreground text-center">{t("demoNote")}</p>
+            <div className="space-y-2"><Label htmlFor="email">{t("email")}</Label><Input id="email" type="text" value={email} onChange={(e) => setEmail(e.target.value)} required disabled={loading} /></div>
+            <div className="space-y-2"><Label htmlFor="password">{t("password")}</Label><div className="relative"><Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} required disabled={loading} className="pr-10" /><button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors" tabIndex={-1}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button></div></div>
+            <Button type="submit" className="w-full h-11" disabled={loading}>{loading ? "..." : t("signIn")}</Button>
           </form>
         </div>
       </div>

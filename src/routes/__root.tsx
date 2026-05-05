@@ -10,10 +10,13 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Distr — Business Management" },
+      { title: "Distr — Biznes Boshqaruv Tizimi" },
       { name: "description", content: "Distr — yagona biznes boshqaruv platformasi." },
     ],
-    links: [{ rel: "stylesheet", href: appCss }],
+    links: [
+      { rel: "stylesheet", href: appCss },
+      { rel: "icon", type: "image/png", href: "/logo.png" },
+    ],
   }),
   shellComponent: RootShell,
   component: () => (
