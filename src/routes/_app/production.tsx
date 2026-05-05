@@ -4,25 +4,25 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { batches } from "@/lib/mock-data";
+import { useSettings } from "@/lib/settings";
 
-export const Route = createFileRoute("/_app/production")({
-  component: ProductionPage,
-});
+export const Route = createFileRoute("/_app/production")({ component: ProductionPage });
 
 function ProductionPage() {
+  const { t } = useSettings();
   return (
     <div>
-      <PageHeader title="Production" description="Active production batches and their status." />
+      <PageHeader title={t("production")} description={t("productionDesc")} />
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Batch</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead className="text-right">Quantity</TableHead>
-              <TableHead>Start</TableHead>
-              <TableHead>Due</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t("batch")}</TableHead>
+              <TableHead>{t("product")}</TableHead>
+              <TableHead className="text-right">{t("quantity")}</TableHead>
+              <TableHead>{t("start")}</TableHead>
+              <TableHead>{t("due")}</TableHead>
+              <TableHead>{t("status")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

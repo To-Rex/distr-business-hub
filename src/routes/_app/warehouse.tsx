@@ -3,27 +3,27 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { products } from "@/lib/mock-data";
+import { useSettings } from "@/lib/settings";
 import { AlertTriangle } from "lucide-react";
 
-export const Route = createFileRoute("/_app/warehouse")({
-  component: WarehousePage,
-});
+export const Route = createFileRoute("/_app/warehouse")({ component: WarehousePage });
 
 function WarehousePage() {
+  const { t } = useSettings();
   const lowCount = products.filter((p) => p.stock < p.threshold).length;
   return (
     <div>
-      <PageHeader title="Warehouse" description={`${products.length} SKUs · ${lowCount} low-stock items`} />
+      <PageHeader title={t("warehouse")} description={`${products.length} SKU · ${lowCount} ${t("lowStock").toLowerCase()}`} />
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>SKU</TableHead>
-              <TableHead>Product</TableHead>
-              <TableHead>Category</TableHead>
-              <TableHead className="text-right">Stock</TableHead>
-              <TableHead className="text-right">Threshold</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t("sku")}</TableHead>
+              <TableHead>{t("product")}</TableHead>
+              <TableHead>{t("category")}</TableHead>
+              <TableHead className="text-right">{t("stock")}</TableHead>
+              <TableHead className="text-right">{t("threshold")}</TableHead>
+              <TableHead>{t("status")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -39,10 +39,10 @@ function WarehousePage() {
                   <TableCell>
                     {low ? (
                       <span className="inline-flex items-center gap-1 text-destructive text-xs font-medium">
-                        <AlertTriangle className="h-3.5 w-3.5" /> Low stock
+                        <AlertTriangle className="h-3.5 w-3.5" /> {t("lowStock")}
                       </span>
                     ) : (
-                      <span className="text-success text-xs font-medium">In stock</span>
+                      <span className="text-success text-xs font-medium">{t("inStock")}</span>
                     )}
                   </TableCell>
                 </TableRow>

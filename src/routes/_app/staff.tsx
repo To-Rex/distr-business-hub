@@ -5,24 +5,24 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
 import { staff } from "@/lib/mock-data";
+import { useSettings } from "@/lib/settings";
 
-export const Route = createFileRoute("/_app/staff")({
-  component: StaffPage,
-});
+export const Route = createFileRoute("/_app/staff")({ component: StaffPage });
 
 function StaffPage() {
+  const { t } = useSettings();
   return (
     <div>
-      <PageHeader title="Staff" description="Team members, roles and performance." />
+      <PageHeader title={t("staff")} description={t("staffDesc")} />
       <Card>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>ID</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead className="w-[40%]">Performance</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t("name")}</TableHead>
+              <TableHead>{t("role")}</TableHead>
+              <TableHead className="w-[40%]">{t("performance")}</TableHead>
+              <TableHead>{t("status")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
