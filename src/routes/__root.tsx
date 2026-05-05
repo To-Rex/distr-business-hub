@@ -1,5 +1,6 @@
 import { Outlet, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/lib/auth";
+import { AppSettingsProvider } from "@/lib/settings";
 import { Toaster } from "@/components/ui/sonner";
 
 import appCss from "../styles.css?url";
@@ -10,16 +11,18 @@ export const Route = createRootRoute({
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Distr — Business Management" },
-      { name: "description", content: "Distr is a unified platform to manage clients, sales, staff, warehouse, finance and production." },
+      { name: "description", content: "Distr — yagona biznes boshqaruv platformasi." },
     ],
     links: [{ rel: "stylesheet", href: appCss }],
   }),
   shellComponent: RootShell,
   component: () => (
-    <AuthProvider>
-      <Outlet />
-      <Toaster />
-    </AuthProvider>
+    <AppSettingsProvider>
+      <AuthProvider>
+        <Outlet />
+        <Toaster />
+      </AuthProvider>
+    </AppSettingsProvider>
   ),
   notFoundComponent: () => (
     <div className="min-h-screen flex items-center justify-center">
