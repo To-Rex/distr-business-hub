@@ -14,12 +14,17 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWarehouseRouteImport } from './routes/_app/warehouse'
 import { Route as AppStaffRouteImport } from './routes/_app/staff'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppSalesRouteImport } from './routes/_app/sales'
+import { Route as AppReportsRouteImport } from './routes/_app/reports'
+import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppProductionRouteImport } from './routes/_app/production'
+import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
 import { Route as AppFinanceRouteImport } from './routes/_app/finance'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppClientsRouteImport } from './routes/_app/clients'
+import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -45,14 +50,34 @@ const AppStaffRoute = AppStaffRouteImport.update({
   path: '/staff',
   getParentRoute: () => AppRoute,
 } as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppSalesRoute = AppSalesRouteImport.update({
   id: '/sales',
   path: '/sales',
   getParentRoute: () => AppRoute,
 } as any)
+const AppReportsRoute = AppReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppProfileRoute = AppProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppProductionRoute = AppProductionRouteImport.update({
   id: '/production',
   path: '/production',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppLiveMapRoute = AppLiveMapRouteImport.update({
@@ -75,28 +100,43 @@ const AppClientsRoute = AppClientsRouteImport.update({
   path: '/clients',
   getParentRoute: () => AppRoute,
 } as any)
+const AppCalendarRoute = AppCalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/calendar': typeof AppCalendarRoute
   '/clients': typeof AppClientsRoute
   '/dashboard': typeof AppDashboardRoute
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
+  '/notifications': typeof AppNotificationsRoute
   '/production': typeof AppProductionRoute
+  '/profile': typeof AppProfileRoute
+  '/reports': typeof AppReportsRoute
   '/sales': typeof AppSalesRoute
+  '/settings': typeof AppSettingsRoute
   '/staff': typeof AppStaffRoute
   '/warehouse': typeof AppWarehouseRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
+  '/calendar': typeof AppCalendarRoute
   '/clients': typeof AppClientsRoute
   '/dashboard': typeof AppDashboardRoute
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
+  '/notifications': typeof AppNotificationsRoute
   '/production': typeof AppProductionRoute
+  '/profile': typeof AppProfileRoute
+  '/reports': typeof AppReportsRoute
   '/sales': typeof AppSalesRoute
+  '/settings': typeof AppSettingsRoute
   '/staff': typeof AppStaffRoute
   '/warehouse': typeof AppWarehouseRoute
 }
@@ -105,12 +145,17 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
+  '/_app/calendar': typeof AppCalendarRoute
   '/_app/clients': typeof AppClientsRoute
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/finance': typeof AppFinanceRoute
   '/_app/live-map': typeof AppLiveMapRoute
+  '/_app/notifications': typeof AppNotificationsRoute
   '/_app/production': typeof AppProductionRoute
+  '/_app/profile': typeof AppProfileRoute
+  '/_app/reports': typeof AppReportsRoute
   '/_app/sales': typeof AppSalesRoute
+  '/_app/settings': typeof AppSettingsRoute
   '/_app/staff': typeof AppStaffRoute
   '/_app/warehouse': typeof AppWarehouseRoute
 }
@@ -119,24 +164,34 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/login'
+    | '/calendar'
     | '/clients'
     | '/dashboard'
     | '/finance'
     | '/live-map'
+    | '/notifications'
     | '/production'
+    | '/profile'
+    | '/reports'
     | '/sales'
+    | '/settings'
     | '/staff'
     | '/warehouse'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/login'
+    | '/calendar'
     | '/clients'
     | '/dashboard'
     | '/finance'
     | '/live-map'
+    | '/notifications'
     | '/production'
+    | '/profile'
+    | '/reports'
     | '/sales'
+    | '/settings'
     | '/staff'
     | '/warehouse'
   id:
@@ -144,12 +199,17 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/login'
+    | '/_app/calendar'
     | '/_app/clients'
     | '/_app/dashboard'
     | '/_app/finance'
     | '/_app/live-map'
+    | '/_app/notifications'
     | '/_app/production'
+    | '/_app/profile'
+    | '/_app/reports'
     | '/_app/sales'
+    | '/_app/settings'
     | '/_app/staff'
     | '/_app/warehouse'
   fileRoutesById: FileRoutesById
@@ -197,6 +257,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppStaffRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/sales': {
       id: '/_app/sales'
       path: '/sales'
@@ -204,11 +271,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSalesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reports': {
+      id: '/_app/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof AppReportsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/profile': {
+      id: '/_app/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof AppProfileRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/production': {
       id: '/_app/production'
       path: '/production'
       fullPath: '/production'
       preLoaderRoute: typeof AppProductionRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/live-map': {
@@ -239,27 +327,44 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppClientsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/calendar': {
+      id: '/_app/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof AppCalendarRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
 interface AppRouteChildren {
+  AppCalendarRoute: typeof AppCalendarRoute
   AppClientsRoute: typeof AppClientsRoute
   AppDashboardRoute: typeof AppDashboardRoute
   AppFinanceRoute: typeof AppFinanceRoute
   AppLiveMapRoute: typeof AppLiveMapRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
   AppProductionRoute: typeof AppProductionRoute
+  AppProfileRoute: typeof AppProfileRoute
+  AppReportsRoute: typeof AppReportsRoute
   AppSalesRoute: typeof AppSalesRoute
+  AppSettingsRoute: typeof AppSettingsRoute
   AppStaffRoute: typeof AppStaffRoute
   AppWarehouseRoute: typeof AppWarehouseRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppCalendarRoute: AppCalendarRoute,
   AppClientsRoute: AppClientsRoute,
   AppDashboardRoute: AppDashboardRoute,
   AppFinanceRoute: AppFinanceRoute,
   AppLiveMapRoute: AppLiveMapRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
   AppProductionRoute: AppProductionRoute,
+  AppProfileRoute: AppProfileRoute,
+  AppReportsRoute: AppReportsRoute,
   AppSalesRoute: AppSalesRoute,
+  AppSettingsRoute: AppSettingsRoute,
   AppStaffRoute: AppStaffRoute,
   AppWarehouseRoute: AppWarehouseRoute,
 }
