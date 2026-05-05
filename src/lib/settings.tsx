@@ -110,6 +110,14 @@ const dict = {
     markRead: "O'qilgan deb belgilash",
     upcoming: "Yaqinlashayotgan tadbirlar",
     noEvents: "Bu kun uchun tadbirlar yo'q.",
+    online: "Online",
+    offline: "Offline",
+    supervisor: "Supervisor",
+    deliverer: "Yetkazuvchi",
+    allRoles: "Hammasi",
+    agents: "Agentlar",
+    supervisors: "Supervisorlar",
+    deliverers: "Yetkazuvchilar",
   },
   ru: {
     appTagline: "Единая платформа для управления дистрибьюторским бизнесом",
@@ -214,6 +222,14 @@ const dict = {
     markRead: "Отметить прочитанным",
     upcoming: "Предстоящие события",
     noEvents: "На этот день событий нет.",
+    online: "Онлайн",
+    offline: "Офлайн",
+    supervisor: "Супервайзер",
+    deliverer: "Доставщик",
+    allRoles: "Все",
+    agents: "Агенты",
+    supervisors: "Супервайзеры",
+    deliverers: "Доставщики",
   },
   en: {
     appTagline: "One platform to run your entire distribution business",
@@ -318,6 +334,14 @@ const dict = {
     markRead: "Mark as read",
     upcoming: "Upcoming events",
     noEvents: "No events for this day.",
+    online: "Online",
+    offline: "Offline",
+    supervisor: "Supervisor",
+    deliverer: "Deliverer",
+    allRoles: "All",
+    agents: "Agents",
+    supervisors: "Supervisors",
+    deliverers: "Deliverers",
   },
 } as const;
 
@@ -350,8 +374,14 @@ export function AppSettingsProvider({ children }: { children: ReactNode }) {
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
-  const setLang = (l: Lang) => { localStorage.setItem("distr.lang", l); setLangState(l); };
-  const setTheme = (t: "light" | "dark") => { localStorage.setItem("distr.theme", t); setThemeState(t); };
+  const setLang = (l: Lang) => {
+    localStorage.setItem("distr.lang", l);
+    setLangState(l);
+  };
+  const setTheme = (t: "light" | "dark") => {
+    localStorage.setItem("distr.theme", t);
+    setThemeState(t);
+  };
 
   const t = (k: Key) => dict[lang][k] ?? dict.en[k] ?? k;
 

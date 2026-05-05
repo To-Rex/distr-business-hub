@@ -2,20 +2,77 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, useRef, useCallback } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { agents as initialAgents } from "@/lib/mock-data";
 import { useSettings } from "@/lib/settings";
-import { Crosshair, MapPin, Plus, Minus, Layers } from "lucide-react";
+import { useAuth } from "@/lib/auth";
+import { API } from "@/lib/api";
+import { Crosshair, MapPin, Plus, Minus, Layers, Users, User, Truck } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { cachedTileLayer } from "@/lib/cached-tile-layer";
 
 export const Route = createFileRoute("/_app/live-map")({ component: LiveMapPage });
 
-type Agent = (typeof initialAgents)[number];
+type WsUser = {
+  id: number;
+  first_name: string;
+  last_name: string;
+  role: "SUPERVISOR" | "AGENT" | "DELIVERER";
+  user_1c_id: number;
+  status: "online" | "offline";
+  last_location: {
+    latitude: number;
+    longitude: number;
+    timestamp: string | null;
+  };
+};
+
+type WsMessage =
+  | { action: "all_admvs"; users: WsUser[] }
+  | { action: "status_update"; user_id: number; status: "online" | "offline" }
+  | {
+      action: "update_location";
+      user: {
+        id: number;
+        first_name: string;
+        last_name: string;
+        role: "SUPERVISOR" | "AGENT" | "DELIVERER";
+        user_1c_id: number;
+        phone_number: string;
+      };
+      role: "SUPERVISOR" | "AGENT" | "DELIVERER";
+      location: {
+        latitude: number;
+        longitude: number;
+        device_name: string;
+      };
+      speed: number;
+      bearing: number;
+      accuracy: number;
+      altitude: number;
+      timestamp: string;
+    };
 
 type MapStyleKey = "standard" | "dark" | "satellite" | "hybrid" | "topo";
 
-const MAP_STYLES: Record<MapStyleKey, { url: string; attr: string; maxZoom: number; subdomains?: string }> = {
+const ROLE_COLORS: Record<WsUser["role"], string> = {
+  SUPERVISOR: "#8b5cf6",
+  AGENT: "#22c55e",
+  DELIVERER: "#f59e0b",
+};
+
+const ROLE_ICONS: Record<WsUser["role"], string> = {
+  SUPERVISOR:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  AGENT:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  DELIVERER:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
+};
+
+const MAP_STYLES: Record<
+  MapStyleKey,
+  { url: string; attr: string; maxZoom: number; subdomains?: string }
+> = {
   standard: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
     attr: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
@@ -61,32 +118,75 @@ const pulseIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
+function createUserIcon(
+  firstName: string,
+  lastName: string,
+  role: WsUser["role"],
+  isOnline: boolean,
+  isSelected: boolean,
+) {
+  const color = ROLE_COLORS[role] || "#3b82f6";
+  const icon = ROLE_ICONS[role] || ROLE_ICONS.AGENT;
+  const size = isSelected ? 44 : 38;
+  const inner = size - 10;
+  const fullName = `${firstName} ${lastName}`;
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`;
+  const shadow = isSelected ? 12 : 8;
+  const glowSize = size + 16;
+  const badgeTop = -2;
+  const statusSize = isSelected ? 14 : 12;
+  const statusOffset = isSelected ? 6 : 4;
+
+  return L.divIcon({
+    className: "",
+    html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;transition:transform 0.2s ease;">
+      ${isOnline ? `<div style="position:absolute;top:${badgeTop - 4}px;left:50%;transform:translateX(-50%);width:${glowSize}px;height:${glowSize}px;border-radius:50%;background:${color};opacity:0.15;animation:_locPulse 2s ease-out infinite;"></div>` : ""}
+      <div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, ${color}, ${color}dd);border:3px solid #fff;box-shadow:0 ${shadow}px ${shadow + 4}px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.05);display:flex;align-items:center;justify-content:center;overflow:hidden;${isSelected ? "transform:scale(1.1);" : ""}">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 60%);border-radius:50%;"></div>
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;">
+          ${icon}
+        </div>
+        <div style="position:absolute;bottom:${statusOffset}px;right:${statusOffset}px;width:${statusSize}px;height:${statusSize}px;border-radius:50%;border:2px solid #fff;${isOnline ? "background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.5);" : "background:#9ca3af;"}"></div>
+      </div>
+      <div style="margin-top:4px;white-space:nowrap;background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;font-family:system-ui,sans-serif;max-width:140px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);">
+        ${fullName}
+      </div>
+      ${isSelected ? `<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:${glowSize + 8}px;height:${glowSize + 8}px;border-radius:50%;border:2px solid ${color};opacity:0.3;animation:_locPulse 1.5s ease-out infinite;"></div>` : ""}
+    </div>`,
+    iconSize: [size + 8, size + 32],
+    iconAnchor: [(size + 8) / 2, size / 2 + 2],
+    tooltipAnchor: [0, -(size / 2 + 32)],
+  });
+}
+
 function LiveMapPage() {
   const { t, theme } = useSettings();
-  const [agents, setAgents] = useState<Agent[]>(initialAgents);
+  const { accessToken } = useAuth();
+  const [users, setUsers] = useState<WsUser[]>([]);
+  const [wsStatus, setWsStatus] = useState<"connecting" | "connected" | "disconnected">(
+    "disconnected",
+  );
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
   const labelLayerRef = useRef<L.TileLayer | null>(null);
-  const markersRef = useRef<Map<string, L.CircleMarker>>(new Map());
-  const selectedRef = useRef<string | null>(null);
-  const [selected, setSelected] = useState<string | null>(null);
+  const markersRef = useRef<Map<number, L.Marker>>(new Map());
+  const selectedRef = useRef<number | null>(null);
+  const [selected, setSelected] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userAccuracyRef = useRef<L.Circle | null>(null);
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("standard");
   const [styleOpen, setStyleOpen] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<"ALL" | WsUser["role"]>("ALL");
+  const [updatedIds, setUpdatedIds] = useState<Set<number>>(new Set());
 
-  const resolveColor = useCallback((color: string) => {
-    if (color.startsWith("var(")) {
-      const prop = color.slice(4, -1);
-      return getComputedStyle(document.documentElement).getPropertyValue(prop).trim() || "#3b82f6";
-    }
-    return color;
-  }, []);
+  const filteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
 
   useEffect(() => {
-    setMapStyle((prev) => (prev === "standard" || prev === "dark") ? (theme === "dark" ? "dark" : "standard") : prev);
+    setMapStyle((prev) =>
+      prev === "standard" || prev === "dark" ? (theme === "dark" ? "dark" : "standard") : prev,
+    );
   }, [theme]);
 
   const applyTileLayer = useCallback((styleKey: MapStyleKey) => {
@@ -94,7 +194,10 @@ function LiveMapPage() {
     if (!map) return;
 
     if (tileLayerRef.current) tileLayerRef.current.remove();
-    if (labelLayerRef.current) { labelLayerRef.current.remove(); labelLayerRef.current = null; }
+    if (labelLayerRef.current) {
+      labelLayerRef.current.remove();
+      labelLayerRef.current = null;
+    }
 
     const cfg = MAP_STYLES[styleKey];
     const tile = cachedTileLayer(cfg.url, {
@@ -166,7 +269,7 @@ function LiveMapPage() {
       map.remove();
       mapInstanceRef.current = null;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -177,51 +280,63 @@ function LiveMapPage() {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    agents.forEach((a) => {
-      const existing = markersRef.current.get(a.id);
-      const color = resolveColor(a.color);
+    const filteredIds = new Set<number>(filteredUsers.map((u) => u.id));
+
+    users.forEach((u) => {
+      const { latitude, longitude } = u.last_location;
+      if (latitude === 0 && longitude === 0) return;
+
+      if (!filteredIds.has(u.id)) {
+        const existing = markersRef.current.get(u.id);
+        if (existing) {
+          existing.remove();
+          markersRef.current.delete(u.id);
+        }
+        return;
+      }
+
+      const isOnline = u.status === "online";
+      const isSel = selectedRef.current === u.id;
+      const icon = createUserIcon(u.first_name, u.last_name, u.role, isOnline, isSel);
+      const existing = markersRef.current.get(u.id);
 
       if (existing) {
-        existing.setLatLng([a.lat, a.lng]);
+        existing.setLatLng([latitude, longitude]);
+        existing.setIcon(icon);
+        existing.setTooltipContent(`${u.first_name} ${u.last_name}`);
       } else {
-        const marker = L.circleMarker([a.lat, a.lng], {
-          radius: 10,
-          fillColor: color,
-          color: "#fff",
-          weight: 2,
-          opacity: 1,
-          fillOpacity: 0.9,
-          className: "animate-[markerPop_0.4s_ease-out]",
+        const marker = L.marker([latitude, longitude], {
+          icon,
+          zIndexOffset: isSel ? 1000 : isOnline ? 500 : 0,
         }).addTo(map);
 
-        marker.bindTooltip(a.name, {
-          permanent: false,
-          direction: "top",
-          offset: [0, -10],
-        });
+        marker.bindTooltip(
+          `<div style="font-weight:600;font-size:13px;">${u.first_name} ${u.last_name}</div><div style="font-size:11px;opacity:0.7;">${roleLabel(u.role)}</div>`,
+          {
+            permanent: false,
+            direction: "top",
+            offset: [0, 0],
+            className: "",
+          },
+        );
 
         marker.on("click", () => {
-          selectedRef.current = a.id;
-          setSelected(a.id);
+          const newId = selectedRef.current === u.id ? null : u.id;
+          selectedRef.current = newId;
+          setSelected(newId);
         });
 
-        markersRef.current.set(a.id, marker);
+        markersRef.current.set(u.id, marker);
       }
     });
-  }, [agents, resolveColor]);
 
-  useEffect(() => {
-    const id = setInterval(() => {
-      setAgents((prev) =>
-        prev.map((a) => ({
-          ...a,
-          lat: a.lat + (Math.random() - 0.5) * 0.01,
-          lng: a.lng + (Math.random() - 0.5) * 0.01,
-        })),
-      );
-    }, 1500);
-    return () => clearInterval(id);
-  }, []);
+    for (const [id, marker] of markersRef.current) {
+      if (!filteredIds.has(id)) {
+        marker.remove();
+        markersRef.current.delete(id);
+      }
+    }
+  }, [users, filteredUsers, selected]);
 
   useEffect(() => {
     if (selectedRef.current) {
@@ -234,6 +349,114 @@ function LiveMapPage() {
       }
     }
   }, [selected]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const wsUrl = API.wsLocations(accessToken);
+    setWsStatus("connecting");
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => {
+      setWsStatus("connected");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const data: WsMessage = JSON.parse(event.data);
+        if (data.action === "all_admvs" && data.users) {
+          setUsers(data.users);
+        } else if (data.action === "status_update") {
+          setUsers((prev) =>
+            prev.map((u) =>
+              u.id === data.user_id ? { ...u, status: data.status } : u,
+            ),
+          );
+          setUpdatedIds((prev) => {
+            const next = new Set(prev);
+            next.add(data.user_id);
+            return next;
+          });
+          setTimeout(() => {
+            setUpdatedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(data.user_id);
+              return next;
+            });
+          }, 1500);
+        } else if (data.action === "update_location") {
+          setUsers((prev) => {
+            const idx = prev.findIndex((u) => u.id === data.user.id);
+            if (idx !== -1) {
+              const updated = [...prev];
+              updated[idx] = {
+                ...updated[idx],
+                first_name: data.user.first_name,
+                last_name: data.user.last_name,
+                role: data.user.role,
+                last_location: {
+                  latitude: data.location.latitude,
+                  longitude: data.location.longitude,
+                  timestamp: data.timestamp,
+                },
+              };
+              return updated;
+            }
+            return [
+              ...prev,
+              {
+                id: data.user.id,
+                first_name: data.user.first_name,
+                last_name: data.user.last_name,
+                role: data.user.role,
+                user_1c_id: data.user.user_1c_id,
+                status: "online",
+                last_location: {
+                  latitude: data.location.latitude,
+                  longitude: data.location.longitude,
+                  timestamp: data.timestamp,
+                },
+              },
+            ];
+          });
+          setUpdatedIds((prev) => {
+            const next = new Set(prev);
+            next.add(data.user.id);
+            return next;
+          });
+          setTimeout(() => {
+            setUpdatedIds((prev) => {
+              const next = new Set(prev);
+              next.delete(data.user.id);
+              return next;
+            });
+          }, 1500);
+        }
+      } catch {
+        // ignore invalid messages
+      }
+    };
+
+    ws.onclose = () => {
+      setWsStatus("disconnected");
+    };
+
+    ws.onerror = () => {
+      setWsStatus("disconnected");
+    };
+
+    return () => {
+      ws.close();
+      setWsStatus("disconnected");
+      setUsers([]);
+      setUpdatedIds(new Set());
+      const currentMarkers = markersRef.current;
+      for (const [, marker] of currentMarkers) {
+        marker.remove();
+      }
+      currentMarkers.clear();
+    };
+  }, [accessToken]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -252,7 +475,10 @@ function LiveMapPage() {
       (pos) => {
         const { latitude, longitude, accuracy } = pos.coords;
         const map = mapInstanceRef.current;
-        if (!map) { setLocating(false); return; }
+        if (!map) {
+          setLocating(false);
+          return;
+        }
 
         if (userAccuracyRef.current) userAccuracyRef.current.remove();
         if (userMarkerRef.current) userMarkerRef.current.remove();
@@ -282,6 +508,30 @@ function LiveMapPage() {
     );
   }, [locating]);
 
+  const roleLabel = (role: "SUPERVISOR" | "AGENT" | "DELIVERER") => {
+    switch (role) {
+      case "SUPERVISOR":
+        return t("supervisor");
+      case "DELIVERER":
+        return t("deliverer");
+      case "AGENT":
+        return "Agent";
+    }
+  };
+
+  const RoleIcon = ({ role }: { role: WsUser["role"] }) => {
+    switch (role) {
+      case "SUPERVISOR":
+        return <Users className="h-4 w-4 text-white" />;
+      case "AGENT":
+        return <User className="h-4 w-4 text-white" />;
+      case "DELIVERER":
+        return <Truck className="h-4 w-4 text-white" />;
+      default:
+        return <MapPin className="h-4 w-4 text-white" />;
+    }
+  };
+
   return (
     <div>
       <style>{`
@@ -294,9 +544,29 @@ function LiveMapPage() {
           60% { transform: scale(1.2); }
           100% { transform: scale(1); opacity: 1; }
         }
+        @keyframes _agentFlashAnim {
+          0% { background-color: transparent; }
+          20% { background-color: rgba(59,130,246,0.12); }
+          100% { background-color: transparent; }
+        }
+        ._agentFlash {
+          animation: _agentFlashAnim 1.5s ease-out;
+          border-radius: 0.5rem;
+        }
         .leaflet-popup-content-wrapper,
         .leaflet-tooltip {
           animation: markerPop 0.3s ease-out;
+          background: rgba(15, 23, 42, 0.92) !important;
+          backdrop-filter: blur(12px) !important;
+          color: #fff !important;
+          border-radius: 10px !important;
+          padding: 8px 14px !important;
+          border: 1px solid rgba(255,255,255,0.15) !important;
+          box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+          font-family: system-ui, sans-serif !important;
+        }
+        .leaflet-tooltip-top::before {
+          border-top-color: rgba(15, 23, 42, 0.92) !important;
         }
         .leaflet-tile {
           transition: opacity 0.3s ease-in-out;
@@ -306,6 +576,76 @@ function LiveMapPage() {
         }
       `}</style>
       <PageHeader title={t("liveMap")} description={t("liveMapDesc")} />
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <span className="flex items-center gap-2">
+          <span
+            className={`h-2 w-2 rounded-full ${wsStatus === "connected" ? "bg-green-500 animate-pulse" : wsStatus === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`}
+          />
+          <span className="text-xs text-muted-foreground">
+            {wsStatus === "connected"
+              ? t("online")
+              : wsStatus === "connecting"
+                ? "..."
+                : t("offline")}
+          </span>
+        </span>
+        <div className="h-4 w-px bg-border" />
+        <div className="flex flex-wrap gap-1.5">
+          {(
+            [
+              {
+                key: "ALL" as const,
+                label: t("allRoles"),
+                Icon: MapPin,
+                color: "#6b7280",
+              },
+              {
+                key: "AGENT" as const,
+                label: t("agents"),
+                Icon: User,
+                color: ROLE_COLORS.AGENT,
+              },
+              {
+                key: "SUPERVISOR" as const,
+                label: t("supervisors"),
+                Icon: Users,
+                color: ROLE_COLORS.SUPERVISOR,
+              },
+              {
+                key: "DELIVERER" as const,
+                label: t("deliverers"),
+                Icon: Truck,
+                color: ROLE_COLORS.DELIVERER,
+              },
+            ] as const
+          ).map(({ key, label, Icon, color }) => {
+            const count = key === "ALL" ? users.length : users.filter((u) => u.role === key).length;
+            const active = roleFilter === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setRoleFilter(key)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 border ${
+                  active
+                    ? "text-white shadow-sm"
+                    : "bg-card text-muted-foreground hover:text-foreground"
+                }`}
+                style={active ? { backgroundColor: color, borderColor: color } : undefined}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{label}</span>
+                <span
+                  className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                    active ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         <Card className="lg:col-span-3 overflow-hidden">
           <div className="relative">
@@ -322,10 +662,15 @@ function LiveMapPage() {
                   {(Object.keys(MAP_STYLES) as MapStyleKey[]).map((key) => (
                     <button
                       key={key}
-                      onClick={() => { setMapStyle(key); setStyleOpen(false); }}
+                      onClick={() => {
+                        setMapStyle(key);
+                        setStyleOpen(false);
+                      }}
                       className={`w-full px-3 py-2.5 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 ${mapStyle === key ? "bg-accent font-medium" : ""}`}
                     >
-                      <span className={`h-3 w-3 rounded-full border-2 ${mapStyle === key ? "border-primary bg-primary" : "border-muted-foreground/40"}`} />
+                      <span
+                        className={`h-3 w-3 rounded-full border-2 ${mapStyle === key ? "border-primary bg-primary" : "border-muted-foreground/40"}`}
+                      />
                       {STYLE_LABELS[key]}
                     </button>
                   ))}
@@ -356,34 +701,65 @@ function LiveMapPage() {
           </div>
         </Card>
         <Card>
-          <CardHeader>
+          <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("activeAgents")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {agents.map((a) => (
-              <button
-                key={a.id}
-                className="flex items-center gap-3 w-full text-left hover:bg-muted/50 rounded-lg p-1 -m-1 cursor-pointer"
-                onClick={() => {
-                  selectedRef.current = a.id;
-                  setSelected(a.id);
-                }}
-              >
-                <div
-                  className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: resolveColor(a.color) }}
-                >
-                  <MapPin className="h-4 w-4 text-white" />
+            <div className="max-h-[460px] overflow-y-auto space-y-3">
+              {filteredUsers.length === 0 && (
+                <div className="text-sm text-muted-foreground text-center py-4">
+                  {wsStatus === "connected" ? "..." : t("offline")}
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium">{a.name}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {a.lat.toFixed(4)}, {a.lng.toFixed(4)}
-                  </div>
-                </div>
-                <span className="h-2 w-2 rounded-full bg-success animate-pulse" />
-              </button>
-            ))}
+              )}
+              {filteredUsers.map((u) => {
+                const color = ROLE_COLORS[u.role] || "#3b82f6";
+                const hasLocation =
+                  u.last_location.latitude !== 0 || u.last_location.longitude !== 0;
+                const isUpdated = updatedIds.has(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    className={`flex items-center gap-3 w-full text-left hover:bg-muted/50 rounded-lg p-1 -m-1 cursor-pointer transition-colors ${selected === u.id ? "bg-muted/70 ring-1 ring-primary/30" : ""} ${isUpdated ? "_agentFlash" : ""}`}
+                    onClick={() => {
+                      if (!hasLocation) return;
+                      const newId = selectedRef.current === u.id ? null : u.id;
+                      selectedRef.current = newId;
+                      setSelected(newId);
+                    }}
+                  >
+                    <div
+                      className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
+                      style={{
+                        backgroundColor: color,
+                        opacity: u.status === "online" ? 1 : 0.5,
+                      }}
+                    >
+                      <RoleIcon role={u.role} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium truncate">
+                        {u.first_name} {u.last_name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {roleLabel(u.role)}
+                        {hasLocation && (
+                          <span className="ml-1">
+                            {" "}
+                            · {u.last_location.latitude.toFixed(4)},{" "}
+                            {u.last_location.longitude.toFixed(4)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <span
+                      className={`h-2 w-2 rounded-full shrink-0 ${
+                        u.status === "online" ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
           </CardContent>
         </Card>
       </div>
