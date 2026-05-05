@@ -3,8 +3,10 @@
   publish = "dist/client"
   functions = "netlify/functions"
 
+[functions]
+  node_bundler = "esbuild"
+
 [functions."ssr-serve"]
-  node_bundler = "none"
   included_files = ["dist/server/**"]
 
 [build.environment]
