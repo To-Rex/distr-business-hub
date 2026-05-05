@@ -393,8 +393,8 @@ function LiveMapPage() {
           const isLast = i === filtered.length - 1;
           L.circleMarker([p.latitude, p.longitude], {
             radius: isLast ? 6 : 4,
-            color: isLast ? "#22c55e" : color,
-            fillColor: isLast ? "#22c55e" : color,
+            color: isLast ? "#6d28d9" : color,
+            fillColor: isLast ? "#6d28d9" : color,
             fillOpacity: isLast ? 1 : 0.7,
             weight: 2,
           }).addTo(group);
