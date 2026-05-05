@@ -151,9 +151,9 @@ export const batches: Batch[] = [
 ];
 
 export const agents = [
-  { id: "A-1", name: "Aziz K.", x: 22, y: 30, color: "var(--chart-1)" },
-  { id: "A-2", name: "Dilshod T.", x: 60, y: 45, color: "var(--chart-2)" },
-  { id: "A-3", name: "Madina Y.", x: 75, y: 25, color: "var(--chart-4)" },
-  { id: "A-4", name: "Bekzod R.", x: 40, y: 70, color: "var(--chart-5)" },
-  { id: "A-5", name: "Sherzod A.", x: 82, y: 65, color: "var(--chart-3)" },
+  { id: "A-1", name: "Aziz K.", lat: 41.2995, lng: 69.2401, color: "var(--chart-1)" },
+  { id: "A-2", name: "Dilshod T.", lat: 41.3115, lng: 69.2785, color: "var(--chart-2)" },
+  { id: "A-3", name: "Madina Y.", lat: 39.6542, lng: 66.9597, color: "var(--chart-4)" },
+  { id: "A-4", name: "Bekzod R.", lat: 40.1010, lng: 65.3800, color: "var(--chart-5)" },
+  { id: "A-5", name: "Sherzod A.", lat: 40.5300, lng: 70.9500, color: "var(--chart-3)" },
 ];
