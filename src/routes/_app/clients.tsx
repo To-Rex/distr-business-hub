@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { clients as initial, type Client } from "@/lib/mock-data";
+import { useSettings } from "@/lib/settings";
 import { Plus, Search, Pencil } from "lucide-react";
 import { toast } from "sonner";
 
@@ -18,19 +19,18 @@ export const Route = createFileRoute("/_app/clients")({
 });
 
 function ClientsPage() {
+  const { t } = useSettings();
   const [list, setList] = useState<Client[]>(initial);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
 
-  const filtered = useMemo(() => {
-    return list.filter((c) => {
-      const matchesQ = !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.location.toLowerCase().includes(q.toLowerCase());
-      const matchesS = status === "all" || c.status === status;
-      return matchesQ && matchesS;
-    });
-  }, [list, q, status]);
+  const filtered = useMemo(() => list.filter((c) => {
+    const matchesQ = !q || c.name.toLowerCase().includes(q.toLowerCase()) || c.location.toLowerCase().includes(q.toLowerCase());
+    const matchesS = status === "all" || c.status === status;
+    return matchesQ && matchesS;
+  }), [list, q, status]);
 
   const onSave = (c: Client) => {
     setList((prev) => {
@@ -40,54 +40,50 @@ function ClientsPage() {
     });
     setOpen(false);
     setEditing(null);
-    toast.success("Client saved");
+    toast.success(t("save"));
   };
 
   return (
     <div>
-      <PageHeader
-        title="Clients"
-        description="Manage your customers and their accounts."
+      <PageHeader title={t("clients")} description={t("clientsDesc")}
         actions={
           <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) setEditing(null); }}>
             <DialogTrigger asChild>
-              <Button onClick={() => setEditing(null)}><Plus className="h-4 w-4 mr-2" />Add client</Button>
+              <Button onClick={() => setEditing(null)}><Plus className="h-4 w-4 mr-2" />{t("addClient")}</Button>
             </DialogTrigger>
             <ClientDialog client={editing} onSave={onSave} />
           </Dialog>
         }
       />
-
       <Card className="p-4 mb-4">
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search by name or city…" className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
+            <Input placeholder={t("search")} className="pl-9" value={q} onChange={(e) => setQ(e.target.value)} />
           </div>
           <Select value={status} onValueChange={setStatus}>
             <SelectTrigger className="w-full sm:w-44"><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All statuses</SelectItem>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="all">{t("all")}</SelectItem>
+              <SelectItem value="active">{t("active")}</SelectItem>
+              <SelectItem value="inactive">{t("inactive")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </Card>
-
       <Card>
         {filtered.length === 0 ? (
-          <div className="p-12 text-center text-muted-foreground">No clients found.</div>
+          <div className="p-12 text-center text-muted-foreground">{t("notFound")}</div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Joined</TableHead>
+                <TableHead>{t("name")}</TableHead>
+                <TableHead>{t("phone")}</TableHead>
+                <TableHead>{t("location")}</TableHead>
+                <TableHead>{t("status")}</TableHead>
+                <TableHead>{t("joined")}</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
             </TableHeader>
@@ -116,28 +112,29 @@ function ClientsPage() {
 }
 
 function ClientDialog({ client, onSave }: { client: Client | null; onSave: (c: Client) => void }) {
+  const { t } = useSettings();
   const [form, setForm] = useState<Client>(
     client ?? { id: `C-${Math.floor(1000 + Math.random() * 9000)}`, name: "", phone: "", location: "", status: "active", joined: new Date().toISOString().slice(0, 10) }
   );
   return (
     <DialogContent>
-      <DialogHeader><DialogTitle>{client ? "Edit client" : "Add client"}</DialogTitle></DialogHeader>
+      <DialogHeader><DialogTitle>{client ? t("editClient") : t("addClient")}</DialogTitle></DialogHeader>
       <div className="space-y-4">
-        <div className="space-y-2"><Label>Name</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
-        <div className="space-y-2"><Label>Phone</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
-        <div className="space-y-2"><Label>Location</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
+        <div className="space-y-2"><Label>{t("name")}</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+        <div className="space-y-2"><Label>{t("phone")}</Label><Input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></div>
+        <div className="space-y-2"><Label>{t("location")}</Label><Input value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} /></div>
         <div className="space-y-2">
-          <Label>Status</Label>
+          <Label>{t("status")}</Label>
           <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v as Client["status"] })}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">Active</SelectItem>
-              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="active">{t("active")}</SelectItem>
+              <SelectItem value="inactive">{t("inactive")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
-      <DialogFooter><Button onClick={() => onSave(form)} disabled={!form.name}>Save</Button></DialogFooter>
+      <DialogFooter><Button onClick={() => onSave(form)} disabled={!form.name}>{t("save")}</Button></DialogFooter>
     </DialogContent>
   );
 }
