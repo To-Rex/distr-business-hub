@@ -1,11 +1,11 @@
 [build]
   command = "npm run build"
   publish = "dist/client"
+  functions = "netlify/functions"
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+[functions."ssr-serve"]
+  node_bundler = "none"
+  included_files = ["dist/server/**"]
 
 [build.environment]
   NODE_VERSION = "20"
