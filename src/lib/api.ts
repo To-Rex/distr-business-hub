@@ -11,5 +11,10 @@ export const API = {
   profile: `${BASE_URL}/v1/authentication/profile`,
   wsLocations: (token: string) => `${WS_BASE}/v1/locations/ws/admvs?token=${token}`,
   userHistory: (userId: number) => `${BASE_URL}/v1/locations/user-history/${userId}`,
-  workingSession: (userId: number) => `${BASE_URL}/v1/working-sessions/user/${userId}?app=mx-agent&is_testing=false`,
+  workingSession: (userId: number) =>
+    `${BASE_URL}/v1/working-sessions/user/${userId}?app=mx-agent&is_testing=false`,
+  clientLocations: (baseUrl: string) =>
+    `/proxy-1c?target=${encodeURIComponent(baseUrl)}&path=/hs/manager/api/get_location_all`,
+  clientsByGroup: (baseUrl: string) =>
+    `/proxy-1c?target=${encodeURIComponent(baseUrl)}&path=/hs/manager/api/GetClientsbyGroup`,
 } as const;

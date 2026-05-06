@@ -5,7 +5,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
-import { Crosshair, MapPin, Plus, Minus, Layers, Users, User, Truck, Gauge, Clock, Route as RouteIcon, X } from "lucide-react";
+import {
+  Crosshair,
+  MapPin,
+  Plus,
+  Minus,
+  Layers,
+  Users,
+  User,
+  Truck,
+  Gauge,
+  Clock,
+  Route as RouteIcon,
+  X,
+  Store,
+} from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { cachedTileLayer } from "@/lib/cached-tile-layer";
@@ -55,6 +69,16 @@ type WsMessage =
 
 type MapStyleKey = "standard" | "dark" | "satellite" | "hybrid" | "topo";
 
+type ClientLocation = {
+  id: number;
+  name: string;
+  longitude: number;
+  latitude: number;
+  comment: string;
+  agent: string;
+  visit: number;
+};
+
 const ROLE_COLORS: Record<WsUser["role"], string> = {
   SUPERVISOR: "#8b5cf6",
   AGENT: "#22c55e",
@@ -69,6 +93,8 @@ const ROLE_ICONS: Record<WsUser["role"], string> = {
   DELIVERER:
     '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
 };
+
+const CLIENT_COLOR = "#ef4444";
 
 const MAP_STYLES: Record<
   MapStyleKey,
@@ -160,9 +186,31 @@ function createUserIcon(
   });
 }
 
+const CLIENT_COLOR_DEFAULT = "#eab308";
+const CLIENT_COLOR_VISITED = "#22c55e";
+
+function createClientIcon(name: string, visit: number) {
+  const size = 30;
+  const color = visit > 0 ? CLIENT_COLOR_VISITED : CLIENT_COLOR_DEFAULT;
+  return L.divIcon({
+    className: "",
+    html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
+      <div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, ${color}, ${color}dd);border:2px solid #fff;box-shadow:0 4px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><rect width="18" height="7" x="3" y="7" rx="1"/></svg>
+      </div>
+      <div style="margin-top:3px;white-space:nowrap;background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;max-width:120px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);">
+        ${name}
+      </div>
+    </div>`,
+    iconSize: [size + 8, size + 28],
+    iconAnchor: [(size + 8) / 2, size / 2 + 2],
+    tooltipAnchor: [0, -(size / 2 + 28)],
+  });
+}
+
 function LiveMapPage() {
   const { t, theme } = useSettings();
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const [users, setUsers] = useState<WsUser[]>([]);
   const [wsStatus, setWsStatus] = useState<"connecting" | "connected" | "disconnected">(
     "disconnected",
@@ -175,7 +223,9 @@ function LiveMapPage() {
   const selectedRef = useRef<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
-  const [workSession, setWorkSession] = useState<{ session: string; device_name: string } | null>(null);
+  const [workSession, setWorkSession] = useState<{ session: string; device_name: string } | null>(
+    null,
+  );
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userAccuracyRef = useRef<L.Circle | null>(null);
@@ -185,6 +235,9 @@ function LiveMapPage() {
   const [updatedIds, setUpdatedIds] = useState<Set<number>>(new Set());
   const historyLayerRef = useRef<L.LayerGroup | null>(null);
   const historyPolylineRef = useRef<L.Polyline | null>(null);
+  const clientMarkersRef = useRef<Map<number, L.Marker>>(new Map());
+  const [clients, setClients] = useState<ClientLocation[]>([]);
+  const [showClients, setShowClients] = useState(true);
 
   const filteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
 
@@ -344,6 +397,61 @@ function LiveMapPage() {
   }, [users, filteredUsers, selected]);
 
   useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    if (!showClients) {
+      for (const [, marker] of clientMarkersRef.current) {
+        marker.remove();
+      }
+      clientMarkersRef.current.clear();
+      return;
+    }
+
+    const existingIds = new Set<number>();
+
+    clients.forEach((c) => {
+      if (c.latitude === 0 && c.longitude === 0) return;
+      existingIds.add(c.id);
+
+      const icon = createClientIcon(c.name, c.visit);
+      const existing = clientMarkersRef.current.get(c.id);
+
+      if (existing) {
+        existing.setLatLng([c.latitude, c.longitude]);
+        existing.setIcon(icon);
+        existing.setTooltipContent(
+          `<div style="font-weight:600;font-size:13px;">${c.name}</div><div style="font-size:11px;opacity:0.7;">${c.agent ? "Agent: " + c.agent : ""}</div>${c.comment ? `<div style="font-size:11px;opacity:0.7;">${c.comment}</div>` : ""}`,
+        );
+      } else {
+        const marker = L.marker([c.latitude, c.longitude], {
+          icon,
+          zIndexOffset: -100,
+        }).addTo(map);
+
+        marker.bindTooltip(
+          `<div style="font-weight:600;font-size:13px;">${c.name}</div><div style="font-size:11px;opacity:0.7;">${c.agent ? "Agent: " + c.agent : ""}</div>${c.comment ? `<div style="font-size:11px;opacity:0.7;">${c.comment}</div>` : ""}`,
+          {
+            permanent: false,
+            direction: "top",
+            offset: [0, 0],
+            className: "",
+          },
+        );
+
+        clientMarkersRef.current.set(c.id, marker);
+      }
+    });
+
+    for (const [id, marker] of clientMarkersRef.current) {
+      if (!existingIds.has(id)) {
+        marker.remove();
+        clientMarkersRef.current.delete(id);
+      }
+    }
+  }, [clients, showClients]);
+
+  useEffect(() => {
     if (selectedRef.current) {
       const marker = markersRef.current.get(selectedRef.current);
       if (marker) {
@@ -382,97 +490,106 @@ function LiveMapPage() {
         if (!res.ok) throw new Error("Failed");
         return res.json();
       })
-      .then(async (points: { id: number; latitude: number; longitude: number; created_at: string }[]) => {
-        if (!mapInstanceRef.current || selectedRef.current !== userId) return;
+      .then(
+        async (
+          points: { id: number; latitude: number; longitude: number; created_at: string }[],
+        ) => {
+          if (!mapInstanceRef.current || selectedRef.current !== userId) return;
 
-        const filtered = points.filter((p) => p.latitude !== 0 || p.longitude !== 0);
-        if (filtered.length < 2) return;
+          const filtered = points.filter((p) => p.latitude !== 0 || p.longitude !== 0);
+          if (filtered.length < 2) return;
 
-        const map = mapInstanceRef.current;
-        const group = L.layerGroup().addTo(map);
-        historyLayerRef.current = group;
+          const map = mapInstanceRef.current;
+          const group = L.layerGroup().addTo(map);
+          historyLayerRef.current = group;
 
-        filtered.forEach((p, i) => {
-          const isLast = i === filtered.length - 1;
-          L.circleMarker([p.latitude, p.longitude], {
-            radius: isLast ? 6 : 4,
-            color: isLast ? "#6d28d9" : color,
-            fillColor: isLast ? "#6d28d9" : color,
-            fillOpacity: isLast ? 1 : 0.7,
-            weight: 2,
-          }).addTo(group);
-        });
+          filtered.forEach((p, i) => {
+            const isLast = i === filtered.length - 1;
+            L.circleMarker([p.latitude, p.longitude], {
+              radius: isLast ? 6 : 4,
+              color: isLast ? "#6d28d9" : color,
+              fillColor: isLast ? "#6d28d9" : color,
+              fillOpacity: isLast ? 1 : 0.7,
+              weight: 2,
+            }).addTo(group);
+          });
 
-        const deduped: { latitude: number; longitude: number }[] = [filtered[0]];
-        for (let i = 1; i < filtered.length; i++) {
-          const prev = deduped[deduped.length - 1];
-          const dLat = filtered[i].latitude - prev.latitude;
-          const dLng = filtered[i].longitude - prev.longitude;
-          if (dLat * dLat + dLng * dLng > 0.000001) {
-            deduped.push(filtered[i]);
-          }
-        }
-
-        if (deduped.length < 2) {
-          const fallback = filtered.map((p) => L.latLng(p.latitude, p.longitude));
-          const pl = L.polyline(fallback, {
-            color, weight: 4, opacity: 0.8, smoothFactor: 1, lineCap: "round", lineJoin: "round",
-          }).addTo(group);
-          historyPolylineRef.current = pl;
-          return;
-        }
-
-        const coordsStr = deduped.map((p) => `${p.longitude},${p.latitude}`).join(";");
-        let routeCoords: L.LatLngExpression[] | null = null;
-
-        try {
-          const matchRes = await fetch(
-            `https://router.project-osrm.org/match/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
-          );
-          if (matchRes.ok) {
-            const matchData = await matchRes.json();
-            if (selectedRef.current !== userId) return;
-            if (matchData.matchings && matchData.matchings.length > 0) {
-              routeCoords = matchData.matchings[0].geometry.coordinates.map(
-                (c: [number, number]) => L.latLng(c[1], c[0]),
-              );
+          const deduped: { latitude: number; longitude: number }[] = [filtered[0]];
+          for (let i = 1; i < filtered.length; i++) {
+            const prev = deduped[deduped.length - 1];
+            const dLat = filtered[i].latitude - prev.latitude;
+            const dLng = filtered[i].longitude - prev.longitude;
+            if (dLat * dLat + dLng * dLng > 0.000001) {
+              deduped.push(filtered[i]);
             }
           }
-        } catch {}
 
-        if (!routeCoords && selectedRef.current === userId) {
+          if (deduped.length < 2) {
+            const fallback = filtered.map((p) => L.latLng(p.latitude, p.longitude));
+            const pl = L.polyline(fallback, {
+              color,
+              weight: 4,
+              opacity: 0.8,
+              smoothFactor: 1,
+              lineCap: "round",
+              lineJoin: "round",
+            }).addTo(group);
+            historyPolylineRef.current = pl;
+            return;
+          }
+
+          const coordsStr = deduped.map((p) => `${p.longitude},${p.latitude}`).join(";");
+          let routeCoords: L.LatLngExpression[] | null = null;
+
           try {
-            const routeRes = await fetch(
-              `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&alternatives=false`,
+            const matchRes = await fetch(
+              `https://router.project-osrm.org/match/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
             );
-            if (routeRes.ok) {
-              const routeData = await routeRes.json();
+            if (matchRes.ok) {
+              const matchData = await matchRes.json();
               if (selectedRef.current !== userId) return;
-              if (routeData.routes && routeData.routes.length > 0) {
-                routeCoords = routeData.routes[0].geometry.coordinates.map(
+              if (matchData.matchings && matchData.matchings.length > 0) {
+                routeCoords = matchData.matchings[0].geometry.coordinates.map(
                   (c: [number, number]) => L.latLng(c[1], c[0]),
                 );
               }
             }
           } catch {}
-        }
 
-        if (selectedRef.current !== userId) return;
+          if (!routeCoords && selectedRef.current === userId) {
+            try {
+              const routeRes = await fetch(
+                `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&alternatives=false`,
+              );
+              if (routeRes.ok) {
+                const routeData = await routeRes.json();
+                if (selectedRef.current !== userId) return;
+                if (routeData.routes && routeData.routes.length > 0) {
+                  routeCoords = routeData.routes[0].geometry.coordinates.map(
+                    (c: [number, number]) => L.latLng(c[1], c[0]),
+                  );
+                }
+              }
+            } catch {}
+          }
 
-        if (!routeCoords) {
-          routeCoords = filtered.map((p) => L.latLng(p.latitude, p.longitude));
-        }
+          if (selectedRef.current !== userId) return;
 
-        const polyline = L.polyline(routeCoords, {
-          color: "#3b82f6",
-          weight: 4,
-          opacity: 0.8,
-          smoothFactor: 1,
-          lineCap: "round",
-          lineJoin: "round",
-        }).addTo(group);
-        historyPolylineRef.current = polyline;
-      })
+          if (!routeCoords) {
+            routeCoords = filtered.map((p) => L.latLng(p.latitude, p.longitude));
+          }
+
+          const polyline = L.polyline(routeCoords, {
+            color: "#3b82f6",
+            weight: 4,
+            opacity: 0.8,
+            smoothFactor: 1,
+            lineCap: "round",
+            lineJoin: "round",
+          }).addTo(group);
+          historyPolylineRef.current = polyline;
+        },
+      )
       .catch(() => {});
   }, [selected, accessToken, users]);
 
@@ -526,66 +643,73 @@ function LiveMapPage() {
         if (!res.ok) throw new Error("Failed");
         return res.json();
       })
-      .then(async (points: { id: number; latitude: number; longitude: number; created_at: string }[]) => {
-        if (selectedRef.current !== userId) return;
+      .then(
+        async (
+          points: { id: number; latitude: number; longitude: number; created_at: string }[],
+        ) => {
+          if (selectedRef.current !== userId) return;
 
-        const filtered = points.filter((p) => p.latitude !== 0 || p.longitude !== 0);
-        if (filtered.length < 2) {
-          setDistanceKm(0);
-          return;
-        }
-
-        const deduped: { latitude: number; longitude: number }[] = [filtered[0]];
-        for (let i = 1; i < filtered.length; i++) {
-          const prev = deduped[deduped.length - 1];
-          const dLat = filtered[i].latitude - prev.latitude;
-          const dLng = filtered[i].longitude - prev.longitude;
-          if (dLat * dLat + dLng * dLng > 0.000001) {
-            deduped.push(filtered[i]);
+          const filtered = points.filter((p) => p.latitude !== 0 || p.longitude !== 0);
+          if (filtered.length < 2) {
+            setDistanceKm(0);
+            return;
           }
-        }
 
-        if (deduped.length < 2) {
-          setDistanceKm(0);
-          return;
-        }
-
-        const coordsStr = deduped.map((p) => `${p.longitude},${p.latitude}`).join(";");
-
-        try {
-          const matchRes = await fetch(
-            `https://router.project-osrm.org/match/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
-          );
-          if (matchRes.ok) {
-            const matchData = await matchRes.json();
-            if (selectedRef.current !== userId) return;
-            if (matchData.matchings && matchData.matchings.length > 0) {
-              const dist = matchData.matchings.reduce((sum: number, m: { distance: number }) => sum + m.distance, 0);
-              setDistanceKm(Math.round(dist) / 1000);
-              return;
+          const deduped: { latitude: number; longitude: number }[] = [filtered[0]];
+          for (let i = 1; i < filtered.length; i++) {
+            const prev = deduped[deduped.length - 1];
+            const dLat = filtered[i].latitude - prev.latitude;
+            const dLng = filtered[i].longitude - prev.longitude;
+            if (dLat * dLat + dLng * dLng > 0.000001) {
+              deduped.push(filtered[i]);
             }
           }
-        } catch {}
 
-        if (selectedRef.current !== userId) return;
-
-        try {
-          const routeRes = await fetch(
-            `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&alternatives=false`,
-          );
-          if (routeRes.ok) {
-            const routeData = await routeRes.json();
-            if (selectedRef.current !== userId) return;
-            if (routeData.routes && routeData.routes.length > 0) {
-              const dist = routeData.routes[0].distance;
-              setDistanceKm(Math.round(dist) / 1000);
-              return;
-            }
+          if (deduped.length < 2) {
+            setDistanceKm(0);
+            return;
           }
-        } catch {}
 
-        if (selectedRef.current === userId) setDistanceKm(null);
-      })
+          const coordsStr = deduped.map((p) => `${p.longitude},${p.latitude}`).join(";");
+
+          try {
+            const matchRes = await fetch(
+              `https://router.project-osrm.org/match/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
+            );
+            if (matchRes.ok) {
+              const matchData = await matchRes.json();
+              if (selectedRef.current !== userId) return;
+              if (matchData.matchings && matchData.matchings.length > 0) {
+                const dist = matchData.matchings.reduce(
+                  (sum: number, m: { distance: number }) => sum + m.distance,
+                  0,
+                );
+                setDistanceKm(Math.round(dist) / 1000);
+                return;
+              }
+            }
+          } catch {}
+
+          if (selectedRef.current !== userId) return;
+
+          try {
+            const routeRes = await fetch(
+              `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&alternatives=false`,
+            );
+            if (routeRes.ok) {
+              const routeData = await routeRes.json();
+              if (selectedRef.current !== userId) return;
+              if (routeData.routes && routeData.routes.length > 0) {
+                const dist = routeData.routes[0].distance;
+                setDistanceKm(Math.round(dist) / 1000);
+                return;
+              }
+            }
+          } catch {}
+
+          if (selectedRef.current === userId) setDistanceKm(null);
+        },
+      )
       .catch(() => {
         if (selectedRef.current === userId) setDistanceKm(null);
       });
@@ -609,9 +733,7 @@ function LiveMapPage() {
           setUsers(data.users.map((u) => ({ ...u, speed: 0 })));
         } else if (data.action === "status_update") {
           setUsers((prev) =>
-            prev.map((u) =>
-              u.id === data.user_id ? { ...u, status: data.status } : u,
-            ),
+            prev.map((u) => (u.id === data.user_id ? { ...u, status: data.status } : u)),
           );
           setUpdatedIds((prev) => {
             const next = new Set(prev);
@@ -706,6 +828,28 @@ function LiveMapPage() {
       historyPolylineRef.current = null;
     };
   }, [accessToken]);
+
+  useEffect(() => {
+    if (!user?.company_rel?.base_url || !user?.user_1c_login || !user?.user_1c_password) return;
+
+    const baseUrl = user.company_rel.base_url;
+    const basic = btoa(`${user.user_1c_login}:${user.user_1c_password}`);
+
+    fetch(API.clientLocations(baseUrl), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Basic ${basic}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+      })
+      .then((data: { results: ClientLocation[] }) => {
+        setClients(data.results ?? []);
+      })
+      .catch(() => {});
+  }, [user]);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -894,6 +1038,34 @@ function LiveMapPage() {
             );
           })}
         </div>
+        {clients.length > 0 && (
+          <>
+            <div className="h-4 w-px bg-border" />
+            <button
+              onClick={() => setShowClients((v) => !v)}
+              className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 border ${
+                showClients
+                  ? "text-white shadow-sm"
+                  : "bg-card text-muted-foreground hover:text-foreground"
+              }`}
+              style={
+                showClients
+                  ? { backgroundColor: CLIENT_COLOR_DEFAULT, borderColor: CLIENT_COLOR_DEFAULT }
+                  : undefined
+              }
+            >
+              <Store className="h-3.5 w-3.5" />
+              <span>{t("clientsOnMap")}</span>
+              <span
+                className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                  showClients ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {clients.length}
+              </span>
+            </button>
+          </>
+        )}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:items-stretch">
         <Card className="lg:col-span-3 overflow-hidden">
@@ -954,7 +1126,9 @@ function LiveMapPage() {
             <CardTitle className="text-base">{t("activeAgents")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 flex-1 flex flex-col min-h-0">
-            <div className={`overflow-y-auto space-y-3 ${selected !== null ? "flex-1 min-h-0" : "flex-1"}`}>
+            <div
+              className={`overflow-y-auto space-y-3 ${selected !== null ? "flex-1 min-h-0" : "flex-1"}`}
+            >
               {filteredUsers.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">
                   {wsStatus === "connected" ? "..." : t("offline")}
@@ -1014,87 +1188,103 @@ function LiveMapPage() {
               })}
             </div>
 
-            {selected !== null && (() => {
-              const selUser = users.find((u) => u.id === selected);
-              if (!selUser) return null;
-              const color = ROLE_COLORS[selUser.role] || "#3b82f6";
-              const speedMs = selUser.speed || 0;
-              const speedKmh = Math.round(speedMs * 3.6 * 10) / 10;
+            {selected !== null &&
+              (() => {
+                const selUser = users.find((u) => u.id === selected);
+                if (!selUser) return null;
+                const color = ROLE_COLORS[selUser.role] || "#3b82f6";
+                const speedMs = selUser.speed || 0;
+                const speedKmh = Math.round(speedMs * 3.6 * 10) / 10;
 
-              let sessionTime: string | null = null;
-              if (workSession?.session) {
-                try {
-                  const d = new Date(workSession.session);
-                  sessionTime = d.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
-                } catch {
-                  sessionTime = null;
+                let sessionTime: string | null = null;
+                if (workSession?.session) {
+                  try {
+                    const d = new Date(workSession.session);
+                    sessionTime = d.toLocaleTimeString("uz-UZ", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    });
+                  } catch {
+                    sessionTime = null;
+                  }
                 }
-              }
 
-              return (
-                <div className="border-t pt-3 mt-1 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: color }}
-                      >
-                        <RoleIcon role={selUser.role} />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold leading-tight">
-                          {selUser.first_name} {selUser.last_name}
+                return (
+                  <div className="border-t pt-3 mt-1 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: color }}
+                        >
+                          <RoleIcon role={selUser.role} />
                         </div>
-                        <div className="text-[11px] text-muted-foreground">{roleLabel(selUser.role)}</div>
+                        <div>
+                          <div className="text-sm font-semibold leading-tight">
+                            {selUser.first_name} {selUser.last_name}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {roleLabel(selUser.role)}
+                          </div>
+                        </div>
                       </div>
+                      <button
+                        className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                        onClick={() => {
+                          selectedRef.current = null;
+                          setSelected(null);
+                          setWorkSession(null);
+                          setDistanceKm(null);
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
                     </div>
-                    <button
-                      className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
-                      onClick={() => {
-                        selectedRef.current = null;
-                        setSelected(null);
-                        setWorkSession(null);
-                        setDistanceKm(null);
-                      }}
-                    >
-                      <X className="h-3.5 w-3.5 text-muted-foreground" />
-                    </button>
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="rounded-lg bg-muted/50 p-2.5 text-center">
-                      <Gauge className="h-4 w-4 mx-auto mb-1 text-blue-500" />
-                      <div className="text-[11px] text-muted-foreground mb-0.5">{t("speed")}</div>
-                      <div className="text-sm font-bold leading-tight">
-                        {speedKmh > 0 ? speedKmh : "0"}
-                        <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{t("kmh")}</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                        <Gauge className="h-4 w-4 mx-auto mb-1 text-blue-500" />
+                        <div className="text-[11px] text-muted-foreground mb-0.5">{t("speed")}</div>
+                        <div className="text-sm font-bold leading-tight">
+                          {speedKmh > 0 ? speedKmh : "0"}
+                          <span className="text-[10px] font-normal text-muted-foreground ml-0.5">
+                            {t("kmh")}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="rounded-lg bg-muted/50 p-2.5 text-center">
-                      <Clock className="h-4 w-4 mx-auto mb-1 text-green-500" />
-                      <div className="text-[11px] text-muted-foreground mb-0.5">{t("workStartTime")}</div>
-                      <div className="text-sm font-bold leading-tight">
-                        {sessionTime ?? <span className="text-muted-foreground text-xs font-normal">—</span>}
+                      <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                        <Clock className="h-4 w-4 mx-auto mb-1 text-green-500" />
+                        <div className="text-[11px] text-muted-foreground mb-0.5">
+                          {t("workStartTime")}
+                        </div>
+                        <div className="text-sm font-bold leading-tight">
+                          {sessionTime ?? (
+                            <span className="text-muted-foreground text-xs font-normal">—</span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="rounded-lg bg-muted/50 p-2.5 text-center">
-                      <RouteIcon className="h-4 w-4 mx-auto mb-1 text-amber-500" />
-                      <div className="text-[11px] text-muted-foreground mb-0.5">{t("distanceTraveled")}</div>
-                      <div className="text-sm font-bold leading-tight">
-                        {distanceKm !== null ? (
-                          <>
-                            {distanceKm}
-                            <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{t("km")}</span>
-                          </>
-                        ) : (
-                          <span className="text-muted-foreground text-xs font-normal">...</span>
-                        )}
+                      <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                        <RouteIcon className="h-4 w-4 mx-auto mb-1 text-amber-500" />
+                        <div className="text-[11px] text-muted-foreground mb-0.5">
+                          {t("distanceTraveled")}
+                        </div>
+                        <div className="text-sm font-bold leading-tight">
+                          {distanceKm !== null ? (
+                            <>
+                              {distanceKm}
+                              <span className="text-[10px] font-normal text-muted-foreground ml-0.5">
+                                {t("km")}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-muted-foreground text-xs font-normal">...</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              );
-            })()}
+                );
+              })()}
           </CardContent>
         </Card>
       </div>
