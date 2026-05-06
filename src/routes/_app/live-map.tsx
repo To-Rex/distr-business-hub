@@ -19,6 +19,8 @@ import {
   Route as RouteIcon,
   X,
   Store,
+  Maximize2,
+  Minimize2,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -238,6 +240,7 @@ function LiveMapPage() {
   const clientMarkersRef = useRef<Map<number, L.Marker>>(new Map());
   const [clients, setClients] = useState<ClientLocation[]>([]);
   const [showClients, setShowClients] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const filteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
 
@@ -861,6 +864,38 @@ function LiveMapPage() {
     return () => document.removeEventListener("mousedown", handler);
   }, [styleOpen]);
 
+  useEffect(() => {
+    const raf1 = requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const map = mapInstanceRef.current;
+        if (map) {
+          map.invalidateSize({ animate: false });
+        }
+      });
+    });
+    return () => cancelAnimationFrame(raf1);
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (isFullscreen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isFullscreen]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setIsFullscreen(false);
+    };
+    document.addEventListener("keydown", handler);
+    return () => document.removeEventListener("keydown", handler);
+  }, [isFullscreen]);
+
   const locateMe = useCallback(() => {
     if (!navigator.geolocation || locating) return;
     setLocating(true);
@@ -926,7 +961,7 @@ function LiveMapPage() {
   };
 
   return (
-    <div>
+    <div className={isFullscreen ? "fixed inset-0 z-[9999]" : ""}>
       <style>{`
         @keyframes _locPulse {
           0% { transform: scale(1); opacity: 0.4; }
@@ -971,8 +1006,14 @@ function LiveMapPage() {
           z-index: 0 !important;
         }
       `}</style>
-      <PageHeader title={t("liveMap")} description={t("liveMapDesc")} />
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
+      {!isFullscreen && <PageHeader title={t("liveMap")} description={t("liveMapDesc")} />}
+      <div
+        className={
+          isFullscreen
+            ? "absolute top-3 left-3 z-[1001] bg-card/95 backdrop-blur-sm rounded-lg border shadow-lg p-2.5 flex items-center gap-3 flex-wrap"
+            : "flex items-center gap-3 mb-3 flex-wrap"
+        }
+      >
         <span className="flex items-center gap-2">
           <span
             className={`h-2 w-2 rounded-full ${wsStatus === "connected" ? "bg-green-500 animate-pulse" : wsStatus === "connecting" ? "bg-yellow-500 animate-pulse" : "bg-red-500"}`}
@@ -1070,10 +1111,26 @@ function LiveMapPage() {
           </>
         )}
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:items-stretch">
-        <Card className="lg:col-span-3 overflow-hidden relative z-0">
-          <div className="relative z-0">
-            <div ref={mapRef} className="w-full aspect-[16/10] rounded-lg" style={{ position: "relative", zIndex: 0 }} />
+      <div
+        className={
+          isFullscreen
+            ? "h-full w-full relative"
+            : "grid grid-cols-1 lg:grid-cols-4 gap-4 lg:items-stretch"
+        }
+      >
+        <Card
+          className={
+            isFullscreen
+              ? "absolute inset-0 z-0 rounded-none border-0 shadow-none overflow-hidden"
+              : "lg:col-span-3 overflow-hidden relative z-0"
+          }
+        >
+          <div className={isFullscreen ? "absolute inset-0 z-0" : "relative z-0"}>
+            <div
+              ref={mapRef}
+              className={isFullscreen ? "absolute inset-0" : "w-full aspect-[16/10] rounded-lg"}
+              style={!isFullscreen ? { position: "relative", zIndex: 0 } : undefined}
+            />
             <div className="absolute top-4 right-4 z-[1000]" data-style-picker>
               <button
                 onClick={() => setStyleOpen((v) => !v)}
@@ -1121,10 +1178,26 @@ function LiveMapPage() {
               >
                 <Crosshair className={`h-5 w-5 ${locating ? "animate-spin" : ""}`} />
               </button>
+              <button
+                onClick={() => setIsFullscreen((v) => !v)}
+                className="h-10 w-10 rounded-full bg-card border shadow-md flex items-center justify-center hover:bg-accent transition-colors active:scale-90"
+              >
+                {isFullscreen ? (
+                  <Minimize2 className="h-5 w-5" />
+                ) : (
+                  <Maximize2 className="h-5 w-5" />
+                )}
+              </button>
             </div>
           </div>
         </Card>
-        <Card className="flex flex-col lg:self-stretch">
+        <Card
+          className={
+            isFullscreen
+              ? "absolute right-3 top-3 bottom-3 w-[320px] z-[1001] bg-card/95 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden"
+              : "flex flex-col lg:self-stretch"
+          }
+        >
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("activeAgents")}</CardTitle>
           </CardHeader>
