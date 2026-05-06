@@ -895,7 +895,7 @@ function LiveMapPage() {
           })}
         </div>
       </div>
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:items-stretch">
         <Card className="lg:col-span-3 overflow-hidden">
           <div className="relative">
             <div ref={mapRef} className="w-full aspect-[16/10] rounded-lg" />
@@ -949,12 +949,12 @@ function LiveMapPage() {
             </div>
           </div>
         </Card>
-        <Card className="flex flex-col">
+        <Card className="flex flex-col lg:self-stretch">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("activeAgents")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3 flex-1">
-            <div className="max-h-[300px] overflow-y-auto space-y-3">
+          <CardContent className="space-y-3 flex-1 flex flex-col min-h-0">
+            <div className={`overflow-y-auto space-y-3 ${selected !== null ? "flex-1 min-h-0" : "flex-1"}`}>
               {filteredUsers.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">
                   {wsStatus === "connected" ? "..." : t("offline")}
@@ -968,7 +968,7 @@ function LiveMapPage() {
                 return (
                   <button
                     key={u.id}
-                    className={`flex items-center gap-3 w-full text-left hover:bg-muted/50 rounded-lg p-1 -m-1 cursor-pointer transition-colors ${selected === u.id ? "bg-muted/70 ring-1 ring-primary/30" : ""} ${isUpdated ? "_agentFlash" : ""}`}
+                    className={`flex items-center gap-3 w-full text-left hover:bg-muted/50 rounded-lg p-1.5 cursor-pointer transition-colors border-2 ${selected === u.id ? "bg-muted/70 border-primary/40" : "border-transparent"} ${isUpdated ? "_agentFlash" : ""}`}
                     onClick={() => {
                       if (!hasLocation) return;
                       const newId = selectedRef.current === u.id ? null : u.id;

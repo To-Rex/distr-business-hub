@@ -93,7 +93,7 @@ const dict = {
     start: "Boshlanish",
     due: "Muddati",
     liveMapDesc: "Dala agentlarini real vaqtda kuzatish.",
-    activeAgents: "Faol agentlar",
+    activeAgents: "Faol Hodimlar",
     reportsDesc: "Tahliliy hisobotlar va biznes ko'rsatkichlari.",
     calendarDesc: "Rejalashtirilgan tadbirlar va vazifalar.",
     notificationsDesc: "Tizim bildirishnomalari va ogohlantirishlar.",
