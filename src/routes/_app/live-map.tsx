@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
-import { Crosshair, MapPin, Plus, Minus, Layers, Users, User, Truck } from "lucide-react";
+import { Crosshair, MapPin, Plus, Minus, Layers, Users, User, Truck, Gauge, Clock, Route as RouteIcon, X } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { cachedTileLayer } from "@/lib/cached-tile-layer";
@@ -19,6 +19,7 @@ type WsUser = {
   role: "SUPERVISOR" | "AGENT" | "DELIVERER";
   user_1c_id: number;
   status: "online" | "offline";
+  speed: number;
   last_location: {
     latitude: number;
     longitude: number;
@@ -174,6 +175,8 @@ function LiveMapPage() {
   const selectedRef = useRef<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
+  const [workSession, setWorkSession] = useState<{ session: string; device_name: string } | null>(null);
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userAccuracyRef = useRef<L.Circle | null>(null);
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("standard");
@@ -474,6 +477,121 @@ function LiveMapPage() {
   }, [selected, accessToken, users]);
 
   useEffect(() => {
+    if (!accessToken || selected === null) {
+      setWorkSession(null);
+      return;
+    }
+
+    const userId = selected;
+
+    fetch(API.workingSession(userId), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed: ${res.status}`);
+        return res.json();
+      })
+      .then((data: unknown) => {
+        if (selectedRef.current !== userId) return;
+        const session = Array.isArray(data) ? data[0] : data;
+        if (session && typeof session === "object" && "session" in session) {
+          setWorkSession(session as { session: string; device_name: string });
+        } else {
+          setWorkSession(null);
+        }
+      })
+      .catch(() => {
+        if (selectedRef.current === userId) setWorkSession(null);
+      });
+  }, [selected, accessToken]);
+
+  useEffect(() => {
+    if (selected === null || !accessToken) {
+      setDistanceKm(null);
+      return;
+    }
+
+    const userId = selected;
+
+    fetch(API.userHistory(userId), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+      })
+      .then(async (points: { id: number; latitude: number; longitude: number; created_at: string }[]) => {
+        if (selectedRef.current !== userId) return;
+
+        const filtered = points.filter((p) => p.latitude !== 0 || p.longitude !== 0);
+        if (filtered.length < 2) {
+          setDistanceKm(0);
+          return;
+        }
+
+        const deduped: { latitude: number; longitude: number }[] = [filtered[0]];
+        for (let i = 1; i < filtered.length; i++) {
+          const prev = deduped[deduped.length - 1];
+          const dLat = filtered[i].latitude - prev.latitude;
+          const dLng = filtered[i].longitude - prev.longitude;
+          if (dLat * dLat + dLng * dLng > 0.000001) {
+            deduped.push(filtered[i]);
+          }
+        }
+
+        if (deduped.length < 2) {
+          setDistanceKm(0);
+          return;
+        }
+
+        const coordsStr = deduped.map((p) => `${p.longitude},${p.latitude}`).join(";");
+
+        try {
+          const matchRes = await fetch(
+            `https://router.project-osrm.org/match/v1/driving/${coordsStr}?overview=full&geometries=geojson`,
+          );
+          if (matchRes.ok) {
+            const matchData = await matchRes.json();
+            if (selectedRef.current !== userId) return;
+            if (matchData.matchings && matchData.matchings.length > 0) {
+              const dist = matchData.matchings.reduce((sum: number, m: { distance: number }) => sum + m.distance, 0);
+              setDistanceKm(Math.round(dist) / 1000);
+              return;
+            }
+          }
+        } catch {}
+
+        if (selectedRef.current !== userId) return;
+
+        try {
+          const routeRes = await fetch(
+            `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson&alternatives=false`,
+          );
+          if (routeRes.ok) {
+            const routeData = await routeRes.json();
+            if (selectedRef.current !== userId) return;
+            if (routeData.routes && routeData.routes.length > 0) {
+              const dist = routeData.routes[0].distance;
+              setDistanceKm(Math.round(dist) / 1000);
+              return;
+            }
+          }
+        } catch {}
+
+        if (selectedRef.current === userId) setDistanceKm(null);
+      })
+      .catch(() => {
+        if (selectedRef.current === userId) setDistanceKm(null);
+      });
+  }, [selected, accessToken]);
+
+  useEffect(() => {
     if (!accessToken) return;
 
     const wsUrl = API.wsLocations(accessToken);
@@ -488,7 +606,7 @@ function LiveMapPage() {
       try {
         const data: WsMessage = JSON.parse(event.data);
         if (data.action === "all_admvs" && data.users) {
-          setUsers(data.users);
+          setUsers(data.users.map((u) => ({ ...u, speed: 0 })));
         } else if (data.action === "status_update") {
           setUsers((prev) =>
             prev.map((u) =>
@@ -517,6 +635,7 @@ function LiveMapPage() {
                 first_name: data.user.first_name,
                 last_name: data.user.last_name,
                 role: data.user.role,
+                speed: data.speed,
                 last_location: {
                   latitude: data.location.latitude,
                   longitude: data.location.longitude,
@@ -534,6 +653,7 @@ function LiveMapPage() {
                 role: data.user.role,
                 user_1c_id: data.user.user_1c_id,
                 status: "online",
+                speed: data.speed,
                 last_location: {
                   latitude: data.location.latitude,
                   longitude: data.location.longitude,
@@ -829,12 +949,12 @@ function LiveMapPage() {
             </div>
           </div>
         </Card>
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{t("activeAgents")}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="max-h-[460px] overflow-y-auto space-y-3">
+          <CardContent className="space-y-3 flex-1">
+            <div className="max-h-[300px] overflow-y-auto space-y-3">
               {filteredUsers.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">
                   {wsStatus === "connected" ? "..." : t("offline")}
@@ -854,6 +974,10 @@ function LiveMapPage() {
                       const newId = selectedRef.current === u.id ? null : u.id;
                       selectedRef.current = newId;
                       setSelected(newId);
+                      if (newId === null) {
+                        setWorkSession(null);
+                        setDistanceKm(null);
+                      }
                     }}
                   >
                     <div
@@ -889,6 +1013,88 @@ function LiveMapPage() {
                 );
               })}
             </div>
+
+            {selected !== null && (() => {
+              const selUser = users.find((u) => u.id === selected);
+              if (!selUser) return null;
+              const color = ROLE_COLORS[selUser.role] || "#3b82f6";
+              const speedMs = selUser.speed || 0;
+              const speedKmh = Math.round(speedMs * 3.6 * 10) / 10;
+
+              let sessionTime: string | null = null;
+              if (workSession?.session) {
+                try {
+                  const d = new Date(workSession.session);
+                  sessionTime = d.toLocaleTimeString("uz-UZ", { hour: "2-digit", minute: "2-digit" });
+                } catch {
+                  sessionTime = null;
+                }
+              }
+
+              return (
+                <div className="border-t pt-3 mt-1 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
+                        <RoleIcon role={selUser.role} />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold leading-tight">
+                          {selUser.first_name} {selUser.last_name}
+                        </div>
+                        <div className="text-[11px] text-muted-foreground">{roleLabel(selUser.role)}</div>
+                      </div>
+                    </div>
+                    <button
+                      className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                      onClick={() => {
+                        selectedRef.current = null;
+                        setSelected(null);
+                        setWorkSession(null);
+                        setDistanceKm(null);
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5 text-muted-foreground" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                      <Gauge className="h-4 w-4 mx-auto mb-1 text-blue-500" />
+                      <div className="text-[11px] text-muted-foreground mb-0.5">{t("speed")}</div>
+                      <div className="text-sm font-bold leading-tight">
+                        {speedKmh > 0 ? speedKmh : "0"}
+                        <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{t("kmh")}</span>
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                      <Clock className="h-4 w-4 mx-auto mb-1 text-green-500" />
+                      <div className="text-[11px] text-muted-foreground mb-0.5">{t("workStartTime")}</div>
+                      <div className="text-sm font-bold leading-tight">
+                        {sessionTime ?? <span className="text-muted-foreground text-xs font-normal">—</span>}
+                      </div>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                      <RouteIcon className="h-4 w-4 mx-auto mb-1 text-amber-500" />
+                      <div className="text-[11px] text-muted-foreground mb-0.5">{t("distanceTraveled")}</div>
+                      <div className="text-sm font-bold leading-tight">
+                        {distanceKm !== null ? (
+                          <>
+                            {distanceKm}
+                            <span className="text-[10px] font-normal text-muted-foreground ml-0.5">{t("km")}</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground text-xs font-normal">...</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
       </div>
