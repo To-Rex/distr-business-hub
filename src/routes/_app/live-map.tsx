@@ -365,6 +365,7 @@ function LiveMapPage() {
   const [navSearchQuery, setNavSearchQuery] = useState("");
   const [navSearchTarget, setNavSearchTarget] = useState<"user" | "client">("user");
   const [liveMapSuggestion, setLiveMapSuggestion] = useState("");
+  const suppressedSuggestionQueryRef = useRef<string | null>(null);
 
   const normalizedNavSearch = navSearchQuery.trim().toLowerCase();
   const roleFilteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
@@ -731,13 +732,26 @@ function LiveMapPage() {
   }, []);
 
   useEffect(() => {
+    if (
+      suppressedSuggestionQueryRef.current &&
+      suppressedSuggestionQueryRef.current !== normalizedNavSearch
+    ) {
+      suppressedSuggestionQueryRef.current = null;
+    }
+  }, [normalizedNavSearch]);
+
+  useEffect(() => {
     const hasQuery = normalizedNavSearch.length > 0;
+    const suggestionSuppressedForCurrentQuery =
+      hasQuery && suppressedSuggestionQueryRef.current === normalizedNavSearch;
     const suggestion = hasQuery
-      ? navSearchTarget === "user"
-        ? userSearchMatches[0]
-          ? `${userSearchMatches[0].first_name} ${userSearchMatches[0].last_name}`
-          : ""
-        : clientSearchMatches[0]?.name ?? ""
+      ? suggestionSuppressedForCurrentQuery
+        ? ""
+        : navSearchTarget === "user"
+          ? userSearchMatches[0]
+            ? `${userSearchMatches[0].first_name} ${userSearchMatches[0].last_name}`
+            : ""
+          : clientSearchMatches[0]?.name ?? ""
       : "";
 
     window.dispatchEvent(
@@ -794,6 +808,8 @@ function LiveMapPage() {
       );
       if (!matchedUser) return;
 
+      suppressedSuggestionQueryRef.current = fullName;
+      setLiveMapSuggestion("");
       selectedRef.current = matchedUser.id;
       setSelected(matchedUser.id);
       setSelectedClient(null);
@@ -818,6 +834,8 @@ function LiveMapPage() {
       if (!matchedClient) return;
       if (matchedClient.latitude === 0 && matchedClient.longitude === 0) return;
 
+      suppressedSuggestionQueryRef.current = name;
+      setLiveMapSuggestion("");
       selectedRef.current = null;
       setSelected(null);
       setWorkSession(null);
@@ -1968,7 +1986,12 @@ function LiveMapPage() {
                         <div className="text-sm font-bold leading-tight">
                           {distanceKm !== null ? (
                             <>
-                              {distanceKm}
+                              {(() => {
+                                const roundedDistanceKm = Math.round(distanceKm * 10) / 10;
+                                return Number.isInteger(roundedDistanceKm)
+                                  ? `${roundedDistanceKm}`
+                                  : roundedDistanceKm.toFixed(1);
+                              })()}
                               <span className="text-[10px] font-normal text-muted-foreground ml-0.5">
                                 {t("km")}
                               </span>

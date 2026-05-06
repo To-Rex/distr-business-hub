@@ -55,6 +55,21 @@ export function AppShell() {
   }, [isLiveMapPage, headerSearch, liveMapSearchTarget]);
 
   useEffect(() => {
+    if (!isLiveMapPage) return;
+    const onLiveMapSearchChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ query?: string; target?: "user" | "client" }>;
+      const nextQuery = customEvent.detail?.query ?? "";
+      const nextTarget = customEvent.detail?.target ?? "user";
+      setHeaderSearch((prev) => (prev === nextQuery ? prev : nextQuery));
+      setLiveMapSearchTarget((prev) => (prev === nextTarget ? prev : nextTarget));
+    };
+
+    window.addEventListener("live-map-search-change", onLiveMapSearchChange as EventListener);
+    return () =>
+      window.removeEventListener("live-map-search-change", onLiveMapSearchChange as EventListener);
+  }, [isLiveMapPage]);
+
+  useEffect(() => {
     if (!isLiveMapPage) {
       setLiveMapSuggestion("");
       return;
