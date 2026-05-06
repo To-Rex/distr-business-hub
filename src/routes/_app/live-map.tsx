@@ -241,8 +241,19 @@ function LiveMapPage() {
   const [clients, setClients] = useState<ClientLocation[]>([]);
   const [showClients, setShowClients] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mapContainerKey, setMapContainerKey] = useState(0);
+  const pendingViewRef = useRef<{ center: L.LatLngExpression; zoom: number } | null>(null);
+  const initialLocationDoneRef = useRef(false);
 
   const filteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
+
+  const refreshMapSize = useCallback(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.invalidateSize({ animate: false });
+    tileLayerRef.current?.redraw();
+    labelLayerRef.current?.redraw();
+  }, []);
 
   useEffect(() => {
     setMapStyle((prev) =>
@@ -250,38 +261,51 @@ function LiveMapPage() {
     );
   }, [theme]);
 
-  const applyTileLayer = useCallback((styleKey: MapStyleKey) => {
-    const map = mapInstanceRef.current;
-    if (!map) return;
+  const applyTileLayer = useCallback(
+    (styleKey: MapStyleKey) => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
 
-    if (tileLayerRef.current) tileLayerRef.current.remove();
-    if (labelLayerRef.current) {
-      labelLayerRef.current.remove();
-      labelLayerRef.current = null;
-    }
+      if (tileLayerRef.current) tileLayerRef.current.remove();
+      if (labelLayerRef.current) {
+        labelLayerRef.current.remove();
+        labelLayerRef.current = null;
+      }
 
-    const cfg = MAP_STYLES[styleKey];
-    const tile = cachedTileLayer(cfg.url, {
-      attribution: cfg.attr,
-      maxZoom: cfg.maxZoom,
-    }).addTo(map);
-    tileLayerRef.current = tile;
+      const cfg = MAP_STYLES[styleKey];
+      const layerFactory = isFullscreen ? L.tileLayer : cachedTileLayer;
+      const tileOptions: L.TileLayerOptions = {
+        attribution: cfg.attr,
+        maxZoom: cfg.maxZoom,
+      };
+      if (cfg.subdomains) {
+        tileOptions.subdomains = cfg.subdomains;
+      }
 
-    if (styleKey === "hybrid") {
-      labelLayerRef.current = cachedTileLayer(
-        "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png",
-        { maxZoom: 19, attribution: "" },
-      ).addTo(map);
-    }
-  }, []);
+      const tile = layerFactory(cfg.url, tileOptions).addTo(map);
+      tileLayerRef.current = tile;
+
+      if (styleKey === "hybrid") {
+        labelLayerRef.current = layerFactory(
+          "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png",
+          { maxZoom: 19, attribution: "" },
+        ).addTo(map);
+      }
+    },
+    [isFullscreen],
+  );
 
   useEffect(() => {
     const el = mapRef.current;
     if (!el) return;
 
-    const existingMap = L.DomUtil.get(el);
-    if (existingMap && (existingMap as unknown as { _leaflet_id: number })._leaflet_id) {
-      (existingMap as unknown as L.Map).remove();
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+    // Ba'zi holatlarda container'da eski leaflet id qolib ketadi.
+    if ((el as unknown as { _leaflet_id?: number })._leaflet_id) {
+      delete (el as unknown as { _leaflet_id?: number })._leaflet_id;
     }
 
     const map = L.map(el, {
@@ -299,39 +323,71 @@ function LiveMapPage() {
     });
 
     mapInstanceRef.current = map;
+    markersRef.current.clear();
+    clientMarkersRef.current.clear();
+    if (pendingViewRef.current) {
+      map.setView(pendingViewRef.current.center, pendingViewRef.current.zoom, { animate: false });
+      pendingViewRef.current = null;
+    }
     applyTileLayer(mapStyle);
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude, accuracy } = pos.coords;
-
-          userAccuracyRef.current = L.circle([latitude, longitude], {
-            radius: accuracy,
-            color: "#3b82f6",
-            fillColor: "#3b82f6",
-            fillOpacity: 0.08,
-            weight: 1.5,
-          }).addTo(map);
-
-          userMarkerRef.current = L.marker([latitude, longitude], {
-            icon: pulseIcon,
-            zIndexOffset: 1000,
-          }).addTo(map);
-
-          map.flyTo([latitude, longitude], 15, { animate: true, duration: 1.2 });
-        },
-        () => {},
-        { enableHighAccuracy: true, timeout: 10000 },
-      );
-    }
-
     return () => {
+      markersRef.current.clear();
+      clientMarkersRef.current.clear();
       map.remove();
       mapInstanceRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mapContainerKey]);
+
+  useEffect(() => {
+    if (initialLocationDoneRef.current) return;
+    if (!mapInstanceRef.current || !navigator.geolocation) return;
+
+    initialLocationDoneRef.current = true;
+
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current && !locating) {
+        setLocating(true);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const { latitude, longitude, accuracy } = pos.coords;
+            const map = mapInstanceRef.current;
+            if (!map) {
+              setLocating(false);
+              return;
+            }
+
+            if (userAccuracyRef.current) userAccuracyRef.current.remove();
+            if (userMarkerRef.current) userMarkerRef.current.remove();
+
+            userAccuracyRef.current = L.circle([latitude, longitude], {
+              radius: accuracy,
+              color: "#3b82f6",
+              fillColor: "#3b82f6",
+              fillOpacity: 0.08,
+              weight: 1.5,
+            }).addTo(map);
+
+            userMarkerRef.current = L.marker([latitude, longitude], {
+              icon: pulseIcon,
+              zIndexOffset: 1000,
+            }).addTo(map);
+
+            map.flyTo([latitude, longitude], 15, {
+              animate: true,
+              duration: 1.2,
+            });
+            setLocating(false);
+          },
+          () => setLocating(false),
+          { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
+        );
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [mapContainerKey, locating]);
 
   useEffect(() => {
     applyTileLayer(mapStyle);
@@ -865,16 +921,36 @@ function LiveMapPage() {
   }, [styleOpen]);
 
   useEffect(() => {
-    const raf1 = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const map = mapInstanceRef.current;
-        if (map) {
-          map.invalidateSize({ animate: false });
-        }
-      });
-    });
-    return () => cancelAnimationFrame(raf1);
-  }, [isFullscreen]);
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+
+    // Fullscreen toggle paytida container o'lchami bosqichma-bosqich o'zgaradi.
+    const reflowAndRestore = () => {
+      refreshMapSize();
+      // Tile layer ayrim browserlarda fullscreen almashganda oq bo'lib qolmasligi uchun qayta ulanadi.
+      applyTileLayer(mapStyle);
+      map.setView(center, zoom, { animate: false });
+      refreshMapSize();
+    };
+
+    const t1 = window.setTimeout(reflowAndRestore, 0);
+    const t2 = window.setTimeout(reflowAndRestore, 160);
+    const t3 = window.setTimeout(reflowAndRestore, 360);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      window.clearTimeout(t3);
+    };
+  }, [isFullscreen, refreshMapSize, applyTileLayer, mapStyle]);
+
+  useEffect(() => {
+    const onResize = () => refreshMapSize();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [refreshMapSize]);
 
   useEffect(() => {
     if (isFullscreen) {
@@ -890,11 +966,27 @@ function LiveMapPage() {
   useEffect(() => {
     if (!isFullscreen) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setIsFullscreen(false);
+      if (e.key === "Escape") {
+        const map = mapInstanceRef.current;
+        if (map) {
+          pendingViewRef.current = { center: map.getCenter(), zoom: map.getZoom() };
+        }
+        setIsFullscreen(false);
+        setMapContainerKey((k) => k + 1);
+      }
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
   }, [isFullscreen]);
+
+  const toggleFullscreen = useCallback(() => {
+    const map = mapInstanceRef.current;
+    if (map) {
+      pendingViewRef.current = { center: map.getCenter(), zoom: map.getZoom() };
+    }
+    setIsFullscreen((v) => !v);
+    setMapContainerKey((k) => k + 1);
+  }, []);
 
   const locateMe = useCallback(() => {
     if (!navigator.geolocation || locating) return;
@@ -1127,6 +1219,7 @@ function LiveMapPage() {
         >
           <div className={isFullscreen ? "absolute inset-0 z-0" : "relative z-0"}>
             <div
+              key={mapContainerKey}
               ref={mapRef}
               className={isFullscreen ? "absolute inset-0" : "w-full aspect-[16/10] rounded-lg"}
               style={!isFullscreen ? { position: "relative", zIndex: 0 } : undefined}
@@ -1179,7 +1272,7 @@ function LiveMapPage() {
                 <Crosshair className={`h-5 w-5 ${locating ? "animate-spin" : ""}`} />
               </button>
               <button
-                onClick={() => setIsFullscreen((v) => !v)}
+                onClick={toggleFullscreen}
                 className="h-10 w-10 rounded-full bg-card border shadow-md flex items-center justify-center hover:bg-accent transition-colors active:scale-90"
               >
                 {isFullscreen ? (
