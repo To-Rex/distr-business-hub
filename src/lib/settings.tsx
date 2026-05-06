@@ -92,7 +92,7 @@ const dict = {
     quantity: "Miqdor",
     start: "Boshlanish",
     due: "Muddati",
-    liveMapDesc: "Dala agentlarini real vaqtda kuzatish.",
+    liveMapDesc: "Agentlarini real vaqtda kuzatish.",
     activeAgents: "Faol Hodimlar",
     reportsDesc: "Tahliliy hisobotlar va biznes ko'rsatkichlari.",
     calendarDesc: "Rejalashtirilgan tadbirlar va vazifalar.",
