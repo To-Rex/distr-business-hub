@@ -190,21 +190,21 @@ const CLIENT_COLOR_DEFAULT = "#eab308";
 const CLIENT_COLOR_VISITED = "#22c55e";
 
 function createClientIcon(name: string, visit: number) {
-  const size = 30;
+  const size = 22;
   const color = visit > 0 ? CLIENT_COLOR_VISITED : CLIENT_COLOR_DEFAULT;
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
-      <div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, ${color}, ${color}dd);border:2px solid #fff;box-shadow:0 4px 8px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
-        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:14px;height:14px"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><rect width="18" height="7" x="3" y="7" rx="1"/></svg>
+      <div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, ${color}, ${color}dd);border:1.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><rect width="18" height="7" x="3" y="7" rx="1"/></svg>
       </div>
-      <div style="margin-top:3px;white-space:nowrap;background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);color:#fff;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:600;font-family:system-ui,sans-serif;max-width:120px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);">
+      <div style="margin-top:2px;white-space:nowrap;background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);color:#fff;padding:1px 6px;border-radius:6px;font-size:9px;font-weight:600;font-family:system-ui,sans-serif;max-width:90px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);">
         ${name}
       </div>
     </div>`,
-    iconSize: [size + 8, size + 28],
-    iconAnchor: [(size + 8) / 2, size / 2 + 2],
-    tooltipAnchor: [0, -(size / 2 + 28)],
+    iconSize: [size + 6, size + 20],
+    iconAnchor: [(size + 6) / 2, size / 2 + 2],
+    tooltipAnchor: [0, -(size / 2 + 20)],
   });
 }
 
@@ -967,6 +967,9 @@ function LiveMapPage() {
         .leaflet-zoom-animated {
           transition: transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
+        .leaflet-container {
+          z-index: 0 !important;
+        }
       `}</style>
       <PageHeader title={t("liveMap")} description={t("liveMapDesc")} />
       <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -1068,9 +1071,9 @@ function LiveMapPage() {
         )}
       </div>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:items-stretch">
-        <Card className="lg:col-span-3 overflow-hidden">
-          <div className="relative">
-            <div ref={mapRef} className="w-full aspect-[16/10] rounded-lg" />
+        <Card className="lg:col-span-3 overflow-hidden relative z-0">
+          <div className="relative z-0">
+            <div ref={mapRef} className="w-full aspect-[16/10] rounded-lg" style={{ position: "relative", zIndex: 0 }} />
             <div className="absolute top-4 right-4 z-[1000]" data-style-picker>
               <button
                 onClick={() => setStyleOpen((v) => !v)}
