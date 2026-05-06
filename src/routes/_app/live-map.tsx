@@ -21,10 +21,12 @@ import {
   Store,
   Maximize2,
   Minimize2,
+  Search,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { cachedTileLayer } from "@/lib/cached-tile-layer";
+import { Input } from "@/components/ui/input";
 
 export const Route = createFileRoute("/_app/live-map")({ component: LiveMapPage });
 
@@ -257,6 +259,7 @@ function LiveMapPage() {
   const fullscreenControlsRight = "calc(320px + 1.25rem)";
   const [navSearchQuery, setNavSearchQuery] = useState("");
   const [navSearchTarget, setNavSearchTarget] = useState<"user" | "client">("user");
+  const [liveMapSuggestion, setLiveMapSuggestion] = useState("");
 
   const normalizedNavSearch = navSearchQuery.trim().toLowerCase();
   const roleFilteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
@@ -589,6 +592,16 @@ function LiveMapPage() {
   }, []);
 
   useEffect(() => {
+    const onSuggestion = (event: Event) => {
+      const customEvent = event as CustomEvent<{ suggestion?: string }>;
+      setLiveMapSuggestion(customEvent.detail?.suggestion ?? "");
+    };
+    window.addEventListener("live-map-search-suggestion", onSuggestion as EventListener);
+    return () =>
+      window.removeEventListener("live-map-search-suggestion", onSuggestion as EventListener);
+  }, []);
+
+  useEffect(() => {
     const hasQuery = normalizedNavSearch.length > 0;
     const suggestion = hasQuery
       ? navSearchTarget === "user"
@@ -616,6 +629,31 @@ function LiveMapPage() {
       duration: 0.8,
     });
   }, [navSearchTarget, normalizedNavSearch, clientSearchMatches]);
+
+  useEffect(() => {
+    if (navSearchTarget !== "user" || !normalizedNavSearch) return;
+    const targetUser = userSearchMatches[0];
+    if (!targetUser) return;
+    if (targetUser.last_location.latitude === 0 && targetUser.last_location.longitude === 0) return;
+
+    mapInstanceRef.current?.flyTo(
+      [targetUser.last_location.latitude, targetUser.last_location.longitude],
+      15,
+      {
+        animate: true,
+        duration: 0.8,
+      },
+    );
+  }, [navSearchTarget, normalizedNavSearch, userSearchMatches]);
+
+  useEffect(() => {
+    if (!isFullscreen) return;
+    window.dispatchEvent(
+      new CustomEvent("live-map-search-change", {
+        detail: { query: navSearchQuery, target: navSearchTarget },
+      }),
+    );
+  }, [isFullscreen, navSearchQuery, navSearchTarget]);
 
   useEffect(() => {
     const onSelectUserFromSearch = (event: Event) => {
@@ -1423,6 +1461,50 @@ function LiveMapPage() {
             <CardTitle className="text-base">{t("activeAgents")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 flex-1 flex flex-col min-h-0">
+            {isFullscreen && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={t("search")}
+                  className="pl-9 pr-20 bg-secondary border-transparent focus-visible:bg-card h-9"
+                  value={navSearchQuery}
+                  onChange={(e) => setNavSearchQuery(e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => setNavSearchTarget((prev) => (prev === "user" ? "client" : "user"))}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 rounded-md border bg-card px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {navSearchTarget === "user" ? "User" : "Client"}
+                </button>
+                {navSearchQuery.trim().length > 0 && liveMapSuggestion && (
+                  <div className="absolute top-full left-0 right-0 mt-1 rounded-md border bg-popover shadow-md z-50 overflow-hidden">
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
+                      onClick={() => {
+                        setNavSearchQuery(liveMapSuggestion);
+                        if (navSearchTarget === "user") {
+                          window.dispatchEvent(
+                            new CustomEvent("live-map-search-select-user", {
+                              detail: { fullName: liveMapSuggestion },
+                            }),
+                          );
+                        } else {
+                          window.dispatchEvent(
+                            new CustomEvent("live-map-search-select-client", {
+                              detail: { name: liveMapSuggestion },
+                            }),
+                          );
+                        }
+                      }}
+                    >
+                      {liveMapSuggestion}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <div
               className={`overflow-y-auto space-y-3 ${selected !== null ? "flex-1 min-h-0" : "flex-1"}`}
             >
