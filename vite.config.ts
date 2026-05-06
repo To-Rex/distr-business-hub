@@ -1,9 +1,13 @@
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
-import { type Plugin } from "vite";
+import { defineConfig, loadEnv, mergeConfig } from "vite";
+import { type PluginOption } from "vite";
 import http from "node:http";
 import https from "node:https";
+import tailwindcss from "@tailwindcss/vite";
+import tsConfigPaths from "vite-tsconfig-paths";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
 
-function dynamicProxy(): Plugin {
+function dynamicProxy(): PluginOption {
   return {
     name: "dynamic-proxy",
     configureServer(server) {
@@ -53,8 +57,67 @@ function dynamicProxy(): Plugin {
   };
 }
 
-export default defineConfig({
-  vite: {
-    plugins: [dynamicProxy()],
-  },
-} as any);
+export default defineConfig(async (env) => {
+  const { command, mode } = env;
+
+  const internalPlugins: PluginOption[] = [];
+
+  internalPlugins.push(tailwindcss());
+  internalPlugins.push(tsConfigPaths({ projects: ["./tsconfig.json"] }));
+
+  if (command === "build") {
+    try {
+      const { cloudflare } = await import("@cloudflare/vite-plugin");
+      internalPlugins.push(cloudflare({ viteEnvironment: { name: "ssr" } }));
+    } catch {}
+  }
+
+  internalPlugins.push(
+    tanstackStart({
+      importProtection: {
+        behavior: "error",
+        client: {
+          files: ["**/server/**"],
+          specifiers: ["server-only"],
+        },
+      },
+    }),
+  );
+
+  internalPlugins.push(viteReact());
+  internalPlugins.push(dynamicProxy());
+
+  const loadedEnv = loadEnv(mode, process.cwd(), "VITE_");
+  const envDefine: Record<string, string> = {};
+  for (const [key, value] of Object.entries(loadedEnv)) {
+    envDefine[`import.meta.env.${key}`] = JSON.stringify(value);
+  }
+
+  return {
+    define: envDefine,
+    resolve: {
+      alias: {
+        "@": `${process.cwd()}/src`,
+      },
+      dedupe: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "@tanstack/react-query",
+        "@tanstack/query-core",
+      ],
+    },
+    plugins: internalPlugins,
+    server: {
+      host: "::",
+      port: 8080,
+      watch: {
+        awaitWriteFinish: {
+          stabilityThreshold: 1000,
+          pollInterval: 100,
+        },
+      },
+    },
+  };
+});
