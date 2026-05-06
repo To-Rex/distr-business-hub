@@ -1695,8 +1695,13 @@ function LiveMapPage() {
         <Card
           className={
             isFullscreen
-              ? "absolute right-3 top-3 bottom-3 w-[320px] z-[1001] bg-card/95 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden relative"
+              ? "absolute top-3 bottom-3 w-[320px] z-[1001] bg-card/95 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden"
               : "flex flex-col h-[70vh] min-h-[520px] max-h-[760px] relative overflow-hidden"
+          }
+          style={
+            isFullscreen
+              ? { position: "absolute", right: "0.75rem", left: "unset", marginLeft: "auto" }
+              : undefined
           }
         >
           <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
@@ -1713,7 +1718,7 @@ function LiveMapPage() {
               </button>
             )}
           </CardHeader>
-          <CardContent className="space-y-3 flex-1 flex flex-col min-h-0">
+          <CardContent className="space-y-3 flex-1 flex flex-col min-h-0 p-3">
             {isFullscreen && (
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -1798,15 +1803,7 @@ function LiveMapPage() {
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium truncate">{c.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {c.agent}
-                            {hasLocation && (
-                              <span className="ml-1">
-                                {" "}
-                                · {c.latitude.toFixed(4)}, {c.longitude.toFixed(4)}
-                              </span>
-                            )}
-                          </div>
+                          <div className="text-xs text-muted-foreground">{c.agent}</div>
                         </div>
                       </button>
                     );
@@ -1854,16 +1851,7 @@ function LiveMapPage() {
                           <div className="text-sm font-medium truncate">
                             {u.first_name} {u.last_name}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {roleLabel(u.role)}
-                            {hasLocation && (
-                              <span className="ml-1">
-                                {" "}
-                                · {u.last_location.latitude.toFixed(4)},{" "}
-                                {u.last_location.longitude.toFixed(4)}
-                              </span>
-                            )}
-                          </div>
+                          <div className="text-xs text-muted-foreground">{roleLabel(u.role)}</div>
                         </div>
                         <span
                           className={`h-2 w-2 rounded-full shrink-0 ${
@@ -1900,7 +1888,7 @@ function LiveMapPage() {
                 }
 
                 return (
-                  <div className="border-t pt-3 mt-1 space-y-2.5">
+                  <div className="mt-1 space-y-2.5 rounded-xl border bg-card/80 p-2.5 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <div
@@ -1980,8 +1968,10 @@ function LiveMapPage() {
                 const selClient = clients.find((c) => c.id === selectedClient);
                 if (!selClient) return null;
                 const hasLocation = selClient.latitude !== 0 || selClient.longitude !== 0;
+                const selectedClientComment =
+                  selClient.comment?.trim() || clientInfo?.commentary?.trim() || "";
                 return (
-                  <div className="border-t pt-3 mt-1 space-y-2.5">
+                  <div className="mt-1 space-y-2.5 rounded-xl border bg-card/80 p-2.5 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <button
@@ -1994,11 +1984,14 @@ function LiveMapPage() {
                         </button>
                         <button
                           type="button"
-                          className="text-left"
+                          className="text-left rounded-md px-1 py-0.5 hover:bg-muted/60 transition-colors cursor-pointer"
                           onClick={() => setClientInfoOpen((v) => !v)}
                         >
                           <div className="text-sm font-semibold leading-tight">{selClient.name}</div>
-                          <div className="text-[11px] text-muted-foreground">Klient</div>
+                          <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
+                            <span>Klient · Profilni ochish</span>
+                            <ChevronRight className="h-3 w-3" />
+                          </div>
                         </button>
                       </div>
                       <button
@@ -2038,10 +2031,10 @@ function LiveMapPage() {
                       </div>
                     </div>
 
-                    {selClient.comment?.trim() && (
+                    {selectedClientComment && (
                       <div className="rounded-lg bg-muted/50 p-2.5">
                         <div className="text-[11px] text-muted-foreground mb-1">Izoh</div>
-                        <div className="text-xs leading-relaxed">{selClient.comment}</div>
+                        <div className="text-xs leading-relaxed">{selectedClientComment}</div>
                       </div>
                     )}
                   </div>
@@ -2400,11 +2393,6 @@ function LiveMapPage() {
                               {formatServerDate(report.date)}
                             </div>
                           )}
-                          {(report.lat || report.long) && (
-                            <div className="mt-1 text-muted-foreground">
-                              {report.lat ?? 0}, {report.long ?? 0}
-                            </div>
-                          )}
                         </div>
                         {report.url && (
                           <div className="px-2.5 pb-2.5">
@@ -2444,24 +2432,36 @@ function LiveMapPage() {
                 ) : (
                   <div className="space-y-2">
                     {(clientVisitData?.payments ?? []).map((payment) => (
-                      <div key={payment.id} className="rounded-md border bg-muted/40 p-2 text-xs">
-                        <div className="flex items-center justify-between">
-                          <span className="font-medium">To'lov #{payment.id}</span>
-                          <span className="text-muted-foreground">{payment.date}</span>
+                      <div
+                        key={payment.id}
+                        className="rounded-lg border bg-card/80 shadow-sm overflow-hidden"
+                      >
+                        <div className="p-2.5 text-xs">
+                          <div className="flex items-center justify-between">
+                            <span className="font-medium">To'lov #{payment.id}</span>
+                            <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                              {payment.date}
+                            </span>
+                          </div>
+                          <div className="mt-2 grid grid-cols-3 gap-1.5">
+                            <div className="rounded-md border bg-muted/40 p-1.5 text-center">
+                              <div className="text-[10px] text-muted-foreground">Naqd</div>
+                              <div className="font-semibold leading-tight">{payment.cash}</div>
+                            </div>
+                            <div className="rounded-md border bg-muted/40 p-1.5 text-center">
+                              <div className="text-[10px] text-muted-foreground">Karta</div>
+                              <div className="font-semibold leading-tight">{payment.card}</div>
+                            </div>
+                            <div className="rounded-md border bg-muted/40 p-1.5 text-center">
+                              <div className="text-[10px] text-muted-foreground">Click</div>
+                              <div className="font-semibold leading-tight">{payment.click}</div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="mt-1">Naqd: {payment.cash} · Karta: {payment.card} · Click: {payment.click}</div>
                         {payment.Comment && (
-                          <div className="mt-1 text-muted-foreground">{payment.Comment}</div>
-                        )}
-                        {payment.click_proto_url && (
-                          <a
-                            href={payment.click_proto_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="mt-2 block overflow-hidden rounded-md border bg-card"
-                          >
-                            <img src={payment.click_proto_url} alt={`To'lov ${payment.id}`} className="h-36 w-full object-cover" />
-                          </a>
+                          <div className="px-2.5 pb-2.5 text-xs text-muted-foreground">
+                            {payment.Comment}
+                          </div>
                         )}
                       </div>
                     ))}
