@@ -15,8 +15,29 @@ const CachedTileLayer = L.TileLayer.extend({
   createTile(coords: L.Coords, done: (err: Error | null, tile: HTMLElement) => void) {
     const tile = document.createElement("img") as HTMLImageElement;
     tile.crossOrigin = "anonymous";
+    tile.alt = "";
+    tile.referrerPolicy = "no-referrer";
 
     const url = this.getTileUrl(coords);
+    let finished = false;
+
+    const finish = (err: Error | null) => {
+      if (finished) return;
+      finished = true;
+      done(err, tile);
+    };
+
+    const setTileSrc = (src: string, objectUrlToRevoke?: string) => {
+      tile.onload = () => {
+        if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
+        finish(null);
+      };
+      tile.onerror = () => {
+        if (objectUrlToRevoke) URL.revokeObjectURL(objectUrlToRevoke);
+        finish(new Error("Tile load failed"));
+      };
+      tile.src = src;
+    };
 
     (async () => {
       const cache = await getCache();
@@ -26,8 +47,8 @@ const CachedTileLayer = L.TileLayer.extend({
           const cached = await cache.match(url);
           if (cached) {
             const blob = await cached.blob();
-            tile.src = URL.createObjectURL(blob);
-            done(null, tile);
+            const objectUrl = URL.createObjectURL(blob);
+            setTileSrc(objectUrl, objectUrl);
             return;
           }
         } catch {}
@@ -47,11 +68,10 @@ const CachedTileLayer = L.TileLayer.extend({
           } catch {}
         }
 
-        tile.src = URL.createObjectURL(blob);
-        done(null, tile);
+        const objectUrl = URL.createObjectURL(blob);
+        setTileSrc(objectUrl, objectUrl);
       } catch {
-        tile.src = url;
-        done(null, tile);
+        setTileSrc(url);
       }
     })();
 
