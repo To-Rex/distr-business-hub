@@ -26,6 +26,9 @@ export function AppShell() {
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [headerSearch, setHeaderSearch] = useState("");
+  const [liveMapSearchTarget, setLiveMapSearchTarget] = useState<"user" | "client">("user");
+  const [liveMapSuggestion, setLiveMapSuggestion] = useState("");
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(COLLAPSED_KEY) === "true";
@@ -39,6 +42,31 @@ export function AppShell() {
       localStorage.setItem(COLLAPSED_KEY, String(collapsed));
     } catch {}
   }, [collapsed]);
+
+  const isLiveMapPage = path === "/live-map";
+
+  useEffect(() => {
+    if (!isLiveMapPage) return;
+    window.dispatchEvent(
+      new CustomEvent("live-map-search-change", {
+        detail: { query: headerSearch, target: liveMapSearchTarget },
+      }),
+    );
+  }, [isLiveMapPage, headerSearch, liveMapSearchTarget]);
+
+  useEffect(() => {
+    if (!isLiveMapPage) {
+      setLiveMapSuggestion("");
+      return;
+    }
+    const onSuggestion = (event: Event) => {
+      const customEvent = event as CustomEvent<{ suggestion?: string }>;
+      setLiveMapSuggestion(customEvent.detail?.suggestion ?? "");
+    };
+    window.addEventListener("live-map-search-suggestion", onSuggestion as EventListener);
+    return () =>
+      window.removeEventListener("live-map-search-suggestion", onSuggestion as EventListener);
+  }, [isLiveMapPage]);
 
   const sidebarWidth = collapsed ? "w-16" : "w-64";
   const contentMargin = collapsed ? "lg:ml-16" : "lg:ml-64";
@@ -203,7 +231,49 @@ export function AppShell() {
             </Button>
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input placeholder={t("search")} className="pl-9 bg-secondary border-transparent focus-visible:bg-card" />
+              <Input
+                placeholder={t("search")}
+                className={`pl-9 bg-secondary border-transparent focus-visible:bg-card ${isLiveMapPage ? "pr-24" : ""}`}
+                value={headerSearch}
+                onChange={(e) => setHeaderSearch(e.target.value)}
+              />
+              {isLiveMapPage && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setLiveMapSearchTarget((prev) => (prev === "user" ? "client" : "user"))
+                  }
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 rounded-md border bg-card px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {liveMapSearchTarget === "user" ? "User" : "Client"}
+                </button>
+              )}
+              {isLiveMapPage && headerSearch.trim().length > 0 && liveMapSuggestion && (
+                <div className="absolute top-full left-0 right-0 mt-1 rounded-md border bg-popover shadow-md z-50 overflow-hidden">
+                  <button
+                    type="button"
+                    className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
+                    onClick={() => {
+                      setHeaderSearch(liveMapSuggestion);
+                      if (liveMapSearchTarget === "user") {
+                        window.dispatchEvent(
+                          new CustomEvent("live-map-search-select-user", {
+                            detail: { fullName: liveMapSuggestion },
+                          }),
+                        );
+                      } else {
+                        window.dispatchEvent(
+                          new CustomEvent("live-map-search-select-client", {
+                            detail: { name: liveMapSuggestion },
+                          }),
+                        );
+                      }
+                    }}
+                  >
+                    {liveMapSuggestion}
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex items-center gap-1">
               <DropdownMenu>
