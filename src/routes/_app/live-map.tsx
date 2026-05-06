@@ -290,8 +290,8 @@ function createUserIcon(
 const CLIENT_COLOR_DEFAULT = "#eab308";
 const CLIENT_COLOR_VISITED = "#22c55e";
 
-function createClientIcon(name: string, visit: number, isDarkTheme: boolean) {
-  const size = 22;
+function createClientIcon(name: string, visit: number, isDarkTheme: boolean, isSelected = false) {
+  const size = 19;
   const color = visit > 0 ? CLIENT_COLOR_VISITED : CLIENT_COLOR_DEFAULT;
   const labelBackground = isDarkTheme ? "rgba(15,23,42,0.9)" : "#ffffff";
   const labelTextColor = isDarkTheme ? "#fff" : "#0f172a";
@@ -299,7 +299,8 @@ function createClientIcon(name: string, visit: number, isDarkTheme: boolean) {
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
-      <div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, ${color}, ${color}dd);border:1.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">
+      ${isSelected ? `<div style="position:absolute;top:-5px;left:50%;transform:translateX(-50%);width:${size + 10}px;height:${size + 10}px;border-radius:50%;border:2px solid ${color};opacity:0.4;animation:_locPulse 1.4s ease-out infinite;"></div>` : ""}
+      <div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, ${color}, ${color}dd);border:1.5px solid #fff;box-shadow:${isSelected ? "0 0 0 2px rgba(255,255,255,0.95), 0 0 0 4px " + color + "88, 0 4px 12px rgba(0,0,0,0.35)" : "0 2px 6px rgba(0,0,0,0.25)"};display:flex;align-items:center;justify-content:center;${isSelected ? "transform:scale(1.08);" : ""}">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><rect width="18" height="7" x="3" y="7" rx="1"/></svg>
       </div>
       <div style="margin-top:2px;white-space:nowrap;background:${labelBackground};backdrop-filter:blur(8px);color:${labelTextColor};padding:1px 6px;border-radius:6px;font-size:9px;font-weight:600;font-family:system-ui,sans-serif;max-width:90px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:${labelBorder};">
@@ -393,8 +394,24 @@ function LiveMapPage() {
   const activeListTarget = navSearchTarget;
   const shouldShowClientList = activeListTarget === "client";
   const prioritizedClients =
-    isFullscreen && activeListTarget === "client" && normalizedNavSearch
-      ? clients.filter((c) => c.name.toLowerCase().includes(normalizedNavSearch))
+    activeListTarget === "client" && normalizedNavSearch
+      ? [...clients].sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          const aExact = aName === normalizedNavSearch;
+          const bExact = bName === normalizedNavSearch;
+          if (aExact !== bExact) return aExact ? -1 : 1;
+
+          const aStarts = aName.startsWith(normalizedNavSearch);
+          const bStarts = bName.startsWith(normalizedNavSearch);
+          if (aStarts !== bStarts) return aStarts ? -1 : 1;
+
+          const aIncludes = aName.includes(normalizedNavSearch);
+          const bIncludes = bName.includes(normalizedNavSearch);
+          if (aIncludes !== bIncludes) return aIncludes ? -1 : 1;
+
+          return aName.localeCompare(bName);
+        })
       : clients;
 
   const refreshMapSize = useCallback(() => {
@@ -652,19 +669,21 @@ function LiveMapPage() {
       if (c.latitude === 0 && c.longitude === 0) return;
       existingIds.add(c.id);
 
-      const icon = createClientIcon(c.name, c.visit, theme === "dark");
+      const isClientSelected = selectedClient === c.id;
+      const icon = createClientIcon(c.name, c.visit, theme === "dark", isClientSelected);
       const existing = clientMarkersRef.current.get(c.id);
 
       if (existing) {
         existing.setLatLng([c.latitude, c.longitude]);
         existing.setIcon(icon);
+        existing.setZIndexOffset(isClientSelected ? 2200 : -100);
         existing.setTooltipContent(
           `<div style="font-weight:600;font-size:13px;">${c.name}</div><div style="font-size:11px;opacity:0.7;">${c.agent ? "Agent: " + c.agent : ""}</div>${c.comment ? `<div style="font-size:11px;opacity:0.7;">${c.comment}</div>` : ""}`,
         );
       } else {
         const marker = L.marker([c.latitude, c.longitude], {
           icon,
-          zIndexOffset: -100,
+          zIndexOffset: isClientSelected ? 2200 : -100,
         }).addTo(map);
 
         marker.bindTooltip(
@@ -687,7 +706,7 @@ function LiveMapPage() {
         clientMarkersRef.current.delete(id);
       }
     }
-  }, [clients, showClients, mapContainerKey, theme]);
+  }, [clients, showClients, mapContainerKey, theme, selectedClient]);
 
   useEffect(() => {
     const onNavSearchChange = (event: Event) => {
