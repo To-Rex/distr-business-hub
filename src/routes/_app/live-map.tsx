@@ -231,6 +231,9 @@ function LiveMapPage() {
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userAccuracyRef = useRef<L.Circle | null>(null);
+  const currentLocationRef = useRef<{ latitude: number; longitude: number; accuracy: number } | null>(
+    null,
+  );
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("standard");
   const [styleOpen, setStyleOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<"ALL" | WsUser["role"]>("ALL");
@@ -244,6 +247,7 @@ function LiveMapPage() {
   const [mapContainerKey, setMapContainerKey] = useState(0);
   const pendingViewRef = useRef<{ center: L.LatLngExpression; zoom: number } | null>(null);
   const initialLocationDoneRef = useRef(false);
+  const fullscreenControlsRight = "calc(320px + 1.25rem)";
 
   const filteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
 
@@ -254,6 +258,30 @@ function LiveMapPage() {
     tileLayerRef.current?.redraw();
     labelLayerRef.current?.redraw();
   }, []);
+
+  const renderCurrentLocation = useCallback(
+    (latitude: number, longitude: number, accuracy: number) => {
+      const map = mapInstanceRef.current;
+      if (!map) return;
+
+      if (userAccuracyRef.current) userAccuracyRef.current.remove();
+      if (userMarkerRef.current) userMarkerRef.current.remove();
+
+      userAccuracyRef.current = L.circle([latitude, longitude], {
+        radius: accuracy,
+        color: "#3b82f6",
+        fillColor: "#3b82f6",
+        fillOpacity: 0.08,
+        weight: 1.5,
+      }).addTo(map);
+
+      userMarkerRef.current = L.marker([latitude, longitude], {
+        icon: pulseIcon,
+        zIndexOffset: 1000,
+      }).addTo(map);
+    },
+    [],
+  );
 
   useEffect(() => {
     setMapStyle((prev) =>
@@ -330,6 +358,10 @@ function LiveMapPage() {
       pendingViewRef.current = null;
     }
     applyTileLayer(mapStyle);
+    if (currentLocationRef.current) {
+      const { latitude, longitude, accuracy } = currentLocationRef.current;
+      renderCurrentLocation(latitude, longitude, accuracy);
+    }
 
     return () => {
       markersRef.current.clear();
@@ -338,56 +370,50 @@ function LiveMapPage() {
       mapInstanceRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapContainerKey]);
+  }, [mapContainerKey, applyTileLayer, mapStyle, renderCurrentLocation]);
+
+  const locateMe = useCallback(
+    (timeout = 10000, maximumAge = 0) => {
+      if (!navigator.geolocation || locating) return;
+      setLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude, accuracy } = pos.coords;
+          const map = mapInstanceRef.current;
+          if (!map) {
+            setLocating(false);
+            return;
+          }
+
+          currentLocationRef.current = { latitude, longitude, accuracy };
+          renderCurrentLocation(latitude, longitude, accuracy);
+
+          map.flyTo([latitude, longitude], 15, {
+            animate: true,
+            duration: 1.2,
+          });
+          setLocating(false);
+        },
+        () => setLocating(false),
+        { enableHighAccuracy: true, timeout, maximumAge },
+      );
+    },
+    [locating, renderCurrentLocation],
+  );
 
   useEffect(() => {
     if (initialLocationDoneRef.current) return;
     if (!mapInstanceRef.current || !navigator.geolocation) return;
 
-    initialLocationDoneRef.current = true;
-
-    const timer = setTimeout(() => {
-      if (mapInstanceRef.current && !locating) {
-        setLocating(true);
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const { latitude, longitude, accuracy } = pos.coords;
-            const map = mapInstanceRef.current;
-            if (!map) {
-              setLocating(false);
-              return;
-            }
-
-            if (userAccuracyRef.current) userAccuracyRef.current.remove();
-            if (userMarkerRef.current) userMarkerRef.current.remove();
-
-            userAccuracyRef.current = L.circle([latitude, longitude], {
-              radius: accuracy,
-              color: "#3b82f6",
-              fillColor: "#3b82f6",
-              fillOpacity: 0.08,
-              weight: 1.5,
-            }).addTo(map);
-
-            userMarkerRef.current = L.marker([latitude, longitude], {
-              icon: pulseIcon,
-              zIndexOffset: 1000,
-            }).addTo(map);
-
-            map.flyTo([latitude, longitude], 15, {
-              animate: true,
-              duration: 1.2,
-            });
-            setLocating(false);
-          },
-          () => setLocating(false),
-          { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 },
-        );
-      }
+    const timer = window.setTimeout(() => {
+      if (initialLocationDoneRef.current) return;
+      if (!mapInstanceRef.current || !navigator.geolocation) return;
+      initialLocationDoneRef.current = true;
+      locateMe(15000, 30000);
     }, 600);
 
-    return () => clearTimeout(timer);
-  }, [mapContainerKey, locating]);
+    return () => window.clearTimeout(timer);
+  }, [mapContainerKey, locateMe]);
 
   useEffect(() => {
     applyTileLayer(mapStyle);
@@ -453,7 +479,7 @@ function LiveMapPage() {
         markersRef.current.delete(id);
       }
     }
-  }, [users, filteredUsers, selected]);
+  }, [users, filteredUsers, selected, mapContainerKey]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -508,7 +534,7 @@ function LiveMapPage() {
         clientMarkersRef.current.delete(id);
       }
     }
-  }, [clients, showClients]);
+  }, [clients, showClients, mapContainerKey]);
 
   useEffect(() => {
     if (selectedRef.current) {
@@ -520,7 +546,7 @@ function LiveMapPage() {
         });
       }
     }
-  }, [selected]);
+  }, [selected, mapContainerKey]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -650,7 +676,7 @@ function LiveMapPage() {
         },
       )
       .catch(() => {});
-  }, [selected, accessToken, users]);
+  }, [selected, accessToken, users, mapContainerKey]);
 
   useEffect(() => {
     if (!accessToken || selected === null) {
@@ -988,46 +1014,6 @@ function LiveMapPage() {
     setMapContainerKey((k) => k + 1);
   }, []);
 
-  const locateMe = useCallback(() => {
-    if (!navigator.geolocation || locating) return;
-    setLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const { latitude, longitude, accuracy } = pos.coords;
-        const map = mapInstanceRef.current;
-        if (!map) {
-          setLocating(false);
-          return;
-        }
-
-        if (userAccuracyRef.current) userAccuracyRef.current.remove();
-        if (userMarkerRef.current) userMarkerRef.current.remove();
-
-        userAccuracyRef.current = L.circle([latitude, longitude], {
-          radius: accuracy,
-          color: "#3b82f6",
-          fillColor: "#3b82f6",
-          fillOpacity: 0.08,
-          weight: 1.5,
-          className: "animate-[fadeIn_0.6s_ease-out]",
-        }).addTo(map);
-
-        userMarkerRef.current = L.marker([latitude, longitude], {
-          icon: pulseIcon,
-          zIndexOffset: 1000,
-        }).addTo(map);
-
-        map.flyTo([latitude, longitude], 15, {
-          animate: true,
-          duration: 1.2,
-        });
-        setLocating(false);
-      },
-      () => setLocating(false),
-      { enableHighAccuracy: true, timeout: 10000 },
-    );
-  }, [locating]);
-
   const roleLabel = (role: "SUPERVISOR" | "AGENT" | "DELIVERER") => {
     switch (role) {
       case "SUPERVISOR":
@@ -1224,7 +1210,11 @@ function LiveMapPage() {
               className={isFullscreen ? "absolute inset-0" : "w-full aspect-[16/10] rounded-lg"}
               style={!isFullscreen ? { position: "relative", zIndex: 0 } : undefined}
             />
-            <div className="absolute top-4 right-4 z-[1000]" data-style-picker>
+            <div
+              className={isFullscreen ? "absolute top-4 right-4 z-[1002]" : "absolute top-4 right-4 z-[1000]"}
+              data-style-picker
+              style={isFullscreen ? { right: fullscreenControlsRight } : undefined}
+            >
               <button
                 onClick={() => setStyleOpen((v) => !v)}
                 className={`h-10 w-10 rounded-full bg-card border shadow-md flex items-center justify-center hover:bg-accent transition-colors active:scale-90 ${styleOpen ? "bg-accent" : ""}`}
@@ -1251,7 +1241,14 @@ function LiveMapPage() {
                 </div>
               )}
             </div>
-            <div className="absolute bottom-4 right-4 z-[1000] flex flex-col gap-2">
+            <div
+              className={
+                isFullscreen
+                  ? "absolute bottom-4 right-4 z-[1002] flex flex-col gap-2"
+                  : "absolute bottom-4 right-4 z-[1000] flex flex-col gap-2"
+              }
+              style={isFullscreen ? { right: fullscreenControlsRight } : undefined}
+            >
               <button
                 onClick={() => mapInstanceRef.current?.zoomIn(1, { animate: true })}
                 className="h-10 w-10 rounded-full bg-card border shadow-md flex items-center justify-center hover:bg-accent transition-colors active:scale-90"
@@ -1265,7 +1262,7 @@ function LiveMapPage() {
                 <Minus className="h-5 w-5" />
               </button>
               <button
-                onClick={locateMe}
+                onClick={() => locateMe()}
                 disabled={locating}
                 className="h-10 w-10 rounded-full bg-card border shadow-md flex items-center justify-center hover:bg-accent transition-colors disabled:opacity-50 active:scale-90"
               >
