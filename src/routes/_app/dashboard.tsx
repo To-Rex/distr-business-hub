@@ -1,19 +1,89 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/PageHeader";
-import { kpis, salesTrend, recentActivity, clients, staff, products } from "@/lib/mock-data";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/lib/settings";
+import { formatWithSpaces } from "@/lib/utils";
+import { useAuth } from "@/lib/auth";
+import { API } from "@/lib/api";
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
   Bar, BarChart, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, Users, DollarSign, ShoppingBag, ArrowUpRight } from "lucide-react";
+import { TrendingUp, Users, DollarSign, ShoppingBag, ArrowUpRight, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
-const fmt = (n: number) => "$" + n.toLocaleString();
+const fmt = (n: number) => "$" + formatWithSpaces(n, 0);
+
+type ClientItem = {
+  id: number;
+  name: string;
+  status: string;
+  status_name: string;
+  location?: string;
+  Orientr?: string;
+  PoslednayaProdaja?: string;
+  debt: { UZS: number; USD: number };
+  agent: { agent_name: string };
+};
+
+type ClientGroup = { group_id: number; clients: ClientItem[] };
+type ClientsResponse = { data: ClientGroup[] };
+
+type WarehouseProduct = { category: string; qty: number };
+type WarehouseGroup = { group_id: number; products: WarehouseProduct[] };
+type WarehouseResponse = { data: WarehouseGroup[] };
+
+type Employee = { id: number; name: string; type: string };
+type EmployeesResponse = { data: Employee[] };
+
+type AgentSale = {
+  agent_id: string;
+  agent_name: string;
+  qty_order: number;
+  total_summa: number;
+  rusult: number;
+};
+
+type SaleCategory = { category_id: number; category_name: string; summa: number };
+type SalesByCategoryResponse = {
+  total_summa: number;
+  qty_order: number;
+  qty_clients: number;
+  rusult: number;
+  agents: AgentSale[];
+  sales: SaleCategory[];
+};
+
+type ReportAgent = { agent_id: number; agent_name: string; summa: number; result: number };
+type ReportByClientResponse = { qty_order: number; agents: ReportAgent[] };
+
+type DashboardPayload = {
+  clients: ClientGroup[];
+  warehouse: WarehouseGroup[];
+  staff: Employee[];
+  sales: SalesByCategoryResponse | null;
+  reports: ReportByClientResponse | null;
+};
+
+function toApiDate(value: string): string {
+  return value.replaceAll("-", "");
+}
+
+function todayIsoDate(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function monthStartIsoDate(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}-01`;
+}
 
 function KpiCard({ icon: Icon, label, value, change }: { icon: any; label: string; value: string; change: string }) {
   return (
@@ -38,27 +108,177 @@ function KpiCard({ icon: Icon, label, value, change }: { icon: any; label: strin
 
 function Dashboard() {
   const { t } = useSettings();
+  const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<DashboardPayload>({
+    clients: [],
+    warehouse: [],
+    staff: [],
+    sales: null,
+    reports: null,
+  });
+
+  useEffect(() => {
+    if (!user?.company_rel?.base_url || !user?.user_1c_login || !user?.user_1c_password) {
+      setError(t("notAvailable"));
+      setLoading(false);
+      return;
+    }
+
+    const baseUrl = user.company_rel.base_url;
+    const basic = btoa(`${user.user_1c_login}:${user.user_1c_password}`);
+    const dateBegin = toApiDate(monthStartIsoDate());
+    const dateEnd = toApiDate(todayIsoDate());
+    const branchId = 1;
+
+    const fetchJson = async <T,>(url: string): Promise<T> => {
+      const res = await fetch(url, {
+        headers: {
+          accept: "application/json",
+          Authorization: `Basic ${basic}`,
+        },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<T>;
+    };
+
+    setLoading(true);
+    setError(null);
+
+    Promise.all([
+      fetchJson<ClientsResponse>(API.clientsByGroup(baseUrl)),
+      fetchJson<WarehouseResponse>(API.productsByGroup(baseUrl)),
+      fetchJson<EmployeesResponse>(API.employees(baseUrl)),
+      fetchJson<SalesByCategoryResponse>(API.salesByCategory(baseUrl, branchId, dateBegin, dateEnd)),
+      fetchJson<ReportByClientResponse>(API.reportByClient(baseUrl, branchId, dateBegin, dateEnd)),
+    ])
+      .then(([clientsRes, warehouseRes, staffRes, salesRes, reportRes]) => {
+        setData({
+          clients: clientsRes.data ?? [],
+          warehouse: warehouseRes.data ?? [],
+          staff: staffRes.data ?? [],
+          sales: salesRes,
+          reports: reportRes,
+        });
+      })
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, [user, t]);
+
+  const allClients = useMemo(() => data.clients.flatMap((g) => g.clients ?? []), [data.clients]);
+  const allProducts = useMemo(() => data.warehouse.flatMap((g) => g.products ?? []), [data.warehouse]);
+
+  const kpis = useMemo(() => {
+    const activeClients = allClients.filter(
+      (client) =>
+        client.status_name?.toLowerCase() === "faol" ||
+        client.status_name?.toLowerCase() === "active" ||
+        client.status?.toLowerCase() === "active",
+    ).length;
+    const totalSales = Number(data.sales?.total_summa ?? 0);
+    const revenue = data.reports?.agents?.reduce((sum, agent) => sum + Number(agent.summa || 0), 0) ?? 0;
+    const orders = Number(data.sales?.qty_order ?? data.reports?.qty_order ?? 0);
+    return { totalSales, activeClients, revenue, orders };
+  }, [allClients, data.sales, data.reports]);
+
+  const salesTrend = useMemo(
+    () =>
+      (data.sales?.agents ?? []).map((agent) => ({
+        month: agent.agent_name,
+        revenue: Number(agent.total_summa || 0),
+        sales: Number(agent.qty_order || 0),
+      })),
+    [data.sales],
+  );
 
   const categoryData = Object.entries(
-    products.reduce<Record<string, number>>((acc, p) => {
-      acc[p.category] = (acc[p.category] || 0) + p.stock;
+    allProducts.reduce<Record<string, number>>((acc, p) => {
+      const key = p.category || "Boshqa";
+      acc[key] = (acc[key] || 0) + Number(p.qty || 0);
       return acc;
     }, {})
   ).map(([name, value]) => ({ name, value }));
 
   const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)", "var(--chart-5)"];
-  const topClients = clients.filter((c) => c.status === "active").slice(0, 5);
-  const topStaff = [...staff].sort((a, b) => b.performance - a.performance).slice(0, 5);
+  const topClients = useMemo(
+    () =>
+      [...allClients]
+        .sort(
+          (a, b) =>
+            Math.abs(Number(b.debt?.UZS || 0)) +
+            Math.abs(Number(b.debt?.USD || 0)) -
+            (Math.abs(Number(a.debt?.UZS || 0)) + Math.abs(Number(a.debt?.USD || 0))),
+        )
+        .slice(0, 5),
+    [allClients],
+  );
+
+  const staffPerformanceByName = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const agent of data.sales?.agents ?? []) {
+      map.set(agent.agent_name.toLowerCase(), Number(agent.rusult || 0));
+    }
+    for (const agent of data.reports?.agents ?? []) {
+      const key = agent.agent_name.toLowerCase();
+      if (!map.has(key)) map.set(key, Number(agent.result || 0));
+    }
+    return map;
+  }, [data.sales, data.reports]);
+
+  const topStaff = useMemo(
+    () =>
+      data.staff
+        .map((employee) => ({
+          ...employee,
+          role: employee.type,
+          performance: staffPerformanceByName.get(employee.name.toLowerCase()) ?? 0,
+        }))
+        .sort((a, b) => b.performance - a.performance)
+        .slice(0, 5),
+    [data.staff, staffPerformanceByName],
+  );
+
+  const recentActivity = useMemo(() => {
+    return [...allClients]
+      .filter((client) => client.PoslednayaProdaja)
+      .sort(
+        (a, b) =>
+          new Date(b.PoslednayaProdaja || "").getTime() - new Date(a.PoslednayaProdaja || "").getTime(),
+      )
+      .slice(0, 8)
+      .map((client, idx) => ({
+        id: `${client.id}-${idx}`,
+        who: client.agent?.agent_name || client.name,
+        action: "yangilangan savdo",
+        target: client.name,
+        time: client.PoslednayaProdaja || "-",
+      }));
+  }, [allClients]);
 
   return (
     <div>
       <PageHeader title={t("dashboard")} description={t("overview")} />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiCard icon={DollarSign} label={t("totalSales")} value={fmt(kpis.totalSales)} change="12.4%" />
-        <KpiCard icon={Users} label={t("activeClients")} value={kpis.activeClients.toLocaleString()} change="3.1%" />
-        <KpiCard icon={TrendingUp} label={t("revenue")} value={fmt(kpis.revenue)} change="8.7%" />
-        <KpiCard icon={ShoppingBag} label={t("orders")} value={kpis.orders.toLocaleString()} change="5.2%" />
+        {loading ? (
+          Array.from({ length: 4 }).map((_, idx) => (
+            <Card key={idx}>
+              <CardContent className="p-6 space-y-2">
+                <Skeleton className="h-5 w-16" />
+                <Skeleton className="h-8 w-24" />
+                <Skeleton className="h-4 w-20" />
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <>
+            <KpiCard icon={DollarSign} label={t("totalSales")} value={fmt(kpis.totalSales)} change="live" />
+            <KpiCard icon={Users} label={t("activeClients")} value={kpis.activeClients.toLocaleString()} change="live" />
+            <KpiCard icon={TrendingUp} label={t("revenue")} value={fmt(kpis.revenue)} change="live" />
+            <KpiCard icon={ShoppingBag} label={t("orders")} value={kpis.orders.toLocaleString()} change="live" />
+          </>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
@@ -109,7 +329,7 @@ function Dashboard() {
           <CardContent>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesTrend.slice(-6)}>
+                <BarChart data={salesTrend.slice(0, 6)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
@@ -131,7 +351,9 @@ function Dashboard() {
                   <div className="text-sm font-medium truncate">{c.name}</div>
                   <div className="text-xs text-muted-foreground">{c.location}</div>
                 </div>
-                <div className="text-sm font-medium">${(Math.random() * 20000 + 5000).toFixed(0)}</div>
+                <div className="text-sm font-medium">
+                  {fmt(Math.abs(Number(c.debt?.UZS || 0)) + Math.abs(Number(c.debt?.USD || 0)))}
+                </div>
               </div>
             ))}
           </CardContent>
@@ -174,6 +396,15 @@ function Dashboard() {
           </ul>
         </CardContent>
       </Card>
+
+      {error && (
+        <Card className="mt-4">
+          <CardContent className="p-4 flex items-center gap-3 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            <span>{error}</span>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

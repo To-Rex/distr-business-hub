@@ -2,13 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
+import { formatWithSpaces } from "@/lib/utils";
 import {
   Search,
   ChevronDown,
@@ -21,6 +24,8 @@ import {
   Wallet,
   Calendar,
   AlertCircle,
+  LayoutGrid,
+  Rows3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/clients")({
@@ -73,11 +78,26 @@ type ApiResponse = {
   meta: { total: number };
 };
 
+type SortMode =
+  | "name-asc"
+  | "name-desc"
+  | "debt-desc"
+  | "debt-asc"
+  | "last-sale-desc"
+  | "last-sale-asc";
+
 function formatNumber(n: number): string {
-  return new Intl.NumberFormat("uz-UZ", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(n);
+  return formatWithSpaces(n, 2);
+}
+
+function debtScore(debt: { UZS: number; USD: number }): number {
+  return debt.UZS + debt.USD;
+}
+
+function saleDateScore(value: string): number {
+  const parsed = Date.parse(value);
+  if (!Number.isNaN(parsed)) return parsed;
+  return Date.parse(`1970-01-01T00:00:00Z`);
 }
 
 function formatDebt(debt: { UZS: number; USD: number }): {
@@ -103,6 +123,8 @@ function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [sortMode, setSortMode] = useState<SortMode>("name-asc");
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -155,9 +177,32 @@ function ClientsPage() {
       .filter((g) => g.clients.length > 0);
   }, [groups, q]);
 
+  const sortedGroups = useMemo(() => {
+    return filteredGroups.map((group) => {
+      const clients = [...group.clients].sort((a, b) => {
+        switch (sortMode) {
+          case "name-desc":
+            return b.name.localeCompare(a.name);
+          case "debt-desc":
+            return debtScore(b.debt) - debtScore(a.debt);
+          case "debt-asc":
+            return debtScore(a.debt) - debtScore(b.debt);
+          case "last-sale-desc":
+            return saleDateScore(b.PoslednayaProdaja) - saleDateScore(a.PoslednayaProdaja);
+          case "last-sale-asc":
+            return saleDateScore(a.PoslednayaProdaja) - saleDateScore(b.PoslednayaProdaja);
+          case "name-asc":
+          default:
+            return a.name.localeCompare(b.name);
+        }
+      });
+      return { ...group, clients };
+    });
+  }, [filteredGroups, sortMode]);
+
   const totalClients = useMemo(
-    () => filteredGroups.reduce((sum, g) => sum + g.clients.length, 0),
-    [filteredGroups],
+    () => sortedGroups.reduce((sum, g) => sum + g.clients.length, 0),
+    [sortedGroups],
   );
 
   const toggleGroup = (id: number) => {
@@ -188,6 +233,40 @@ function ClientsPage() {
             <span>
               {totalClients} {t("clients").toLowerCase()}
             </span>
+          </div>
+          <div className="shrink-0">
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value as SortMode)}
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="name-asc">A-Z</option>
+              <option value="name-desc">Z-A</option>
+              <option value="debt-desc">Qarz: katta-kichik</option>
+              <option value="debt-asc">Qarz: kichik-katta</option>
+              <option value="last-sale-desc">So'nggi savdo: yangi-eski</option>
+              <option value="last-sale-asc">So'nggi savdo: eski-yangi</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <Button
+              type="button"
+              variant={viewMode === "cards" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("cards")}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Kartalar
+            </Button>
+            <Button
+              type="button"
+              variant={viewMode === "table" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+            >
+              <Rows3 className="h-4 w-4" />
+              Jadval
+            </Button>
           </div>
         </div>
       </Card>
@@ -251,13 +330,13 @@ function ClientsPage() {
         </Card>
       )}
 
-      {!loading && !error && filteredGroups.length === 0 && (
+      {!loading && !error && sortedGroups.length === 0 && (
         <Card className="p-12 text-center text-muted-foreground">{t("notFound")}</Card>
       )}
 
       {!loading &&
         !error &&
-        filteredGroups.map((group) => {
+        sortedGroups.map((group) => {
           const isOpen = expandedGroups.has(group.group_id);
           return (
             <Collapsible
@@ -296,87 +375,143 @@ function ClientsPage() {
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mt-2 px-1">
-                  {group.clients.map((client) => {
-                    const debt = formatDebt(client.debt);
-                    return (
-                      <Card
-                        key={client.id}
-                        className="overflow-hidden hover:shadow-md transition-shadow"
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-2 mb-3">
-                            <div className="min-w-0 flex-1">
-                              <h4 className="text-sm font-semibold truncate">{client.name}</h4>
-                              {client.contactName && (
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {client.contactName}
-                                </p>
+                {viewMode === "cards" ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 mt-2 px-1">
+                    {group.clients.map((client) => {
+                      const debt = formatDebt(client.debt);
+                      return (
+                        <Card
+                          key={client.id}
+                          className="overflow-hidden hover:shadow-md transition-shadow"
+                        >
+                          <CardContent className="p-4">
+                            <div className="flex items-start justify-between gap-2 mb-3">
+                              <div className="min-w-0 flex-1">
+                                <h4 className="text-sm font-semibold truncate">{client.name}</h4>
+                                {client.contactName && (
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    {client.contactName}
+                                  </p>
+                                )}
+                              </div>
+                              {client.status_name && (
+                                <Badge
+                                  variant={client.status_name === "faol" ? "default" : "secondary"}
+                                  className="shrink-0 text-[10px] px-1.5 py-0"
+                                >
+                                  {client.status_name}
+                                </Badge>
                               )}
                             </div>
-                            {client.status_name && (
-                              <Badge
-                                variant={client.status_name === "faol" ? "default" : "secondary"}
-                                className="shrink-0 text-[10px] px-1.5 py-0"
-                              >
-                                {client.status_name}
-                              </Badge>
-                            )}
-                          </div>
 
-                          <div className="space-y-1.5 text-xs text-muted-foreground">
-                            {client.category && (
-                              <div className="flex items-center gap-2">
-                                <Tag className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">{client.category}</span>
-                              </div>
-                            )}
-                            {client.Phone && (
-                              <div className="flex items-center gap-2">
-                                <Phone className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">{client.Phone}</span>
-                              </div>
-                            )}
-                            {client.Orientr && (
-                              <div className="flex items-center gap-2">
-                                <MapPin className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">{client.Orientr}</span>
-                              </div>
-                            )}
-                            {client.agent.agent_name && (
-                              <div className="flex items-center gap-2">
-                                <User className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">{client.agent.agent_name}</span>
-                              </div>
-                            )}
-                            {client.PoslednayaProdaja && (
-                              <div className="flex items-center gap-2">
-                                <Calendar className="h-3.5 w-3.5 shrink-0" />
-                                <span className="truncate">
-                                  {t("lastSale")}: {client.PoslednayaProdaja}
+                            <div className="space-y-1.5 text-xs text-muted-foreground">
+                              {client.category && (
+                                <div className="flex items-center gap-2">
+                                  <Tag className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">{client.category}</span>
+                                </div>
+                              )}
+                              {client.Phone && (
+                                <div className="flex items-center gap-2">
+                                  <Phone className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">{client.Phone}</span>
+                                </div>
+                              )}
+                              {client.Orientr && (
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">{client.Orientr}</span>
+                                </div>
+                              )}
+                              {client.agent.agent_name && (
+                                <div className="flex items-center gap-2">
+                                  <User className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">{client.agent.agent_name}</span>
+                                </div>
+                              )}
+                              {client.PoslednayaProdaja && (
+                                <div className="flex items-center gap-2">
+                                  <Calendar className="h-3.5 w-3.5 shrink-0" />
+                                  <span className="truncate">
+                                    {t("lastSale")}: {client.PoslednayaProdaja}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="mt-3 pt-3 border-t flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
+                                <span className={`text-xs font-medium ${debt.color}`}>
+                                  {debt.text}
                                 </span>
                               </div>
-                            )}
-                          </div>
-
-                          <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                            <div className="flex items-center gap-1.5">
-                              <Wallet className="h-3.5 w-3.5 text-muted-foreground" />
-                              <span className={`text-xs font-medium ${debt.color}`}>
-                                {debt.text}
-                              </span>
+                              {client.filial_name && (
+                                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                  {client.filial_name}
+                                </span>
+                              )}
                             </div>
-                            {client.filial_name && (
-                              <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
-                                {client.filial_name}
-                              </span>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <Card className="mt-2 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>{t("clients")}</TableHead>
+                            <TableHead>Aloqa</TableHead>
+                            <TableHead>Telefon</TableHead>
+                            <TableHead>Kategoriya</TableHead>
+                            <TableHead>Agent</TableHead>
+                            <TableHead>Filial</TableHead>
+                            <TableHead>{t("lastSale")}</TableHead>
+                            <TableHead className="text-right">Qarz</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {group.clients.map((client) => {
+                            const debt = formatDebt(client.debt);
+                            return (
+                              <TableRow key={client.id}>
+                                <TableCell className="font-medium min-w-[220px]">
+                                  <div className="flex items-center gap-2">
+                                    <span className="truncate">{client.name}</span>
+                                    {client.status_name && (
+                                      <Badge
+                                        variant={
+                                          client.status_name === "faol" ? "default" : "secondary"
+                                        }
+                                        className="text-[10px] px-1.5 py-0"
+                                      >
+                                        {client.status_name}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="min-w-[160px]">
+                                  {client.contactName || "-"}
+                                </TableCell>
+                                <TableCell>{client.Phone || "-"}</TableCell>
+                                <TableCell>{client.category || "-"}</TableCell>
+                                <TableCell>{client.agent.agent_name || "-"}</TableCell>
+                                <TableCell>{client.filial_name || "-"}</TableCell>
+                                <TableCell>{client.PoslednayaProdaja || "-"}</TableCell>
+                                <TableCell className={`text-right font-medium ${debt.color}`}>
+                                  {debt.text}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  </Card>
+                )}
               </CollapsibleContent>
             </Collapsible>
           );
