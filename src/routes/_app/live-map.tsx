@@ -233,6 +233,7 @@ function LiveMapPage() {
   const markersRef = useRef<Map<number, L.Marker>>(new Map());
   const selectedRef = useRef<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
+  const [selectedClient, setSelectedClient] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
   const [workSession, setWorkSession] = useState<{ session: string; device_name: string } | null>(
     null,
@@ -286,6 +287,12 @@ function LiveMapPage() {
           return aMatched ? -1 : 1;
         })
       : roleFilteredUsers;
+  const activeListTarget = navSearchTarget;
+  const shouldShowClientList = activeListTarget === "client";
+  const prioritizedClients =
+    isFullscreen && activeListTarget === "client" && normalizedNavSearch
+      ? clients.filter((c) => c.name.toLowerCase().includes(normalizedNavSearch))
+      : clients;
 
   const refreshMapSize = useCallback(() => {
     const map = mapInstanceRef.current;
@@ -647,13 +654,12 @@ function LiveMapPage() {
   }, [navSearchTarget, normalizedNavSearch, userSearchMatches]);
 
   useEffect(() => {
-    if (!isFullscreen) return;
     window.dispatchEvent(
       new CustomEvent("live-map-search-change", {
         detail: { query: navSearchQuery, target: navSearchTarget },
       }),
     );
-  }, [isFullscreen, navSearchQuery, navSearchTarget]);
+  }, [navSearchQuery, navSearchTarget]);
 
   useEffect(() => {
     const onSelectUserFromSearch = (event: Event) => {
@@ -668,6 +674,7 @@ function LiveMapPage() {
 
       selectedRef.current = matchedUser.id;
       setSelected(matchedUser.id);
+      setSelectedClient(null);
     };
 
     window.addEventListener("live-map-search-select-user", onSelectUserFromSearch as EventListener);
@@ -688,6 +695,11 @@ function LiveMapPage() {
       if (!matchedClient) return;
       if (matchedClient.latitude === 0 && matchedClient.longitude === 0) return;
 
+      selectedRef.current = null;
+      setSelected(null);
+      setWorkSession(null);
+      setDistanceKm(null);
+      setSelectedClient(matchedClient.id);
       mapInstanceRef.current?.flyTo([matchedClient.latitude, matchedClient.longitude], 15, {
         animate: true,
         duration: 0.8,
@@ -1457,8 +1469,19 @@ function LiveMapPage() {
               : "flex flex-col h-[70vh] min-h-[520px] max-h-[760px]"
           }
         >
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{t("activeAgents")}</CardTitle>
+          <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">
+              {shouldShowClientList ? "Klientlar" : "Hodimlar"}
+            </CardTitle>
+            {!isFullscreen && (
+              <button
+                type="button"
+                onClick={() => setNavSearchTarget((prev) => (prev === "user" ? "client" : "user"))}
+                className="h-7 rounded-md border bg-card px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {navSearchTarget === "user" ? "User" : "Client"}
+              </button>
+            )}
           </CardHeader>
           <CardContent className="space-y-3 flex-1 flex flex-col min-h-0">
             {isFullscreen && (
@@ -1506,68 +1529,124 @@ function LiveMapPage() {
               </div>
             )}
             <div
-              className={`overflow-y-auto space-y-3 ${selected !== null ? "flex-1 min-h-0" : "flex-1"}`}
+              className={`overflow-y-auto space-y-3 ${selected !== null || selectedClient !== null ? "flex-1 min-h-0" : "flex-1"}`}
             >
-              {prioritizedUsers.length === 0 && (
-                <div className="text-sm text-muted-foreground text-center py-4">
-                  {wsStatus === "connected" ? "..." : t("offline")}
-                </div>
+              {shouldShowClientList ? (
+                <>
+                  {prioritizedClients.length === 0 && (
+                    <div className="text-sm text-muted-foreground text-center py-4">
+                      {t("notFound")}
+                    </div>
+                  )}
+                  {prioritizedClients.map((c) => {
+                    const hasLocation = c.latitude !== 0 || c.longitude !== 0;
+                    return (
+                      <button
+                        key={c.id}
+                        className={`flex items-center gap-3 w-full text-left hover:bg-muted/50 rounded-lg p-1.5 cursor-pointer transition-colors border-2 ${selectedClient === c.id ? "bg-muted/70 border-primary/40" : "border-transparent"}`}
+                        onClick={() => {
+                          if (!hasLocation) return;
+                          const newId = selectedClient === c.id ? null : c.id;
+                          selectedRef.current = null;
+                          setSelected(null);
+                          setWorkSession(null);
+                          setDistanceKm(null);
+                          setSelectedClient(newId);
+                          if (newId === null) return;
+                          mapInstanceRef.current?.flyTo([c.latitude, c.longitude], 15, {
+                            animate: true,
+                            duration: 0.8,
+                          });
+                        }}
+                      >
+                        <div
+                          className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-white"
+                          style={{ backgroundColor: CLIENT_COLOR }}
+                        >
+                          <Store className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{c.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {c.agent}
+                            {hasLocation && (
+                              <span className="ml-1">
+                                {" "}
+                                · {c.latitude.toFixed(4)}, {c.longitude.toFixed(4)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </>
+              ) : (
+                <>
+                  {prioritizedUsers.length === 0 && (
+                    <div className="text-sm text-muted-foreground text-center py-4">
+                      {wsStatus === "connected" ? "..." : t("offline")}
+                    </div>
+                  )}
+                  {prioritizedUsers.map((u) => {
+                    const color = ROLE_COLORS[u.role] || "#3b82f6";
+                    const hasLocation =
+                      u.last_location.latitude !== 0 || u.last_location.longitude !== 0;
+                    const isUpdated = updatedIds.has(u.id);
+                    return (
+                      <button
+                        key={u.id}
+                        className={`flex items-center gap-3 w-full text-left hover:bg-muted/50 rounded-lg p-1.5 cursor-pointer transition-colors border-2 ${selected === u.id ? "bg-muted/70 border-primary/40" : "border-transparent"} ${isUpdated ? "_agentFlash" : ""}`}
+                        onClick={() => {
+                          if (!hasLocation) return;
+                          const newId = selectedRef.current === u.id ? null : u.id;
+                          selectedRef.current = newId;
+                          setSelected(newId);
+                          setSelectedClient(null);
+                          if (newId === null) {
+                            setWorkSession(null);
+                            setDistanceKm(null);
+                          }
+                        }}
+                      >
+                        <div
+                          className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
+                          style={{
+                            backgroundColor: color,
+                            opacity: u.status === "online" ? 1 : 0.5,
+                          }}
+                        >
+                          <RoleIcon role={u.role} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">
+                            {u.first_name} {u.last_name}
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            {roleLabel(u.role)}
+                            {hasLocation && (
+                              <span className="ml-1">
+                                {" "}
+                                · {u.last_location.latitude.toFixed(4)},{" "}
+                                {u.last_location.longitude.toFixed(4)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span
+                          className={`h-2 w-2 rounded-full shrink-0 ${
+                            u.status === "online" ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                          }`}
+                        />
+                      </button>
+                    );
+                  })}
+                </>
               )}
-              {prioritizedUsers.map((u) => {
-                const color = ROLE_COLORS[u.role] || "#3b82f6";
-                const hasLocation =
-                  u.last_location.latitude !== 0 || u.last_location.longitude !== 0;
-                const isUpdated = updatedIds.has(u.id);
-                return (
-                  <button
-                    key={u.id}
-                    className={`flex items-center gap-3 w-full text-left hover:bg-muted/50 rounded-lg p-1.5 cursor-pointer transition-colors border-2 ${selected === u.id ? "bg-muted/70 border-primary/40" : "border-transparent"} ${isUpdated ? "_agentFlash" : ""}`}
-                    onClick={() => {
-                      if (!hasLocation) return;
-                      const newId = selectedRef.current === u.id ? null : u.id;
-                      selectedRef.current = newId;
-                      setSelected(newId);
-                      if (newId === null) {
-                        setWorkSession(null);
-                        setDistanceKm(null);
-                      }
-                    }}
-                  >
-                    <div
-                      className="h-8 w-8 rounded-full flex items-center justify-center shrink-0"
-                      style={{
-                        backgroundColor: color,
-                        opacity: u.status === "online" ? 1 : 0.5,
-                      }}
-                    >
-                      <RoleIcon role={u.role} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium truncate">
-                        {u.first_name} {u.last_name}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {roleLabel(u.role)}
-                        {hasLocation && (
-                          <span className="ml-1">
-                            {" "}
-                            · {u.last_location.latitude.toFixed(4)},{" "}
-                            {u.last_location.longitude.toFixed(4)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <span
-                      className={`h-2 w-2 rounded-full shrink-0 ${
-                        u.status === "online" ? "bg-green-500 animate-pulse" : "bg-gray-400"
-                      }`}
-                    />
-                  </button>
-                );
-              })}
             </div>
 
             {selected !== null &&
+              selectedClient === null &&
               (() => {
                 const selUser = users.find((u) => u.id === selected);
                 if (!selUser) return null;
@@ -1661,6 +1740,69 @@ function LiveMapPage() {
                         </div>
                       </div>
                     </div>
+                  </div>
+                );
+              })()}
+            {selectedClient !== null &&
+              (() => {
+                const selClient = clients.find((c) => c.id === selectedClient);
+                if (!selClient) return null;
+                const hasLocation = selClient.latitude !== 0 || selClient.longitude !== 0;
+                return (
+                  <div className="border-t pt-3 mt-1 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: CLIENT_COLOR }}
+                        >
+                          <Store className="h-4 w-4 text-white" />
+                        </div>
+                        <div>
+                          <div className="text-sm font-semibold leading-tight">{selClient.name}</div>
+                          <div className="text-[11px] text-muted-foreground">Klient</div>
+                        </div>
+                      </div>
+                      <button
+                        className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                        onClick={() => setSelectedClient(null)}
+                      >
+                        <X className="h-3.5 w-3.5 text-muted-foreground" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                        <User className="h-4 w-4 mx-auto mb-1 text-blue-500" />
+                        <div className="text-[11px] text-muted-foreground mb-0.5">Agent</div>
+                        <div className="text-sm font-bold leading-tight truncate">{selClient.agent || "—"}</div>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                        <Store className="h-4 w-4 mx-auto mb-1 text-green-500" />
+                        <div className="text-[11px] text-muted-foreground mb-0.5">Visit</div>
+                        <div className="text-sm font-bold leading-tight">{selClient.visit}</div>
+                      </div>
+                      <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                        <MapPin className="h-4 w-4 mx-auto mb-1 text-amber-500" />
+                        <div className="text-[11px] text-muted-foreground mb-0.5">Lokatsiya</div>
+                        <div className="text-sm font-bold leading-tight">
+                          {hasLocation ? (
+                            <span className="text-xs">
+                              {selClient.latitude.toFixed(4)}, {selClient.longitude.toFixed(4)}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground text-xs font-normal">—</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {selClient.comment?.trim() && (
+                      <div className="rounded-lg bg-muted/50 p-2.5">
+                        <div className="text-[11px] text-muted-foreground mb-1">Izoh</div>
+                        <div className="text-xs leading-relaxed">{selClient.comment}</div>
+                      </div>
+                    )}
                   </div>
                 );
               })()}
