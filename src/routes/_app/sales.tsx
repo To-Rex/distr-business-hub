@@ -78,6 +78,13 @@ type SalesByCategoryResponse = {
   sales: SaleCategory[];
 };
 
+type SalesByCategoryEndpoint = (
+  baseUrl: string,
+  branchId: number,
+  dateBegin: string,
+  dateEnd: string,
+) => string;
+
 function toApiDate(value: string): string {
   return value.replaceAll("-", "");
 }
@@ -130,7 +137,10 @@ function SalesPage() {
     setLoading(true);
     setError(null);
 
-    fetch(API.salesByCategory(baseUrl, parsedBranchId, toApiDate(dateBegin), toApiDate(dateEnd)), {
+    const salesByCategory = (API as typeof API & { salesByCategory: SalesByCategoryEndpoint })
+      .salesByCategory;
+
+    fetch(salesByCategory(baseUrl, parsedBranchId, toApiDate(dateBegin), toApiDate(dateEnd)), {
       headers: {
         accept: "application/json",
         Authorization: `Basic ${basic}`,
@@ -211,24 +221,24 @@ function SalesPage() {
             type="date"
             value={dateBegin}
             onChange={(e) => setDateBegin(e.target.value)}
-            aria-label="Date begin"
+            aria-label={t("dateBegin")}
           />
           <Input
             type="date"
             value={dateEnd}
             onChange={(e) => setDateEnd(e.target.value)}
-            aria-label="Date end"
+            aria-label={t("dateEnd")}
           />
           <Input
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
-            placeholder="Branch ID"
+            placeholder={t("branchId")}
             inputMode="numeric"
           />
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Kategoriya yoki mahsulot qidirish"
+              placeholder={t("searchCategoryOrProduct")}
               className="pl-9"
               value={q}
               onChange={(e) => setQ(e.target.value)}
@@ -265,19 +275,19 @@ function SalesPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Jami savdo (summa)</p>
+                <p className="text-xs text-muted-foreground">{t("totalSalesAmount")}</p>
                 <p className="text-xl font-semibold">{formatMoney(salesData.total_summa)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Jami hajm (kg)</p>
+                <p className="text-xs text-muted-foreground">{t("totalVolumeKg")}</p>
                 <p className="text-xl font-semibold">{formatQty(salesData.total_qty)}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Buyurtmalar / klientlar</p>
+                <p className="text-xs text-muted-foreground">{t("ordersClients")}</p>
                 <p className="text-xl font-semibold">
                   {salesData.qty_order} / {salesData.qty_clients}
                 </p>
@@ -285,7 +295,7 @@ function SalesPage() {
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Plan bajarilishi</p>
+                <p className="text-xs text-muted-foreground">{t("planCompletion")}</p>
                 <p className="text-xl font-semibold">{formatQty(salesData.rusult)}%</p>
               </CardContent>
             </Card>
@@ -294,7 +304,7 @@ function SalesPage() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
             <Card className="xl:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Kategoriyalar bo‘yicha summa (chart)</CardTitle>
+                <CardTitle className="text-base">{t("amountByCategoryChart")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {categoryChartData.length === 0 ? (
@@ -327,7 +337,7 @@ function SalesPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Kategoriya ulushi</CardTitle>
+                <CardTitle className="text-base">{t("categoryShare")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {pieData.length === 0 ? (
@@ -356,7 +366,7 @@ function SalesPage() {
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Card className="xl:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Kategoriyalar bo‘yicha savdo</CardTitle>
+                <CardTitle className="text-base">{t("salesByCategories")}</CardTitle>
               </CardHeader>
               <CardContent>
                 {filteredCategories.length === 0 ? (
@@ -365,11 +375,11 @@ function SalesPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Kategoriya</TableHead>
-                        <TableHead className="text-right">Qty</TableHead>
-                        <TableHead className="text-right">Summa</TableHead>
-                        <TableHead className="text-right">Qty %</TableHead>
-                        <TableHead className="text-right">Summa %</TableHead>
+                        <TableHead>{t("category")}</TableHead>
+                        <TableHead className="text-right">{t("qty")}</TableHead>
+                        <TableHead className="text-right">{t("amount")}</TableHead>
+                        <TableHead className="text-right">{t("qtyPercent")}</TableHead>
+                        <TableHead className="text-right">{t("amountPercent")}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -390,7 +400,7 @@ function SalesPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Top mahsulotlar</CardTitle>
+                <CardTitle className="text-base">{t("topProducts")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {topProducts.length === 0 ? (
@@ -417,7 +427,7 @@ function SalesPage() {
 
           <Card className="mt-4">
             <CardHeader>
-              <CardTitle className="text-base">Agentlar bo‘yicha ko‘rsatkichlar</CardTitle>
+              <CardTitle className="text-base">{t("agentMetrics")}</CardTitle>
             </CardHeader>
             <CardContent>
               {agentChartData.length > 0 && (
@@ -463,7 +473,7 @@ function SalesPage() {
                           </div>
                           <div className="text-right">
                             <p className="text-base font-semibold">{formatQty(agent.rusult)}%</p>
-                            <p className="text-[11px] text-muted-foreground">Natija</p>
+                            <p className="text-[11px] text-muted-foreground">{t("result")}</p>
                           </div>
                         </div>
 
@@ -473,13 +483,13 @@ function SalesPage() {
 
                         <div className="grid grid-cols-2 gap-3 text-sm">
                           <div className="rounded-lg bg-muted/30 px-3 py-2">
-                            <p className="text-[11px] text-muted-foreground">Plan / Fact</p>
+                            <p className="text-[11px] text-muted-foreground">{t("planFact")}</p>
                             <p className="font-medium">
                               {formatQty(agent.plan)} / {formatQty(agent.fact)}
                             </p>
                           </div>
                           <div className="rounded-lg bg-muted/30 px-3 py-2">
-                            <p className="text-[11px] text-muted-foreground">Buyurtma / Klient</p>
+                            <p className="text-[11px] text-muted-foreground">{t("orderClient")}</p>
                             <p className="font-medium">
                               {agent.qty_order} / {agent.qty_clients}
                             </p>
@@ -487,7 +497,7 @@ function SalesPage() {
                         </div>
 
                         <div className="mt-3 pt-3 border-t flex items-center justify-between">
-                          <p className="text-xs text-muted-foreground">Jami summa</p>
+                          <p className="text-xs text-muted-foreground">{t("totalAmount")}</p>
                           <p className="text-sm font-semibold">{formatMoney(agent.total_summa)}</p>
                         </div>
                       </div>

@@ -8,7 +8,24 @@ const WS_BASE = BASE_URL.replace(/^https?/, "wss");
 const proxied1C = (baseUrl: string, path: string) =>
   `/proxy-1c?target=${encodeURIComponent(baseUrl)}&path=${encodeURIComponent(path)}`;
 
-export const API = {
+type ApiEndpoints = {
+  login: string;
+  profile: string;
+  wsLocations: (token: string) => string;
+  userHistory: (userId: number) => string;
+  workingSession: (userId: number, role?: string) => string;
+  clientLocations: (baseUrl: string) => string;
+  clientInfo: (baseUrl: string, clientId: number) => string;
+  clientVisitData: (baseUrl: string, clientId: number) => string;
+  clientsByGroup: (baseUrl: string) => string;
+  productsByGroup: (baseUrl: string) => string;
+  employees: (baseUrl: string) => string;
+  salesByCategory: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
+  reportByClient: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
+  financeOrders: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
+};
+
+export const API: ApiEndpoints = {
   login: `${BASE_URL}/v1/authentication/login`,
   profile: `${BASE_URL}/v1/authentication/profile`,
   wsLocations: (token: string) => `${WS_BASE}/v1/locations/ws/admvs?token=${token}`,
@@ -38,4 +55,9 @@ export const API = {
       baseUrl,
       `/hs/manager/api/get_report_by_client?branch_id=${branchId}&date_begin=${dateBegin}&date_end=${dateEnd}`,
     ),
-} as const;
+  financeOrders: (baseUrl: string, dateBegin: string, dateEnd: string) =>
+    proxied1C(
+      baseUrl,
+      `/hs/manager/api/GetlistordersAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
+    ),
+};

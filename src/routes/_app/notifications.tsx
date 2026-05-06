@@ -29,7 +29,7 @@ function NotificationsPage() {
   const [list, setList] = useState(initialList);
   const unread = list.filter((n) => !n.read).length;
   return (
-    <div>
+    <div className="relative">
       <PageHeader title={t("notifications")} description={t("notificationsDesc")}
         actions={<Button variant="outline" onClick={() => setList((p) => p.map((n) => ({ ...n, read: true })))}>{t("markRead")}</Button>}
       />
@@ -43,17 +43,22 @@ function NotificationsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">{n.title}</span>
+                  <span className="text-sm font-medium">{t(`notificationTitle${n.id}` as never)}</span>
                   {!n.read && <span className="h-2 w-2 rounded-full bg-primary" />}
                 </div>
-                <p className="text-sm text-muted-foreground mt-0.5">{n.desc}</p>
+                <p className="text-sm text-muted-foreground mt-0.5">{t(`notificationDesc${n.id}` as never)}</p>
               </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{n.time}</span>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">{t(`notificationTime${n.id}` as never)}</span>
             </div>
           );
         })}
       </Card>
       <p className="text-xs text-muted-foreground mt-3">{unread} {t("new")}</p>
+      <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/20 backdrop-blur-[2px]">
+        <div className="rounded-2xl border border-white/30 bg-white/15 px-8 py-5 shadow-lg">
+          <span className="text-3xl font-semibold tracking-wide text-foreground">{t("comingSoon")}</span>
+        </div>
+      </div>
     </div>
   );
 }

@@ -2032,7 +2032,7 @@ function LiveMapPage() {
                         >
                           <div className="text-sm font-semibold leading-tight">{selClient.name}</div>
                           <div className="text-[11px] text-muted-foreground inline-flex items-center gap-1">
-                            <span>Klient · Profilni ochish</span>
+                            <span>{t("clientOpenProfile")}</span>
                             <ChevronRight className="h-3 w-3" />
                           </div>
                         </button>
@@ -2051,17 +2051,17 @@ function LiveMapPage() {
                     <div className="grid grid-cols-3 gap-2">
                       <div className="rounded-lg bg-muted/50 p-2.5 text-center">
                         <User className="h-4 w-4 mx-auto mb-1 text-blue-500" />
-                        <div className="text-[11px] text-muted-foreground mb-0.5">Agent</div>
+                        <div className="text-[11px] text-muted-foreground mb-0.5">{t("agent")}</div>
                         <div className="text-sm font-bold leading-tight truncate">{selClient.agent || "—"}</div>
                       </div>
                       <div className="rounded-lg bg-muted/50 p-2.5 text-center">
                         <Store className="h-4 w-4 mx-auto mb-1 text-green-500" />
-                        <div className="text-[11px] text-muted-foreground mb-0.5">Visit</div>
+                        <div className="text-[11px] text-muted-foreground mb-0.5">{t("visit")}</div>
                         <div className="text-sm font-bold leading-tight">{selClient.visit}</div>
                       </div>
                       <div className="rounded-lg bg-muted/50 p-2.5 text-center">
                         <MapPin className="h-4 w-4 mx-auto mb-1 text-amber-500" />
-                        <div className="text-[11px] text-muted-foreground mb-0.5">Lokatsiya</div>
+                        <div className="text-[11px] text-muted-foreground mb-0.5">{t("location")}</div>
                         <div className="text-sm font-bold leading-tight">
                           {hasLocation ? (
                             <span className="text-xs">
@@ -2076,7 +2076,7 @@ function LiveMapPage() {
 
                     {selectedClientComment && (
                       <div className="rounded-lg bg-muted/50 p-2.5">
-                        <div className="text-[11px] text-muted-foreground mb-1">Izoh</div>
+                        <div className="text-[11px] text-muted-foreground mb-1">{t("comment")}</div>
                         <div className="text-xs leading-relaxed">{selectedClientComment}</div>
                       </div>
                     )}
@@ -2098,10 +2098,10 @@ function LiveMapPage() {
                     className="h-7 px-2 rounded-md border bg-card text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
                   >
                     <ChevronLeft className="h-3.5 w-3.5" />
-                    Orqaga
+                    {t("back")}
                   </button>
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                    Klient profili
+                    {t("clientProfile")}
                   </div>
                   <button
                     className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
@@ -2111,7 +2111,7 @@ function LiveMapPage() {
                   </button>
                 </div>
                 {clientInfoLoading ? (
-                  <div className="text-sm text-muted-foreground">Yuklanmoqda...</div>
+                  <div className="text-sm text-muted-foreground">{t("loading")}</div>
                 ) : (
                   <>
                     {!!clientInfo?.img?.length && (
@@ -2205,7 +2205,7 @@ function LiveMapPage() {
                       >
                         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           <ShoppingCart className="h-3.5 w-3.5 text-primary" />
-                          <span>Buyurtmalar</span>
+                          <span>{t("orders")}</span>
                         </div>
                         <div className="mt-1 text-lg font-semibold leading-none">
                           {clientVisitDataLoading ? "..." : (clientVisitData?.orders?.length ?? 0)}
@@ -2221,7 +2221,7 @@ function LiveMapPage() {
                       >
                         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           <Camera className="h-3.5 w-3.5 text-primary" />
-                          <span>Foto hisobotlar</span>
+                          <span>{t("photoReports")}</span>
                         </div>
                         <div className="mt-1 text-lg font-semibold leading-none">
                           {clientVisitDataLoading ? "..." : (clientVisitData?.photo_reports?.length ?? 0)}
@@ -2237,7 +2237,7 @@ function LiveMapPage() {
                       >
                         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           <CameraOff className="h-3.5 w-3.5 text-primary" />
-                          <span>Rad etilgan rasmlar</span>
+                          <span>{t("rejectedPhotos")}</span>
                         </div>
                         <div className="mt-1 text-lg font-semibold leading-none">
                           {clientVisitDataLoading
@@ -2255,7 +2255,7 @@ function LiveMapPage() {
                       >
                         <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
                           <Wallet className="h-3.5 w-3.5 text-primary" />
-                          <span>To'lovlar</span>
+                          <span>{t("payments")}</span>
                         </div>
                         <div className="mt-1 text-lg font-semibold leading-none">
                           {clientVisitDataLoading ? "..." : (clientVisitData?.payments?.length ?? 0)}
@@ -2264,11 +2264,11 @@ function LiveMapPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-xs">
                       <div className="rounded-md bg-muted/50 p-2">
-                        <div className="text-muted-foreground">Filial</div>
+                        <div className="text-muted-foreground">{t("filial")}</div>
                         <div className="font-medium">{clientInfo?.filial_name || "—"}</div>
                       </div>
                       <div className="rounded-md bg-muted/50 p-2">
-                        <div className="text-muted-foreground">Status</div>
+                        <div className="text-muted-foreground">{t("status")}</div>
                         <div className="font-medium">{clientInfo?.status_name || "—"}</div>
                       </div>
                       <div className="rounded-md bg-muted/50 p-2">
@@ -2276,29 +2276,29 @@ function LiveMapPage() {
                         <div className="font-medium">{clientInfo?.INN || "—"}</div>
                       </div>
                       <div className="rounded-md bg-muted/50 p-2">
-                        <div className="text-muted-foreground">Kategoriya</div>
+                        <div className="text-muted-foreground">{t("category")}</div>
                         <div className="font-medium">{clientInfo?.category || "—"}</div>
                       </div>
                       <div className="rounded-md bg-muted/50 p-2">
-                        <div className="text-muted-foreground">Kontakt</div>
+                        <div className="text-muted-foreground">{t("contact")}</div>
                         <div className="font-medium">{clientInfo?.contactName || "—"}</div>
                       </div>
                       <div className="rounded-md bg-muted/50 p-2">
-                        <div className="text-muted-foreground">Telefon</div>
+                        <div className="text-muted-foreground">{t("phone")}</div>
                         <div className="font-medium">{clientInfo?.Phone || "—"}</div>
                       </div>
                     </div>
                     <div className="rounded-md bg-muted/50 p-2 text-xs">
-                      <div className="text-muted-foreground">Agent</div>
+                      <div className="text-muted-foreground">{t("agent")}</div>
                       <div className="font-medium">{clientInfo?.agent?.agent_name || "—"}</div>
                     </div>
                     <div className="rounded-md bg-muted/50 p-2 text-xs">
-                      <div className="text-muted-foreground">Manzil orientir</div>
+                      <div className="text-muted-foreground">{t("locationLandmark")}</div>
                       <div className="font-medium">{clientInfo?.Orientr || "—"}</div>
                     </div>
                     {!!clientInfo?.activities?.length && (
                       <div className="rounded-md bg-muted/50 p-2 text-xs">
-                        <div className="text-muted-foreground mb-1">Faoliyatlar</div>
+                        <div className="text-muted-foreground mb-1">{t("activities")}</div>
                         <div className="flex flex-wrap gap-1">
                           {clientInfo.activities.map((a, idx) => (
                             <span key={`${a.activity_name}-${idx}`} className="px-1.5 py-0.5 rounded bg-card border">
@@ -2310,7 +2310,7 @@ function LiveMapPage() {
                     )}
                     {clientInfo?.commentary?.trim() && (
                       <div className="rounded-md bg-muted/50 p-2 text-xs">
-                        <div className="text-muted-foreground mb-1">Izoh</div>
+                        <div className="text-muted-foreground mb-1">{t("comment")}</div>
                         <div className="font-medium">{clientInfo.commentary}</div>
                       </div>
                     )}
@@ -2353,7 +2353,7 @@ function LiveMapPage() {
                 </div>
 
                 {clientVisitDataLoading ? (
-                  <div className="text-sm text-muted-foreground">Yuklanmoqda...</div>
+                  <div className="text-sm text-muted-foreground">{t("loading")}</div>
                 ) : clientVisitDetailType === "orders" ? (
                   <div className="space-y-2">
                     {(clientVisitData?.orders ?? []).map((order) => (
@@ -2404,7 +2404,7 @@ function LiveMapPage() {
                       </div>
                     ))}
                     {(clientVisitData?.orders?.length ?? 0) === 0 && (
-                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                      <div className="text-sm text-muted-foreground text-center py-4">{t("noData")}</div>
                     )}
                   </div>
                 ) : clientVisitDetailType === "photo_reports" ? (
@@ -2430,7 +2430,7 @@ function LiveMapPage() {
                           </a>
                         )}
                         <div className="p-2.5 text-xs">
-                          <div className="font-medium">{report.info || `Foto hisobot #${idx + 1}`}</div>
+                              <div className="font-medium">{report.info || `${t("photoReport")} #${idx + 1}`}</div>
                           {report.date && (
                             <div className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                               {formatServerDate(report.date)}
@@ -2445,31 +2445,31 @@ function LiveMapPage() {
                               rel="noreferrer"
                               className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                             >
-                              To'liq ko'rish
+                              {t("viewFull")}
                             </a>
                           </div>
                         )}
                       </div>
                     ))}
                     {(clientVisitData?.photo_reports?.length ?? 0) === 0 && (
-                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                      <div className="text-sm text-muted-foreground text-center py-4">{t("noData")}</div>
                     )}
                   </div>
                 ) : clientVisitDetailType === "photo_rejects" ? (
                   <div className="space-y-2">
                     {(clientVisitData?.photo_rejects ?? []).map((reject, idx) => (
                       <div key={`${reject.reason}-${idx}`} className="rounded-md border bg-muted/40 p-2 text-xs">
-                        <div className="font-medium">{reject.reason || "Sabab ko'rsatilmagan"}</div>
+                        <div className="font-medium">{reject.reason || t("reasonNotSpecified")}</div>
                         {reject.date && (
                           <div className="text-muted-foreground mt-0.5">
                             {formatServerDate(reject.date)}
                           </div>
                         )}
-                        <div className="text-muted-foreground mt-1">{reject.comment || "Izoh yo'q"}</div>
+                        <div className="text-muted-foreground mt-1">{reject.comment || t("noComment")}</div>
                       </div>
                     ))}
                     {(clientVisitData?.photo_rejects?.length ?? 0) === 0 && (
-                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                      <div className="text-sm text-muted-foreground text-center py-4">{t("noData")}</div>
                     )}
                   </div>
                 ) : (
@@ -2481,18 +2481,18 @@ function LiveMapPage() {
                       >
                         <div className="p-2.5 text-xs">
                           <div className="flex items-center justify-between">
-                            <span className="font-medium">To'lov #{payment.id}</span>
+                            <span className="font-medium">{t("payment")} #{payment.id}</span>
                             <span className="inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
                               {payment.date}
                             </span>
                           </div>
                           <div className="mt-2 grid grid-cols-3 gap-1.5">
                             <div className="rounded-md border bg-muted/40 p-1.5 text-center">
-                              <div className="text-[10px] text-muted-foreground">Naqd</div>
+                              <div className="text-[10px] text-muted-foreground">{t("cash")}</div>
                               <div className="font-semibold leading-tight">{payment.cash}</div>
                             </div>
                             <div className="rounded-md border bg-muted/40 p-1.5 text-center">
-                              <div className="text-[10px] text-muted-foreground">Karta</div>
+                              <div className="text-[10px] text-muted-foreground">{t("card")}</div>
                               <div className="font-semibold leading-tight">{payment.card}</div>
                             </div>
                             <div className="rounded-md border bg-muted/40 p-1.5 text-center">
@@ -2509,7 +2509,7 @@ function LiveMapPage() {
                       </div>
                     ))}
                     {(clientVisitData?.payments?.length ?? 0) === 0 && (
-                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                      <div className="text-sm text-muted-foreground text-center py-4">{t("noData")}</div>
                     )}
                   </div>
                 )}
