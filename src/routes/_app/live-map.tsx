@@ -1133,8 +1133,9 @@ function LiveMapPage() {
     }
 
     const userId = selected;
+    const selUser = users.find((u) => u.id === userId);
 
-    fetch(API.workingSession(userId), {
+    fetch(API.workingSession(userId, selUser?.role), {
       headers: {
         accept: "application/json",
         Authorization: `Bearer ${accessToken}`,
@@ -1156,7 +1157,7 @@ function LiveMapPage() {
       .catch(() => {
         if (selectedRef.current === userId) setWorkSession(null);
       });
-  }, [selected, accessToken]);
+  }, [selected, accessToken, users]);
 
   useEffect(() => {
     if (selected === null || !accessToken) {
