@@ -240,12 +240,12 @@ function ClientsPage() {
               onChange={(e) => setSortMode(e.target.value as SortMode)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="name-asc">A-Z</option>
-              <option value="name-desc">Z-A</option>
-              <option value="debt-desc">Qarz: katta-kichik</option>
-              <option value="debt-asc">Qarz: kichik-katta</option>
-              <option value="last-sale-desc">So'nggi savdo: yangi-eski</option>
-              <option value="last-sale-asc">So'nggi savdo: eski-yangi</option>
+              <option value="name-asc">{t("sortAZ")}</option>
+              <option value="name-desc">{t("sortZA")}</option>
+              <option value="debt-desc">{t("sortDebtHighLow")}</option>
+              <option value="debt-asc">{t("sortDebtLowHigh")}</option>
+              <option value="last-sale-desc">{t("sortLastSaleNewOld")}</option>
+              <option value="last-sale-asc">{t("sortLastSaleOldNew")}</option>
             </select>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -256,7 +256,7 @@ function ClientsPage() {
               onClick={() => setViewMode("cards")}
             >
               <LayoutGrid className="h-4 w-4" />
-              Kartalar
+              {t("cardsView")}
             </Button>
             <Button
               type="button"
@@ -265,7 +265,7 @@ function ClientsPage() {
               onClick={() => setViewMode("table")}
             >
               <Rows3 className="h-4 w-4" />
-              Jadval
+              {t("tableView")}
             </Button>
           </div>
         </div>
@@ -464,13 +464,13 @@ function ClientsPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>{t("clients")}</TableHead>
-                            <TableHead>Aloqa</TableHead>
-                            <TableHead>Telefon</TableHead>
-                            <TableHead>Kategoriya</TableHead>
-                            <TableHead>Agent</TableHead>
-                            <TableHead>Filial</TableHead>
+                            <TableHead>{t("contact")}</TableHead>
+                            <TableHead>{t("phone")}</TableHead>
+                            <TableHead>{t("category")}</TableHead>
+                            <TableHead>{t("agent")}</TableHead>
+                            <TableHead>{t("filial")}</TableHead>
                             <TableHead>{t("lastSale")}</TableHead>
-                            <TableHead className="text-right">Qarz</TableHead>
+                            <TableHead className="text-right">{t("debt")}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>

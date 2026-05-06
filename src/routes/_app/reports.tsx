@@ -200,12 +200,12 @@ function ReportsPage() {
       <PageHeader title={t("reports")} description={t("reportsDesc")} />
       <Card className="p-4 mb-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Input type="date" value={dateBegin} onChange={(e) => setDateBegin(e.target.value)} aria-label="Date begin" />
-          <Input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} aria-label="Date end" />
+          <Input type="date" value={dateBegin} onChange={(e) => setDateBegin(e.target.value)} aria-label={t("dateBegin")} />
+          <Input type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} aria-label={t("dateEnd")} />
           <Input
             value={branchId}
             onChange={(e) => setBranchId(e.target.value)}
-            placeholder="Branch ID"
+            placeholder={t("branchId")}
             inputMode="numeric"
           />
         </div>
@@ -350,25 +350,25 @@ function ReportsPage() {
         </Card>
         <Card className="border-dashed">
           <CardContent className="p-4">
-            <p className="text-[11px] text-muted-foreground">Buyurtmalar</p>
+            <p className="text-[11px] text-muted-foreground">{t("orders")}</p>
             <p className="text-lg font-semibold">{formatQty(reportData.qty_order)}</p>
           </CardContent>
         </Card>
         <Card className="border-dashed">
           <CardContent className="p-4">
-            <p className="text-[11px] text-muted-foreground">Photo</p>
+            <p className="text-[11px] text-muted-foreground">{t("photo")}</p>
             <p className="text-lg font-semibold">{formatQty(reportData.qty_photo)}</p>
           </CardContent>
         </Card>
         <Card className="border-dashed">
           <CardContent className="p-4">
-            <p className="text-[11px] text-muted-foreground">Returned</p>
+            <p className="text-[11px] text-muted-foreground">{t("returned")}</p>
             <p className="text-lg font-semibold">{formatQty(reportData.qty_returned)}</p>
           </CardContent>
         </Card>
         <Card className="border-dashed">
           <CardContent className="p-4">
-            <p className="text-[11px] text-muted-foreground">Result</p>
+            <p className="text-[11px] text-muted-foreground">{t("result")}</p>
             <p className="text-lg font-semibold">{formatQty(reportData.result)}%</p>
           </CardContent>
         </Card>
@@ -377,7 +377,7 @@ function ReportsPage() {
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Top agentlar</CardTitle>
+            <CardTitle className="text-base">{t("topAgents")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {topAgents.length === 0 ? (
@@ -403,11 +403,11 @@ function ReportsPage() {
             )}
 
             <div className="pt-2 mt-2 border-t flex items-center justify-between text-sm">
-              <p className="text-muted-foreground">Jami summa</p>
+              <p className="text-muted-foreground">{t("totalAmount")}</p>
               <p className="font-semibold">{formatMoney(totalSumma)}</p>
             </div>
             <div className="flex items-center justify-between text-sm">
-              <p className="text-muted-foreground">Jami qty</p>
+              <p className="text-muted-foreground">{t("totalQty")}</p>
               <p className="font-semibold">{formatQty(totalQty)}</p>
             </div>
           </CardContent>
@@ -415,7 +415,7 @@ function ReportsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Top guruhlar</CardTitle>
+            <CardTitle className="text-base">{t("topGroups")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {topGroups.length === 0 ? (

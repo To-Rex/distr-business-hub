@@ -174,12 +174,12 @@ function WarehousePage() {
               onChange={(e) => setSortMode(e.target.value as SortMode)}
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="name-asc">Nomi: A-Z</option>
-              <option value="name-desc">Nomi: Z-A</option>
-              <option value="qty-desc">Qoldiq: katta-kichik</option>
-              <option value="qty-asc">Qoldiq: kichik-katta</option>
-              <option value="price-desc">Narx: katta-kichik</option>
-              <option value="price-asc">Narx: kichik-katta</option>
+              <option value="name-asc">{t("sortNameAZ")}</option>
+              <option value="name-desc">{t("sortNameZA")}</option>
+              <option value="qty-desc">{t("sortStockHighLow")}</option>
+              <option value="qty-asc">{t("sortStockLowHigh")}</option>
+              <option value="price-desc">{t("sortPriceHighLow")}</option>
+              <option value="price-asc">{t("sortPriceLowHigh")}</option>
             </select>
           </div>
           <div className="flex items-center gap-1 shrink-0">
@@ -190,7 +190,7 @@ function WarehousePage() {
               onClick={() => setViewMode("cards")}
             >
               <LayoutGrid className="h-4 w-4" />
-              Kartalar
+              {t("cardsView")}
             </Button>
             <Button
               type="button"
@@ -199,7 +199,7 @@ function WarehousePage() {
               onClick={() => setViewMode("table")}
             >
               <Rows3 className="h-4 w-4" />
-              Jadval
+              {t("tableView")}
             </Button>
           </div>
         </div>
@@ -343,8 +343,8 @@ function WarehousePage() {
                             </Badge>
                           </div>
                           <div className="space-y-1 text-xs text-muted-foreground">
-                            <p>Kategoriya: {product.category || "—"}</p>
-                            <p>Joylashuv: {product.store_name || "—"}</p>
+                            <p>{t("category")}: {product.category || "—"}</p>
+                            <p>{t("location")}: {product.store_name || "—"}</p>
                           </div>
                           <div className="mt-3 pt-3 border-t flex items-center justify-between text-xs">
                             <span className="font-medium">

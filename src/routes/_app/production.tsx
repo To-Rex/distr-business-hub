@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_app/production")({ component: Production
 function ProductionPage() {
   const { t } = useSettings();
   return (
-    <div>
+    <div className="relative">
       <PageHeader title={t("production")} description={t("productionDesc")} />
       <Card>
         <Table>
@@ -39,6 +39,11 @@ function ProductionPage() {
           </TableBody>
         </Table>
       </Card>
+      <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/20 backdrop-blur-[2px]">
+        <div className="rounded-2xl border border-white/30 bg-white/15 px-8 py-5 shadow-lg">
+          <span className="text-3xl font-semibold tracking-wide text-foreground">{t("comingSoon")}</span>
+        </div>
+      </div>
     </div>
   );
 }

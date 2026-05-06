@@ -88,7 +88,7 @@ export function AppShell() {
 
   const navGroups = [
     {
-      label: "Main",
+      label: t("navMain"),
       items: [
         { to: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
         { to: "/clients", label: t("clients"), icon: Users },
@@ -97,7 +97,7 @@ export function AppShell() {
       ],
     },
     {
-      label: "Operations",
+      label: t("navOperations"),
       items: [
         { to: "/warehouse", label: t("warehouse"), icon: Warehouse },
         { to: "/finance", label: t("finance"), icon: Wallet },
@@ -106,7 +106,7 @@ export function AppShell() {
       ],
     },
     {
-      label: "Insights",
+      label: t("navInsights"),
       items: [
         { to: "/reports", label: t("reports"), icon: BarChart3 },
         { to: "/calendar", label: t("calendar"), icon: Calendar },
@@ -114,7 +114,7 @@ export function AppShell() {
       ],
     },
     {
-      label: "Account",
+      label: t("navAccount"),
       items: [
         { to: "/profile", label: t("profile"), icon: UserIcon },
         { to: "/settings", label: t("settings"), icon: SettingsIcon },
@@ -194,7 +194,7 @@ export function AppShell() {
                 <div className="text-xs text-muted-foreground">{user?.user_type ?? user?.email}</div>
               </TooltipContent>
             </Tooltip>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logout" className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t("logout")} className="h-8 w-8">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -207,7 +207,7 @@ export function AppShell() {
               <div className="text-sm font-medium truncate capitalize">{user?.name}</div>
               <div className="text-xs text-muted-foreground truncate">{user?.user_type ?? user?.email}</div>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label="Logout" className="h-8 w-8">
+            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t("logout")} className="h-8 w-8">
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -224,7 +224,7 @@ export function AppShell() {
           <button
             onClick={() => setCollapsed((v) => !v)}
             className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-full border bg-card shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-md transition-colors"
-            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
           >
             {collapsed ? <ChevronsRight className="h-3 w-3" /> : <ChevronsLeft className="h-3 w-3" />}
           </button>
@@ -260,7 +260,7 @@ export function AppShell() {
                   }
                   className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 rounded-md border bg-card px-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                 >
-                  {liveMapSearchTarget === "user" ? "User" : "Client"}
+                  {liveMapSearchTarget === "user" ? t("user") : t("client")}
                 </button>
               )}
               {isLiveMapPage && headerSearch.trim().length > 0 && liveMapSuggestion && (
@@ -293,7 +293,7 @@ export function AppShell() {
             <div className="flex items-center gap-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" aria-label="Language">
+                  <Button variant="ghost" size="icon" aria-label={t("language")}>
                     <Globe className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -309,7 +309,7 @@ export function AppShell() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label="Theme">
+              <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={t("theme")}>
                 {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </Button>
               <Link to="/notifications" className="relative">

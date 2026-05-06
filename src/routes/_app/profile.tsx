@@ -54,9 +54,9 @@ function ProfilePage() {
             <div className="text-sm text-muted-foreground">{user?.user_type}</div>
             <Separator className="my-4" />
             <div className="space-y-1 text-sm text-left">
-              <Field icon={Mail} label="Email" value={user?.email} />
+              <Field icon={Mail} label={t("email")} value={user?.email} />
               <Field icon={Phone} label={t("phone")} value={formatPhone(user?.phone_number)} />
-              <Field icon={UserIcon} label="Username" value={user?.username} />
+              <Field icon={UserIcon} label={t("username")} value={user?.username} />
               <Field icon={Calendar} label={t("calendar") ?? "Sana"} value={created} />
             </div>
           </CardContent>
@@ -64,10 +64,10 @@ function ProfilePage() {
 
         <div className="lg:col-span-2 space-y-4">
           <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4" />Kompaniya</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4" />{t("company")}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                <Field icon={Building2} label="Nomi" value={user?.company_rel?.name} />
+                <Field icon={Building2} label={t("name")} value={user?.company_rel?.name} />
                 <Field icon={Hash} label="INN" value={user?.company_rel?.inn} />
               </div>
             </CardContent>
@@ -75,24 +75,24 @@ function ProfilePage() {
 
           {user?.manager && (
             <Card>
-              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />Manager</CardTitle></CardHeader>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><Users className="h-4 w-4" />{t("manager")}</CardTitle></CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
                   <Field icon={UserIcon} label={t("name")} value={`${user.manager.first_name} ${user.manager.last_name}`} />
-                  <Field icon={Mail} label="Email" value={user.manager.email} />
+                  <Field icon={Mail} label={t("email")} value={user.manager.email} />
                   <Field icon={Phone} label={t("phone")} value={formatPhone(user.manager.phone_number)} />
-                  <Field icon={Shield} label="Rol" value={user.manager.user_type} />
+                  <Field icon={Shield} label={t("role")} value={user.manager.user_type} />
                 </div>
               </CardContent>
             </Card>
           )}
 
           <Card>
-            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />1C Maʼlumotlari</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base flex items-center gap-2"><Globe className="h-4 w-4" />{t("oneCData")}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
-                <Field icon={Hash} label="1C ID" value={user?.user_1c_id} />
-                <Field icon={UserIcon} label="1C Login" value={user?.user_1c_login} />
+                <Field icon={Hash} label={t("oneCId")} value={user?.user_1c_id} />
+                <Field icon={UserIcon} label={t("oneCLogin")} value={user?.user_1c_login} />
               </div>
             </CardContent>
           </Card>
