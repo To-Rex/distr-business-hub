@@ -259,17 +259,30 @@ function LiveMapPage() {
   const [navSearchTarget, setNavSearchTarget] = useState<"user" | "client">("user");
 
   const normalizedNavSearch = navSearchQuery.trim().toLowerCase();
-  const filteredUsers = (roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter)).filter(
-    (u) => {
-      if (navSearchTarget !== "user" || !normalizedNavSearch) return true;
-      const fullName = `${u.first_name} ${u.last_name}`.toLowerCase();
-      return fullName.includes(normalizedNavSearch);
-    },
-  );
-  const filteredClients = clients.filter((c) => {
-    if (navSearchTarget !== "client" || !normalizedNavSearch) return true;
-    return c.name.toLowerCase().includes(normalizedNavSearch);
-  });
+  const roleFilteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
+  const userSearchMatches =
+    navSearchTarget === "user" && normalizedNavSearch
+      ? roleFilteredUsers.filter((u) =>
+          `${u.first_name} ${u.last_name}`.toLowerCase().includes(normalizedNavSearch),
+        )
+      : [];
+  const clientSearchMatches =
+    navSearchTarget === "client" && normalizedNavSearch
+      ? clients.filter((c) => c.name.toLowerCase().includes(normalizedNavSearch))
+      : [];
+  const prioritizedUsers =
+    userSearchMatches.length > 0
+      ? [...roleFilteredUsers].sort((a, b) => {
+          const aMatched = `${a.first_name} ${a.last_name}`
+            .toLowerCase()
+            .includes(normalizedNavSearch);
+          const bMatched = `${b.first_name} ${b.last_name}`
+            .toLowerCase()
+            .includes(normalizedNavSearch);
+          if (aMatched === bMatched) return 0;
+          return aMatched ? -1 : 1;
+        })
+      : roleFilteredUsers;
 
   const refreshMapSize = useCallback(() => {
     const map = mapInstanceRef.current;
@@ -443,7 +456,7 @@ function LiveMapPage() {
     const map = mapInstanceRef.current;
     if (!map) return;
 
-    const filteredIds = new Set<number>(filteredUsers.map((u) => u.id));
+    const filteredIds = new Set<number>(roleFilteredUsers.map((u) => u.id));
 
     users.forEach((u) => {
       const { latitude, longitude } = u.last_location;
@@ -506,7 +519,7 @@ function LiveMapPage() {
         markersRef.current.delete(id);
       }
     }
-  }, [users, filteredUsers, selected, mapContainerKey, theme]);
+  }, [users, roleFilteredUsers, selected, mapContainerKey, theme]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -522,7 +535,7 @@ function LiveMapPage() {
 
     const existingIds = new Set<number>();
 
-    filteredClients.forEach((c) => {
+    clients.forEach((c) => {
       if (c.latitude === 0 && c.longitude === 0) return;
       existingIds.add(c.id);
 
@@ -561,7 +574,7 @@ function LiveMapPage() {
         clientMarkersRef.current.delete(id);
       }
     }
-  }, [filteredClients, showClients, mapContainerKey, theme]);
+  }, [clients, showClients, mapContainerKey, theme]);
 
   useEffect(() => {
     const onNavSearchChange = (event: Event) => {
@@ -579,10 +592,10 @@ function LiveMapPage() {
     const hasQuery = normalizedNavSearch.length > 0;
     const suggestion = hasQuery
       ? navSearchTarget === "user"
-        ? filteredUsers[0]
-          ? `${filteredUsers[0].first_name} ${filteredUsers[0].last_name}`
+        ? userSearchMatches[0]
+          ? `${userSearchMatches[0].first_name} ${userSearchMatches[0].last_name}`
           : ""
-        : filteredClients[0]?.name ?? ""
+        : clientSearchMatches[0]?.name ?? ""
       : "";
 
     window.dispatchEvent(
@@ -590,7 +603,19 @@ function LiveMapPage() {
         detail: { suggestion },
       }),
     );
-  }, [normalizedNavSearch, navSearchTarget, filteredUsers, filteredClients]);
+  }, [normalizedNavSearch, navSearchTarget, userSearchMatches, clientSearchMatches]);
+
+  useEffect(() => {
+    if (navSearchTarget !== "client" || !normalizedNavSearch) return;
+    const targetClient = clientSearchMatches[0];
+    if (!targetClient) return;
+    if (targetClient.latitude === 0 && targetClient.longitude === 0) return;
+
+    mapInstanceRef.current?.flyTo([targetClient.latitude, targetClient.longitude], 15, {
+      animate: true,
+      duration: 0.8,
+    });
+  }, [navSearchTarget, normalizedNavSearch, clientSearchMatches]);
 
   useEffect(() => {
     const onSelectUserFromSearch = (event: Event) => {
@@ -1401,12 +1426,12 @@ function LiveMapPage() {
             <div
               className={`overflow-y-auto space-y-3 ${selected !== null ? "flex-1 min-h-0" : "flex-1"}`}
             >
-              {filteredUsers.length === 0 && (
+              {prioritizedUsers.length === 0 && (
                 <div className="text-sm text-muted-foreground text-center py-4">
                   {wsStatus === "connected" ? "..." : t("offline")}
                 </div>
               )}
-              {filteredUsers.map((u) => {
+              {prioritizedUsers.map((u) => {
                 const color = ROLE_COLORS[u.role] || "#3b82f6";
                 const hasLocation =
                   u.last_location.latitude !== 0 || u.last_location.longitude !== 0;
