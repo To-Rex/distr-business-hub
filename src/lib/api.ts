@@ -25,6 +25,8 @@ export const API = {
     proxied1C(baseUrl, `/hs/manager/api/get_visit_data_by_client?client_id=${clientId}`),
   clientsByGroup: (baseUrl: string) =>
     proxied1C(baseUrl, "/hs/manager/api/GetClientsbyGroup"),
+  productsByGroup: (baseUrl: string) =>
+    proxied1C(baseUrl, "/hs/manager/api/Getproductsbygroup"),
   employees: (baseUrl: string) => proxied1C(baseUrl, "/hs/manager/api/get_employees"),
   salesByCategory: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) =>
     proxied1C(

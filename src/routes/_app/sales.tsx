@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
+import { formatWithSpaces } from "@/lib/utils";
 import { AlertCircle, Search } from "lucide-react";
 import {
   Bar,
@@ -82,11 +83,11 @@ function toApiDate(value: string): string {
 }
 
 function formatMoney(n: number): string {
-  return new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 0 }).format(n);
+  return formatWithSpaces(n, 0);
 }
 
 function formatQty(n: number): string {
-  return new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 2 }).format(n);
+  return formatWithSpaces(n, 2);
 }
 
 function shortName(name: string, max = 14): string {

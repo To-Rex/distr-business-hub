@@ -4,12 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { finance } from "@/lib/mock-data";
 import { useSettings } from "@/lib/settings";
+import { formatWithSpaces } from "@/lib/utils";
 import { ArrowDownRight, ArrowUpRight, Wallet } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 export const Route = createFileRoute("/_app/finance")({ component: FinancePage });
 
-const fmt = (n: number) => "$" + n.toLocaleString();
+const fmt = (n: number) => "$" + formatWithSpaces(n, 0);
 
 function FinancePage() {
   const { t } = useSettings();

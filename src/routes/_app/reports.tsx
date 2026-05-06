@@ -7,6 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
+import { formatWithSpaces } from "@/lib/utils";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell,
   Legend, Line, LineChart, Pie, PieChart, RadialBar, RadialBarChart,
@@ -86,14 +87,14 @@ function monthStartIsoDate(): string {
 }
 
 function formatMoney(n: number): string {
-  return new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 0, useGrouping: true }).format(n || 0).replaceAll("\u00A0", " ").replaceAll(",", " ");
+  return formatWithSpaces(n || 0, 0);
 }
 
 function formatQty(n: number): string {
   const num = Number(n || 0);
   const truncated = Math.trunc(num * 100) / 100;
   const fixed = truncated === Math.trunc(truncated) ? String(Math.trunc(truncated)) : truncated.toFixed(2).replace(/0+$/, "");
-  return new Intl.NumberFormat("uz-UZ", { maximumFractionDigits: 2, minimumFractionDigits: 0 }).format(Number(fixed)).replaceAll("\u00A0", " ").replaceAll(",", " ");
+  return formatWithSpaces(Number(fixed), 2);
 }
 
 function ReportsPage() {
