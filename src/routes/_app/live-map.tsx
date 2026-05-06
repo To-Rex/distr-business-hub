@@ -22,6 +22,12 @@ import {
   Maximize2,
   Minimize2,
   Search,
+  ChevronLeft,
+  ChevronRight,
+  ShoppingCart,
+  Camera,
+  CameraOff,
+  Wallet,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -82,6 +88,93 @@ type ClientLocation = {
   agent: string;
   visit: number;
 };
+
+type ClientInfoResponse = {
+  id: number;
+  name: string;
+  filial_name?: string;
+  INN?: string;
+  contactName?: string;
+  Phone?: string;
+  Orientr?: string;
+  category?: string;
+  commentary?: string;
+  status_name?: string;
+  visitQty?: number;
+  img?: { URL: string; alt?: string; proxyURL?: string }[];
+  activities?: { activity_name: string }[];
+  agent?: { agent_id: number; agent_name: string };
+};
+
+type ClientVisitDataResponse = {
+  orders?: {
+    order_id: number;
+    order_data: string;
+    qty: number;
+    amount: number;
+    cry: string;
+    products?: {
+      product_id: number;
+      product_name: string;
+      URL?: string;
+      url?: string;
+      proxyURL?: string;
+      price: number;
+      qty_order: number;
+      qty_del: number;
+      sum_order: number;
+      sum_del: number;
+    }[];
+  }[];
+  photo_reports?: {
+    info?: string;
+    url?: string;
+    proxyURL?: string;
+    lat?: number;
+    long?: number;
+    date?: string;
+  }[];
+  photo_rejects?: {
+    reason?: string;
+    comment?: string;
+    date?: string;
+  }[];
+  payments?: {
+    id: number;
+    date: string;
+    cash: number;
+    card: number;
+    click: number;
+    click_proto_url?: string;
+    Comment?: string;
+    latitude?: number;
+    longitude?: number;
+  }[];
+};
+
+function getProxiedImageUrl(rawUrl: string) {
+  if (!rawUrl) return "";
+  try {
+    const parsed = new URL(rawUrl);
+    const path = `${parsed.pathname}${parsed.search}`;
+    return `/proxy-1c?target=${encodeURIComponent(parsed.origin)}&path=${encodeURIComponent(path)}`;
+  } catch {
+    return rawUrl;
+  }
+}
+
+function formatServerDate(value?: string) {
+  if (!value) return "";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleString("uz-UZ", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 const ROLE_COLORS: Record<WsUser["role"], string> = {
   SUPERVISOR: "#8b5cf6",
@@ -234,6 +327,16 @@ function LiveMapPage() {
   const selectedRef = useRef<number | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [selectedClient, setSelectedClient] = useState<number | null>(null);
+  const [clientInfo, setClientInfo] = useState<ClientInfoResponse | null>(null);
+  const [clientInfoLoading, setClientInfoLoading] = useState(false);
+  const [clientVisitData, setClientVisitData] = useState<ClientVisitDataResponse | null>(null);
+  const [clientVisitDataLoading, setClientVisitDataLoading] = useState(false);
+  const [clientInfoOpen, setClientInfoOpen] = useState(false);
+  const [clientVisitDetailOpen, setClientVisitDetailOpen] = useState(false);
+  const [clientVisitDetailType, setClientVisitDetailType] = useState<
+    "orders" | "photo_reports" | "photo_rejects" | "payments"
+  >("orders");
+  const [clientImageIndex, setClientImageIndex] = useState(0);
   const [locating, setLocating] = useState(false);
   const [workSession, setWorkSession] = useState<{ session: string; device_name: string } | null>(
     null,
@@ -675,6 +778,7 @@ function LiveMapPage() {
       selectedRef.current = matchedUser.id;
       setSelected(matchedUser.id);
       setSelectedClient(null);
+      setClientInfoOpen(false);
     };
 
     window.addEventListener("live-map-search-select-user", onSelectUserFromSearch as EventListener);
@@ -700,6 +804,8 @@ function LiveMapPage() {
       setWorkSession(null);
       setDistanceKm(null);
       setSelectedClient(matchedClient.id);
+      setClientInfoOpen(false);
+      setClientVisitDetailOpen(false);
       mapInstanceRef.current?.flyTo([matchedClient.latitude, matchedClient.longitude], 15, {
         animate: true,
         duration: 0.8,
@@ -716,6 +822,130 @@ function LiveMapPage() {
         onSelectClientFromSearch as EventListener,
       );
   }, [clients]);
+
+  useEffect(() => {
+    if (!selectedClient || !user?.company_rel?.base_url || !user?.user_1c_login || !user?.user_1c_password) {
+      setClientInfo(null);
+      setClientInfoLoading(false);
+      setClientVisitData(null);
+      setClientVisitDataLoading(false);
+      return;
+    }
+
+    const basic = btoa(`${user.user_1c_login}:${user.user_1c_password}`);
+    setClientInfoLoading(true);
+
+    fetch(API.clientInfo(user.company_rel.base_url, selectedClient), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Basic ${basic}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+      })
+      .then((data: ClientInfoResponse) => {
+        const normalizedImages = Array.isArray((data as { img?: unknown }).img)
+          ? ((data as { img: Array<{ URL?: string; url?: string; alt?: string }> }).img
+              .map((item) => {
+                const sourceUrl = (item.URL || item.url || "").trim();
+                if (!sourceUrl) return null;
+                return {
+                  URL: sourceUrl,
+                  proxyURL: getProxiedImageUrl(sourceUrl),
+                  alt: item.alt,
+                };
+              })
+              .filter(Boolean) as { URL: string; alt?: string; proxyURL?: string }[])
+          : [];
+
+        setClientInfo({
+          ...data,
+          img: normalizedImages,
+        });
+      })
+      .catch(() => {
+        setClientInfo(null);
+      })
+      .finally(() => {
+        setClientInfoLoading(false);
+      });
+
+    setClientVisitDataLoading(true);
+    fetch(API.clientVisitData(user.company_rel.base_url, selectedClient), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Basic ${basic}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed");
+        return res.json();
+      })
+      .then((data: ClientVisitDataResponse) => {
+        const normalizedPhotoReports = Array.isArray(data?.photo_reports)
+          ? data.photo_reports.map((item) => ({
+              ...item,
+              url: item.url || "",
+              proxyURL: item.url ? getProxiedImageUrl(item.url) : "",
+            }))
+          : [];
+        const normalizedOrders = Array.isArray(data?.orders)
+          ? data.orders.map((order) => ({
+              ...order,
+              products: Array.isArray(order.products)
+                ? order.products.map((product) => ({
+                    ...product,
+                    URL:
+                      product.URL ||
+                      product.url ||
+                      (product as { image?: string }).image ||
+                      (product as { image_url?: string }).image_url ||
+                      "",
+                    proxyURL:
+                      product.URL ||
+                      product.url ||
+                      (product as { image?: string }).image ||
+                      (product as { image_url?: string }).image_url
+                        ? getProxiedImageUrl(
+                            product.URL ||
+                              product.url ||
+                              (product as { image?: string }).image ||
+                              (product as { image_url?: string }).image_url ||
+                              "",
+                          )
+                        : "",
+                  }))
+                : [],
+            }))
+          : [];
+        const normalizedPayments = Array.isArray(data?.payments)
+          ? data.payments.map((item) => ({
+              ...item,
+              click_proto_url: item.click_proto_url
+                ? getProxiedImageUrl(item.click_proto_url)
+                : item.click_proto_url,
+            }))
+          : [];
+        setClientVisitData({
+          ...data,
+          orders: normalizedOrders,
+          photo_reports: normalizedPhotoReports,
+          payments: normalizedPayments,
+        });
+      })
+      .catch(() => {
+        setClientVisitData(null);
+      })
+      .finally(() => {
+        setClientVisitDataLoading(false);
+      });
+  }, [selectedClient, user]);
+
+  useEffect(() => {
+    setClientImageIndex(0);
+  }, [selectedClient, clientInfo?.img?.length]);
 
   useEffect(() => {
     if (selectedRef.current) {
@@ -1465,8 +1695,8 @@ function LiveMapPage() {
         <Card
           className={
             isFullscreen
-              ? "absolute right-3 top-3 bottom-3 w-[320px] z-[1001] bg-card/95 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden"
-              : "flex flex-col h-[70vh] min-h-[520px] max-h-[760px]"
+              ? "absolute right-3 top-3 bottom-3 w-[320px] z-[1001] bg-card/95 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden relative"
+              : "flex flex-col h-[70vh] min-h-[520px] max-h-[760px] relative overflow-hidden"
           }
         >
           <CardHeader className="pb-3 flex flex-row items-center justify-between space-y-0">
@@ -1552,6 +1782,7 @@ function LiveMapPage() {
                           setWorkSession(null);
                           setDistanceKm(null);
                           setSelectedClient(newId);
+                          setClientInfoOpen(false);
                           if (newId === null) return;
                           mapInstanceRef.current?.flyTo([c.latitude, c.longitude], 15, {
                             animate: true,
@@ -1603,6 +1834,7 @@ function LiveMapPage() {
                           selectedRef.current = newId;
                           setSelected(newId);
                           setSelectedClient(null);
+                          setClientInfoOpen(false);
                           if (newId === null) {
                             setWorkSession(null);
                             setDistanceKm(null);
@@ -1752,20 +1984,29 @@ function LiveMapPage() {
                   <div className="border-t pt-3 mt-1 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div
+                        <button
+                          type="button"
                           className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
                           style={{ backgroundColor: CLIENT_COLOR }}
+                          onClick={() => setClientInfoOpen((v) => !v)}
                         >
                           <Store className="h-4 w-4 text-white" />
-                        </div>
-                        <div>
+                        </button>
+                        <button
+                          type="button"
+                          className="text-left"
+                          onClick={() => setClientInfoOpen((v) => !v)}
+                        >
                           <div className="text-sm font-semibold leading-tight">{selClient.name}</div>
                           <div className="text-[11px] text-muted-foreground">Klient</div>
-                        </div>
+                        </button>
                       </div>
                       <button
                         className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
-                        onClick={() => setSelectedClient(null)}
+                        onClick={() => {
+                          setSelectedClient(null);
+                          setClientInfoOpen(false);
+                        }}
                       >
                         <X className="h-3.5 w-3.5 text-muted-foreground" />
                       </button>
@@ -1807,6 +2048,431 @@ function LiveMapPage() {
                 );
               })()}
           </CardContent>
+          {selectedClient !== null && (
+            <div
+              className={`absolute inset-y-0 right-0 z-20 w-full border-l bg-card shadow-2xl transition-transform duration-300 ease-out ${
+                clientInfoOpen ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
+              <div className="h-full p-3 overflow-y-auto space-y-2">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setClientInfoOpen(false)}
+                    className="h-7 px-2 rounded-md border bg-card text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Orqaga
+                  </button>
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Klient profili
+                  </div>
+                  <button
+                    className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                    onClick={() => setClientInfoOpen(false)}
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                </div>
+                {clientInfoLoading ? (
+                  <div className="text-sm text-muted-foreground">Yuklanmoqda...</div>
+                ) : (
+                  <>
+                    {!!clientInfo?.img?.length && (
+                      <div className="rounded-lg border bg-muted/30 p-2">
+                        <div className="relative overflow-hidden rounded-md bg-card">
+                          <a
+                            href={clientInfo.img[clientImageIndex]?.URL}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="block"
+                          >
+                            <img
+                              src={clientInfo.img[clientImageIndex]?.URL}
+                              alt={
+                                clientInfo.img[clientImageIndex]?.alt?.trim() ||
+                                `Rasm ${clientImageIndex + 1}`
+                              }
+                              loading="lazy"
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                const fallback = clientInfo.img?.[clientImageIndex]?.proxyURL;
+                                if (fallback && target.src !== fallback) {
+                                  target.src = fallback;
+                                }
+                              }}
+                              className="h-44 w-full object-cover"
+                            />
+                          </a>
+                          {clientInfo.img.length > 1 && (
+                            <>
+                              <button
+                                type="button"
+                                className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/45 text-white hover:bg-black/60 flex items-center justify-center transition-colors"
+                                onClick={() =>
+                                  setClientImageIndex((prev) =>
+                                    prev === 0 ? clientInfo.img!.length - 1 : prev - 1,
+                                  )
+                                }
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                              </button>
+                              <button
+                                type="button"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full bg-black/45 text-white hover:bg-black/60 flex items-center justify-center transition-colors"
+                                onClick={() =>
+                                  setClientImageIndex((prev) =>
+                                    prev === clientInfo.img!.length - 1 ? 0 : prev + 1,
+                                  )
+                                }
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {clientInfo.img[clientImageIndex]?.alt?.trim() ||
+                              `Rasm ${clientImageIndex + 1}`}
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">
+                            {clientImageIndex + 1} / {clientInfo.img.length}
+                          </div>
+                        </div>
+                        {clientInfo.img.length > 1 && (
+                          <div className="mt-2 flex gap-1.5">
+                            {clientInfo.img.map((item, idx) => (
+                              <button
+                                key={`${item.URL}-dot-${idx}`}
+                                type="button"
+                                onClick={() => setClientImageIndex(idx)}
+                                className={`h-1.5 rounded-full transition-all ${
+                                  idx === clientImageIndex
+                                    ? "w-5 bg-primary"
+                                    : "w-2.5 bg-muted-foreground/40"
+                                }`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientVisitDetailType("orders");
+                          setClientVisitDetailOpen(true);
+                        }}
+                        className="rounded-lg border bg-muted/40 p-2.5 text-left hover:bg-muted/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <ShoppingCart className="h-3.5 w-3.5 text-primary" />
+                          <span>Buyurtmalar</span>
+                        </div>
+                        <div className="mt-1 text-lg font-semibold leading-none">
+                          {clientVisitDataLoading ? "..." : (clientVisitData?.orders?.length ?? 0)}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientVisitDetailType("photo_reports");
+                          setClientVisitDetailOpen(true);
+                        }}
+                        className="rounded-lg border bg-muted/40 p-2.5 text-left hover:bg-muted/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Camera className="h-3.5 w-3.5 text-primary" />
+                          <span>Foto hisobotlar</span>
+                        </div>
+                        <div className="mt-1 text-lg font-semibold leading-none">
+                          {clientVisitDataLoading ? "..." : (clientVisitData?.photo_reports?.length ?? 0)}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientVisitDetailType("photo_rejects");
+                          setClientVisitDetailOpen(true);
+                        }}
+                        className="rounded-lg border bg-muted/40 p-2.5 text-left hover:bg-muted/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <CameraOff className="h-3.5 w-3.5 text-primary" />
+                          <span>Rad etilgan rasmlar</span>
+                        </div>
+                        <div className="mt-1 text-lg font-semibold leading-none">
+                          {clientVisitDataLoading
+                            ? "..."
+                            : (clientVisitData?.photo_rejects?.length ?? 0)}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setClientVisitDetailType("payments");
+                          setClientVisitDetailOpen(true);
+                        }}
+                        className="rounded-lg border bg-muted/40 p-2.5 text-left hover:bg-muted/60 transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <Wallet className="h-3.5 w-3.5 text-primary" />
+                          <span>To'lovlar</span>
+                        </div>
+                        <div className="mt-1 text-lg font-semibold leading-none">
+                          {clientVisitDataLoading ? "..." : (clientVisitData?.payments?.length ?? 0)}
+                        </div>
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="rounded-md bg-muted/50 p-2">
+                        <div className="text-muted-foreground">Filial</div>
+                        <div className="font-medium">{clientInfo?.filial_name || "—"}</div>
+                      </div>
+                      <div className="rounded-md bg-muted/50 p-2">
+                        <div className="text-muted-foreground">Status</div>
+                        <div className="font-medium">{clientInfo?.status_name || "—"}</div>
+                      </div>
+                      <div className="rounded-md bg-muted/50 p-2">
+                        <div className="text-muted-foreground">INN</div>
+                        <div className="font-medium">{clientInfo?.INN || "—"}</div>
+                      </div>
+                      <div className="rounded-md bg-muted/50 p-2">
+                        <div className="text-muted-foreground">Kategoriya</div>
+                        <div className="font-medium">{clientInfo?.category || "—"}</div>
+                      </div>
+                      <div className="rounded-md bg-muted/50 p-2">
+                        <div className="text-muted-foreground">Kontakt</div>
+                        <div className="font-medium">{clientInfo?.contactName || "—"}</div>
+                      </div>
+                      <div className="rounded-md bg-muted/50 p-2">
+                        <div className="text-muted-foreground">Telefon</div>
+                        <div className="font-medium">{clientInfo?.Phone || "—"}</div>
+                      </div>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2 text-xs">
+                      <div className="text-muted-foreground">Agent</div>
+                      <div className="font-medium">{clientInfo?.agent?.agent_name || "—"}</div>
+                    </div>
+                    <div className="rounded-md bg-muted/50 p-2 text-xs">
+                      <div className="text-muted-foreground">Manzil orientir</div>
+                      <div className="font-medium">{clientInfo?.Orientr || "—"}</div>
+                    </div>
+                    {!!clientInfo?.activities?.length && (
+                      <div className="rounded-md bg-muted/50 p-2 text-xs">
+                        <div className="text-muted-foreground mb-1">Faoliyatlar</div>
+                        <div className="flex flex-wrap gap-1">
+                          {clientInfo.activities.map((a, idx) => (
+                            <span key={`${a.activity_name}-${idx}`} className="px-1.5 py-0.5 rounded bg-card border">
+                              {a.activity_name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {clientInfo?.commentary?.trim() && (
+                      <div className="rounded-md bg-muted/50 p-2 text-xs">
+                        <div className="text-muted-foreground mb-1">Izoh</div>
+                        <div className="font-medium">{clientInfo.commentary}</div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+          {selectedClient !== null && (
+            <div
+              className={`absolute inset-y-0 right-0 z-30 w-full border-l bg-card shadow-2xl transition-transform duration-300 ease-out ${
+                clientVisitDetailOpen ? "translate-x-0" : "translate-x-full"
+              }`}
+            >
+              <div className="h-full p-3 overflow-y-auto space-y-2">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setClientVisitDetailOpen(false)}
+                    className="h-7 px-2 rounded-md border bg-card text-xs text-muted-foreground hover:text-foreground inline-flex items-center gap-1"
+                  >
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                    Orqaga
+                  </button>
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    {clientVisitDetailType === "orders"
+                      ? "Buyurtmalar"
+                      : clientVisitDetailType === "photo_reports"
+                        ? "Foto hisobotlar"
+                        : clientVisitDetailType === "photo_rejects"
+                          ? "Rad etilgan rasmlar"
+                          : "To'lovlar"}
+                  </div>
+                  <button
+                    className="h-6 w-6 rounded-full hover:bg-muted flex items-center justify-center transition-colors"
+                    onClick={() => setClientVisitDetailOpen(false)}
+                  >
+                    <X className="h-3.5 w-3.5 text-muted-foreground" />
+                  </button>
+                </div>
+
+                {clientVisitDataLoading ? (
+                  <div className="text-sm text-muted-foreground">Yuklanmoqda...</div>
+                ) : clientVisitDetailType === "orders" ? (
+                  <div className="space-y-2">
+                    {(clientVisitData?.orders ?? []).map((order) => (
+                      <div key={order.order_id} className="rounded-md border bg-muted/40 p-2">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-medium">#{order.order_id}</span>
+                          <span className="text-muted-foreground">{order.order_data}</span>
+                        </div>
+                        <div className="mt-1 text-xs">
+                          {order.qty} ta · {order.amount} {order.cry}
+                        </div>
+                        {!!order.products?.length && (
+                          <div className="mt-2 space-y-1">
+                            {order.products.map((p) => (
+                              <div key={p.product_id} className="rounded bg-card p-1.5 text-[11px]">
+                                <div className="flex items-start gap-2">
+                                  {(p.proxyURL || p.URL) && (
+                                    <a
+                                      href={p.proxyURL || p.URL || "#"}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="block h-12 w-12 shrink-0 overflow-hidden rounded border bg-muted"
+                                    >
+                                      <img
+                                        src={p.proxyURL || p.URL || ""}
+                                        alt={p.product_name}
+                                        className="h-full w-full object-cover"
+                                        onError={(e) => {
+                                          const target = e.currentTarget;
+                                          if (p.URL && target.src !== p.URL) {
+                                            target.src = p.URL;
+                                          }
+                                        }}
+                                      />
+                                    </a>
+                                  )}
+                                  <div className="min-w-0">
+                                    <div className="truncate">{p.product_name}</div>
+                                    <div className="text-muted-foreground">
+                                      {p.qty_order} x {p.price} = {p.sum_order}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {(clientVisitData?.orders?.length ?? 0) === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                    )}
+                  </div>
+                ) : clientVisitDetailType === "photo_reports" ? (
+                  <div className="space-y-2">
+                    {(clientVisitData?.photo_reports ?? []).map((report, idx) => (
+                      <div
+                        key={`${report.url}-${idx}`}
+                        className="rounded-lg border bg-card/80 shadow-sm overflow-hidden"
+                      >
+                        {report.url && (
+                          <a href={report.url} target="_blank" rel="noreferrer" className="block">
+                            <img
+                              src={report.url}
+                              alt={report.info || `Foto ${idx + 1}`}
+                              className="h-40 w-full object-cover"
+                              onError={(e) => {
+                                const target = e.currentTarget;
+                                if (report.proxyURL && target.src !== report.proxyURL) {
+                                  target.src = report.proxyURL;
+                                }
+                              }}
+                            />
+                          </a>
+                        )}
+                        <div className="p-2.5 text-xs">
+                          <div className="font-medium">{report.info || `Foto hisobot #${idx + 1}`}</div>
+                          {report.date && (
+                            <div className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">
+                              {formatServerDate(report.date)}
+                            </div>
+                          )}
+                          {(report.lat || report.long) && (
+                            <div className="mt-1 text-muted-foreground">
+                              {report.lat ?? 0}, {report.long ?? 0}
+                            </div>
+                          )}
+                        </div>
+                        {report.url && (
+                          <div className="px-2.5 pb-2.5">
+                            <a
+                              href={report.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex h-7 items-center rounded-md border px-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                              To'liq ko'rish
+                            </a>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {(clientVisitData?.photo_reports?.length ?? 0) === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                    )}
+                  </div>
+                ) : clientVisitDetailType === "photo_rejects" ? (
+                  <div className="space-y-2">
+                    {(clientVisitData?.photo_rejects ?? []).map((reject, idx) => (
+                      <div key={`${reject.reason}-${idx}`} className="rounded-md border bg-muted/40 p-2 text-xs">
+                        <div className="font-medium">{reject.reason || "Sabab ko'rsatilmagan"}</div>
+                        {reject.date && (
+                          <div className="text-muted-foreground mt-0.5">
+                            {formatServerDate(reject.date)}
+                          </div>
+                        )}
+                        <div className="text-muted-foreground mt-1">{reject.comment || "Izoh yo'q"}</div>
+                      </div>
+                    ))}
+                    {(clientVisitData?.photo_rejects?.length ?? 0) === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {(clientVisitData?.payments ?? []).map((payment) => (
+                      <div key={payment.id} className="rounded-md border bg-muted/40 p-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">To'lov #{payment.id}</span>
+                          <span className="text-muted-foreground">{payment.date}</span>
+                        </div>
+                        <div className="mt-1">Naqd: {payment.cash} · Karta: {payment.card} · Click: {payment.click}</div>
+                        {payment.Comment && (
+                          <div className="mt-1 text-muted-foreground">{payment.Comment}</div>
+                        )}
+                        {payment.click_proto_url && (
+                          <a
+                            href={payment.click_proto_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-2 block overflow-hidden rounded-md border bg-card"
+                          >
+                            <img src={payment.click_proto_url} alt={`To'lov ${payment.id}`} className="h-36 w-full object-cover" />
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                    {(clientVisitData?.payments?.length ?? 0) === 0 && (
+                      <div className="text-sm text-muted-foreground text-center py-4">Ma'lumot yo'q</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </Card>
       </div>
     </div>
