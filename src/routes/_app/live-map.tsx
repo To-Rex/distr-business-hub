@@ -255,8 +255,21 @@ function LiveMapPage() {
   const pendingViewRef = useRef<{ center: L.LatLngExpression; zoom: number } | null>(null);
   const initialLocationDoneRef = useRef(false);
   const fullscreenControlsRight = "calc(320px + 1.25rem)";
+  const [navSearchQuery, setNavSearchQuery] = useState("");
+  const [navSearchTarget, setNavSearchTarget] = useState<"user" | "client">("user");
 
-  const filteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
+  const normalizedNavSearch = navSearchQuery.trim().toLowerCase();
+  const filteredUsers = (roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter)).filter(
+    (u) => {
+      if (navSearchTarget !== "user" || !normalizedNavSearch) return true;
+      const fullName = `${u.first_name} ${u.last_name}`.toLowerCase();
+      return fullName.includes(normalizedNavSearch);
+    },
+  );
+  const filteredClients = clients.filter((c) => {
+    if (navSearchTarget !== "client" || !normalizedNavSearch) return true;
+    return c.name.toLowerCase().includes(normalizedNavSearch);
+  });
 
   const refreshMapSize = useCallback(() => {
     const map = mapInstanceRef.current;
@@ -509,7 +522,7 @@ function LiveMapPage() {
 
     const existingIds = new Set<number>();
 
-    clients.forEach((c) => {
+    filteredClients.forEach((c) => {
       if (c.latitude === 0 && c.longitude === 0) return;
       existingIds.add(c.id);
 
@@ -548,7 +561,86 @@ function LiveMapPage() {
         clientMarkersRef.current.delete(id);
       }
     }
-  }, [clients, showClients, mapContainerKey, theme]);
+  }, [filteredClients, showClients, mapContainerKey, theme]);
+
+  useEffect(() => {
+    const onNavSearchChange = (event: Event) => {
+      const customEvent = event as CustomEvent<{ query?: string; target?: "user" | "client" }>;
+      setNavSearchQuery(customEvent.detail?.query ?? "");
+      setNavSearchTarget(customEvent.detail?.target ?? "user");
+    };
+
+    window.addEventListener("live-map-search-change", onNavSearchChange as EventListener);
+    return () =>
+      window.removeEventListener("live-map-search-change", onNavSearchChange as EventListener);
+  }, []);
+
+  useEffect(() => {
+    const hasQuery = normalizedNavSearch.length > 0;
+    const suggestion = hasQuery
+      ? navSearchTarget === "user"
+        ? filteredUsers[0]
+          ? `${filteredUsers[0].first_name} ${filteredUsers[0].last_name}`
+          : ""
+        : filteredClients[0]?.name ?? ""
+      : "";
+
+    window.dispatchEvent(
+      new CustomEvent("live-map-search-suggestion", {
+        detail: { suggestion },
+      }),
+    );
+  }, [normalizedNavSearch, navSearchTarget, filteredUsers, filteredClients]);
+
+  useEffect(() => {
+    const onSelectUserFromSearch = (event: Event) => {
+      const customEvent = event as CustomEvent<{ fullName?: string }>;
+      const fullName = customEvent.detail?.fullName?.trim().toLowerCase();
+      if (!fullName) return;
+
+      const matchedUser = users.find(
+        (u) => `${u.first_name} ${u.last_name}`.trim().toLowerCase() === fullName,
+      );
+      if (!matchedUser) return;
+
+      selectedRef.current = matchedUser.id;
+      setSelected(matchedUser.id);
+    };
+
+    window.addEventListener("live-map-search-select-user", onSelectUserFromSearch as EventListener);
+    return () =>
+      window.removeEventListener(
+        "live-map-search-select-user",
+        onSelectUserFromSearch as EventListener,
+      );
+  }, [users]);
+
+  useEffect(() => {
+    const onSelectClientFromSearch = (event: Event) => {
+      const customEvent = event as CustomEvent<{ name?: string }>;
+      const name = customEvent.detail?.name?.trim().toLowerCase();
+      if (!name) return;
+
+      const matchedClient = clients.find((c) => c.name.trim().toLowerCase() === name);
+      if (!matchedClient) return;
+      if (matchedClient.latitude === 0 && matchedClient.longitude === 0) return;
+
+      mapInstanceRef.current?.flyTo([matchedClient.latitude, matchedClient.longitude], 15, {
+        animate: true,
+        duration: 0.8,
+      });
+    };
+
+    window.addEventListener(
+      "live-map-search-select-client",
+      onSelectClientFromSearch as EventListener,
+    );
+    return () =>
+      window.removeEventListener(
+        "live-map-search-select-client",
+        onSelectClientFromSearch as EventListener,
+      );
+  }, [clients]);
 
   useEffect(() => {
     if (selectedRef.current) {
