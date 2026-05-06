@@ -31,4 +31,9 @@ export const API = {
       baseUrl,
       `/hs/manager/api/get_sales_by_category?branch_id=${branchId}&date_begin=${dateBegin}&date_end=${dateEnd}`,
     ),
+  reportByClient: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) =>
+    proxied1C(
+      baseUrl,
+      `/hs/manager/api/get_report_by_client?branch_id=${branchId}&date_begin=${dateBegin}&date_end=${dateEnd}`,
+    ),
 } as const;
