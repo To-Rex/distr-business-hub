@@ -15,6 +15,10 @@ export const API = {
     `${BASE_URL}/v1/working-sessions/user/${userId}?app=mx-agent&is_testing=false`,
   clientLocations: (baseUrl: string) =>
     `/proxy-1c?target=${encodeURIComponent(baseUrl)}&path=/hs/manager/api/get_location_all`,
+  clientInfo: (baseUrl: string, clientId: number) =>
+    `/proxy-1c?target=${encodeURIComponent(baseUrl)}&path=/hs/manager/api/get_client_info?client_id=${clientId}`,
+  clientVisitData: (baseUrl: string, clientId: number) =>
+    `/proxy-1c?target=${encodeURIComponent(baseUrl)}&path=/hs/manager/api/get_visit_data_by_client?client_id=${clientId}`,
   clientsByGroup: (baseUrl: string) =>
     `/proxy-1c?target=${encodeURIComponent(baseUrl)}&path=/hs/manager/api/GetClientsbyGroup`,
 } as const;
