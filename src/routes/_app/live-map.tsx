@@ -153,6 +153,7 @@ function createUserIcon(
   role: WsUser["role"],
   isOnline: boolean,
   isSelected: boolean,
+  isDarkTheme: boolean,
 ) {
   const color = ROLE_COLORS[role] || "#3b82f6";
   const icon = ROLE_ICONS[role] || ROLE_ICONS.AGENT;
@@ -165,6 +166,9 @@ function createUserIcon(
   const badgeTop = -2;
   const statusSize = isSelected ? 14 : 12;
   const statusOffset = isSelected ? 6 : 4;
+  const labelBackground = isDarkTheme ? "rgba(15,23,42,0.9)" : "#ffffff";
+  const labelTextColor = isDarkTheme ? "#fff" : "#0f172a";
+  const labelBorder = isDarkTheme ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(15,23,42,0.12)";
 
   return L.divIcon({
     className: "",
@@ -177,7 +181,7 @@ function createUserIcon(
         </div>
         <div style="position:absolute;bottom:${statusOffset}px;right:${statusOffset}px;width:${statusSize}px;height:${statusSize}px;border-radius:50%;border:2px solid #fff;${isOnline ? "background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.5);" : "background:#9ca3af;"}"></div>
       </div>
-      <div style="margin-top:4px;white-space:nowrap;background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);color:#fff;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;font-family:system-ui,sans-serif;max-width:140px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.1);">
+      <div style="margin-top:4px;white-space:nowrap;background:${labelBackground};backdrop-filter:blur(8px);color:${labelTextColor};padding:3px 10px;border-radius:10px;font-size:11px;font-weight:600;font-family:system-ui,sans-serif;max-width:140px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 8px rgba(0,0,0,0.25);border:${labelBorder};">
         ${fullName}
       </div>
       ${isSelected ? `<div style="position:absolute;top:-8px;left:50%;transform:translateX(-50%);width:${glowSize + 8}px;height:${glowSize + 8}px;border-radius:50%;border:2px solid ${color};opacity:0.3;animation:_locPulse 1.5s ease-out infinite;"></div>` : ""}
@@ -191,16 +195,19 @@ function createUserIcon(
 const CLIENT_COLOR_DEFAULT = "#eab308";
 const CLIENT_COLOR_VISITED = "#22c55e";
 
-function createClientIcon(name: string, visit: number) {
+function createClientIcon(name: string, visit: number, isDarkTheme: boolean) {
   const size = 22;
   const color = visit > 0 ? CLIENT_COLOR_VISITED : CLIENT_COLOR_DEFAULT;
+  const labelBackground = isDarkTheme ? "rgba(15,23,42,0.9)" : "#ffffff";
+  const labelTextColor = isDarkTheme ? "#fff" : "#0f172a";
+  const labelBorder = isDarkTheme ? "1px solid rgba(255,255,255,0.1)" : "1px solid rgba(15,23,42,0.12)";
   return L.divIcon({
     className: "",
     html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center;">
       <div style="position:relative;width:${size}px;height:${size}px;border-radius:50%;background:linear-gradient(135deg, ${color}, ${color}dd);border:1.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:10px;height:10px"><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><rect width="18" height="7" x="3" y="7" rx="1"/></svg>
       </div>
-      <div style="margin-top:2px;white-space:nowrap;background:rgba(15,23,42,0.9);backdrop-filter:blur(8px);color:#fff;padding:1px 6px;border-radius:6px;font-size:9px;font-weight:600;font-family:system-ui,sans-serif;max-width:90px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:1px solid rgba(255,255,255,0.1);">
+      <div style="margin-top:2px;white-space:nowrap;background:${labelBackground};backdrop-filter:blur(8px);color:${labelTextColor};padding:1px 6px;border-radius:6px;font-size:9px;font-weight:600;font-family:system-ui,sans-serif;max-width:90px;overflow:hidden;text-overflow:ellipsis;box-shadow:0 2px 6px rgba(0,0,0,0.2);border:${labelBorder};">
         ${name}
       </div>
     </div>`,
@@ -440,7 +447,14 @@ function LiveMapPage() {
 
       const isOnline = u.status === "online";
       const isSel = selectedRef.current === u.id;
-      const icon = createUserIcon(u.first_name, u.last_name, u.role, isOnline, isSel);
+      const icon = createUserIcon(
+        u.first_name,
+        u.last_name,
+        u.role,
+        isOnline,
+        isSel,
+        theme === "dark",
+      );
       const existing = markersRef.current.get(u.id);
 
       if (existing) {
@@ -479,7 +493,7 @@ function LiveMapPage() {
         markersRef.current.delete(id);
       }
     }
-  }, [users, filteredUsers, selected, mapContainerKey]);
+  }, [users, filteredUsers, selected, mapContainerKey, theme]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -499,7 +513,7 @@ function LiveMapPage() {
       if (c.latitude === 0 && c.longitude === 0) return;
       existingIds.add(c.id);
 
-      const icon = createClientIcon(c.name, c.visit);
+      const icon = createClientIcon(c.name, c.visit, theme === "dark");
       const existing = clientMarkersRef.current.get(c.id);
 
       if (existing) {
@@ -534,7 +548,7 @@ function LiveMapPage() {
         clientMarkersRef.current.delete(id);
       }
     }
-  }, [clients, showClients, mapContainerKey]);
+  }, [clients, showClients, mapContainerKey, theme]);
 
   useEffect(() => {
     if (selectedRef.current) {
@@ -1193,21 +1207,21 @@ function LiveMapPage() {
         className={
           isFullscreen
             ? "h-full w-full relative"
-            : "grid grid-cols-1 lg:grid-cols-4 gap-4 lg:items-stretch"
+            : "grid grid-cols-1 lg:grid-cols-4 gap-4"
         }
       >
         <Card
           className={
             isFullscreen
               ? "absolute inset-0 z-0 rounded-none border-0 shadow-none overflow-hidden"
-              : "lg:col-span-3 overflow-hidden relative z-0"
+              : "lg:col-span-3 overflow-hidden relative z-0 h-[70vh] min-h-[520px] max-h-[760px]"
           }
         >
-          <div className={isFullscreen ? "absolute inset-0 z-0" : "relative z-0"}>
+          <div className={isFullscreen ? "absolute inset-0 z-0" : "relative z-0 h-full"}>
             <div
               key={mapContainerKey}
               ref={mapRef}
-              className={isFullscreen ? "absolute inset-0" : "w-full aspect-[16/10] rounded-lg"}
+              className={isFullscreen ? "absolute inset-0" : "h-full w-full"}
               style={!isFullscreen ? { position: "relative", zIndex: 0 } : undefined}
             />
             <div
@@ -1285,7 +1299,7 @@ function LiveMapPage() {
           className={
             isFullscreen
               ? "absolute right-3 top-3 bottom-3 w-[320px] z-[1001] bg-card/95 backdrop-blur-sm shadow-xl flex flex-col overflow-hidden"
-              : "flex flex-col lg:self-stretch"
+              : "flex flex-col h-[70vh] min-h-[520px] max-h-[760px]"
           }
         >
           <CardHeader className="pb-3">
