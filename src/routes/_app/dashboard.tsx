@@ -11,13 +11,13 @@ import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
   Bar, BarChart, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, Users, DollarSign, ShoppingBag, ArrowUpRight, AlertCircle } from "lucide-react";
+import { TrendingUp, Users, Banknote, ShoppingBag, ArrowUpRight, AlertCircle } from "lucide-react";
 
 export const Route = createFileRoute("/_app/dashboard")({
   component: Dashboard,
 });
 
-const fmt = (n: number) => "$" + formatWithSpaces(n, 0);
+const fmt = (n: number) => `${formatWithSpaces(n, 0)} UZS`;
 
 type ClientItem = {
   id: number;
@@ -273,7 +273,7 @@ function Dashboard() {
           ))
         ) : (
           <>
-            <KpiCard icon={DollarSign} label={t("totalSales")} value={fmt(kpis.totalSales)} change="live" />
+            <KpiCard icon={Banknote} label={t("totalSales")} value={fmt(kpis.totalSales)} change="live" />
             <KpiCard icon={Users} label={t("activeClients")} value={kpis.activeClients.toLocaleString()} change="live" />
             <KpiCard icon={TrendingUp} label={t("revenue")} value={fmt(kpis.revenue)} change="live" />
             <KpiCard icon={ShoppingBag} label={t("orders")} value={kpis.orders.toLocaleString()} change="live" />
