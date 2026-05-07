@@ -696,6 +696,16 @@ function LiveMapPage() {
             className: "",
           },
         );
+        marker.on("click", () => {
+          selectedRef.current = null;
+          setSelected(null);
+          setWorkSession(null);
+          setDistanceKm(null);
+          setSelectedClient((prev) => (prev === c.id ? null : c.id));
+          setClientInfoOpen(false);
+          setClientVisitDetailOpen(false);
+          setNavSearchTarget("client");
+        });
 
         clientMarkersRef.current.set(c.id, marker);
       }
