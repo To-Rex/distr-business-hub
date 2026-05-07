@@ -223,6 +223,7 @@ function AdminUsersPage() {
   };
 
   const handleAddNew = () => {
+    console.log("Opening add user dialog");
     setFormData({
       fullName: "",
       email: "",
@@ -237,7 +238,9 @@ function AdminUsersPage() {
       permissions: [],
     });
     setSelectedUser(null);
+    setIsEditDialogOpen(false);
     setIsAddDialogOpen(true);
+    console.log("Dialog should be open now");
   };
 
   const handleSaveUser = () => {
@@ -890,21 +893,29 @@ function AdminUsersPage() {
                 <div className="space-y-2">
                   <Label htmlFor="company">Kompaniya</Label>
                   <Select
-                    value={formData.companyId?.toString() || ""}
+                    value={formData.companyId?.toString() || "none"}
                     onValueChange={(v) => {
-                      const company = adminCompanies.find((c) => c.id === Number(v));
-                      setFormData({
-                        ...formData,
-                        companyId: company ? company.id : null,
-                        companyName: company ? company.name : null,
-                      });
+                      if (v === "none") {
+                        setFormData({
+                          ...formData,
+                          companyId: null,
+                          companyName: null,
+                        });
+                      } else {
+                        const company = adminCompanies.find((c) => c.id === Number(v));
+                        setFormData({
+                          ...formData,
+                          companyId: company ? company.id : null,
+                          companyName: company ? company.name : null,
+                        });
+                      }
                     }}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Tanlanmagan" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tanlanmagan</SelectItem>
+                      <SelectItem value="none">Tanlanmagan</SelectItem>
                       {adminCompanies.map((company) => (
                         <SelectItem key={company.id} value={company.id.toString()}>
                           {company.name}
