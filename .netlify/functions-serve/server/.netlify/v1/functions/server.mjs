@@ -3250,7 +3250,7 @@ var init_router_Bhu2o_fi = __esm({
         quantity: "Miqdor",
         start: "Boshlanish",
         due: "Muddati",
-        liveMapDesc: "Dala agentlarini real vaqtda kuzatish.",
+        liveMapDesc: "Agentlarini real vaqtda kuzatish.",
         activeAgents: "Faol agentlar",
         reportsDesc: "Tahliliy hisobotlar va biznes ko'rsatkichlari.",
         calendarDesc: "Rejalashtirilgan tadbirlar va vazifalar.",
