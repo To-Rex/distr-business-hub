@@ -123,7 +123,7 @@ function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "table">("table");
   const [sortMode, setSortMode] = useState<SortMode>("name-asc");
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
 
