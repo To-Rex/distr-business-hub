@@ -1835,7 +1835,10 @@ function LiveMapPage() {
                       >
                         <div
                           className="h-8 w-8 rounded-full flex items-center justify-center shrink-0 text-white"
-                          style={{ backgroundColor: CLIENT_COLOR }}
+                          style={{
+                            backgroundColor:
+                              c.visit > 0 ? CLIENT_COLOR_VISITED : CLIENT_COLOR_DEFAULT,
+                          }}
                         >
                           <Store className="h-4 w-4" />
                         </div>
@@ -1957,7 +1960,7 @@ function LiveMapPage() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-lg bg-muted/50 p-2.5 text-center">
                         <Gauge className="h-4 w-4 mx-auto mb-1 text-blue-500" />
                         <div className="text-[11px] text-muted-foreground mb-0.5">{t("speed")}</div>
@@ -2010,7 +2013,6 @@ function LiveMapPage() {
               (() => {
                 const selClient = clients.find((c) => c.id === selectedClient);
                 if (!selClient) return null;
-                const hasLocation = selClient.latitude !== 0 || selClient.longitude !== 0;
                 const selectedClientComment =
                   selClient.comment?.trim() || clientInfo?.commentary?.trim() || "";
                 return (
@@ -2020,7 +2022,10 @@ function LiveMapPage() {
                         <button
                           type="button"
                           className="h-7 w-7 rounded-full flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: CLIENT_COLOR }}
+                          style={{
+                            backgroundColor:
+                              selClient.visit > 0 ? CLIENT_COLOR_VISITED : CLIENT_COLOR_DEFAULT,
+                          }}
                           onClick={() => setClientInfoOpen((v) => !v)}
                         >
                           <Store className="h-4 w-4 text-white" />
@@ -2048,7 +2053,7 @@ function LiveMapPage() {
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-lg bg-muted/50 p-2.5 text-center">
                         <User className="h-4 w-4 mx-auto mb-1 text-blue-500" />
                         <div className="text-[11px] text-muted-foreground mb-0.5">{t("agent")}</div>
@@ -2058,19 +2063,6 @@ function LiveMapPage() {
                         <Store className="h-4 w-4 mx-auto mb-1 text-green-500" />
                         <div className="text-[11px] text-muted-foreground mb-0.5">{t("visit")}</div>
                         <div className="text-sm font-bold leading-tight">{selClient.visit}</div>
-                      </div>
-                      <div className="rounded-lg bg-muted/50 p-2.5 text-center">
-                        <MapPin className="h-4 w-4 mx-auto mb-1 text-amber-500" />
-                        <div className="text-[11px] text-muted-foreground mb-0.5">{t("location")}</div>
-                        <div className="text-sm font-bold leading-tight">
-                          {hasLocation ? (
-                            <span className="text-xs">
-                              {selClient.latitude.toFixed(4)}, {selClient.longitude.toFixed(4)}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground text-xs font-normal">—</span>
-                          )}
-                        </div>
                       </div>
                     </div>
 
@@ -2291,10 +2283,6 @@ function LiveMapPage() {
                     <div className="rounded-md bg-muted/50 p-2 text-xs">
                       <div className="text-muted-foreground">{t("agent")}</div>
                       <div className="font-medium">{clientInfo?.agent?.agent_name || "—"}</div>
-                    </div>
-                    <div className="rounded-md bg-muted/50 p-2 text-xs">
-                      <div className="text-muted-foreground">{t("locationLandmark")}</div>
-                      <div className="font-medium">{clientInfo?.Orientr || "—"}</div>
                     </div>
                     {!!clientInfo?.activities?.length && (
                       <div className="rounded-md bg-muted/50 p-2 text-xs">
