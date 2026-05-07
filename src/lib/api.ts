@@ -20,6 +20,8 @@ type ApiEndpoints = {
   clientsByGroup: (baseUrl: string) => string;
   productsByGroup: (baseUrl: string) => string;
   employees: (baseUrl: string) => string;
+  userManager: string;
+  userManagerStatus: (userId: number) => string;
   salesByCategory: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
   reportByClient: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
   financeOrders: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
@@ -45,6 +47,8 @@ export const API: ApiEndpoints = {
   productsByGroup: (baseUrl: string) =>
     proxied1C(baseUrl, "/hs/manager/api/Getproductsbygroup"),
   employees: (baseUrl: string) => proxied1C(baseUrl, "/hs/manager/api/get_employees"),
+  userManager: `${BASE_URL}/v1/user-manager`,
+  userManagerStatus: (userId: number) => `${BASE_URL}/v1/user-manager/${userId}`,
   salesByCategory: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) =>
     proxied1C(
       baseUrl,
