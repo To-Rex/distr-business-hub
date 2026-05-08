@@ -470,6 +470,10 @@ export async function fetchWorkingSessions(): Promise<ApiWorkingSession[]> {
   return adminFetch<ApiWorkingSession[]>(API.workingSessions);
 }
 
+export async function fetchUserWorkingSessions(userId: number): Promise<ApiWorkingSession[]> {
+  return adminFetch<ApiWorkingSession[]>(API.workingSessionsByUser(userId));
+}
+
 export const USER_TYPE_LABELS: Record<ApiUserType, string> = {
   SUPERADMIN: "Super Admin",
   ADMIN: "Admin",
@@ -505,4 +509,66 @@ export async function logoutApi(): Promise<void> {
   try {
     await adminFetch<void>(API.logout, { method: "GET" });
   } catch {}
+}
+
+export type SystemMonitorData = {
+  system: {
+    hostname: string;
+    os_name: string;
+    os_version: string;
+    architecture: string;
+    processor: string;
+    python_version: string;
+    boot_time: number;
+    uptime_seconds: number;
+  };
+  cpu: {
+    physical_cores: number;
+    total_cores: number;
+    percent_usage: number;
+    per_core_percent: number[];
+    frequency_current: number | null;
+    frequency_min: number | null;
+    frequency_max: number | null;
+  };
+  memory: {
+    total: number;
+    available: number;
+    used: number;
+    percent: number;
+    swap_total: number;
+    swap_used: number;
+    swap_free: number;
+    swap_percent: number;
+  };
+  disks: {
+    total: number;
+    used: number;
+    free: number;
+    percent: number;
+  }[];
+  partitions: {
+    device: string;
+    mountpoint: string;
+    fstype: string;
+    opts: string;
+  }[];
+  network: {
+    name: string;
+    bytes_sent: number;
+    bytes_recv: number;
+    packets_sent: number;
+    packets_recv: number;
+  }[];
+  top_processes: {
+    pid: number;
+    name: string;
+    cpu_percent: number;
+    memory_percent: number;
+    status: string;
+  }[];
+};
+
+export async function fetchSystemMonitor(): Promise<SystemMonitorData> {
+  return adminFetch<SystemMonitorData>(API.systemMonitor);
 }
