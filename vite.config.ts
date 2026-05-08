@@ -1,4 +1,4 @@
-import { defineConfig, loadEnv, mergeConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { type PluginOption } from "vite";
 import http from "node:http";
 import https from "node:https";
@@ -57,27 +57,18 @@ function dynamicProxy(): PluginOption {
   };
 }
 
-export default defineConfig(async (env) => {
-  const { command, mode } = env;
-
+export default defineConfig(async ({ mode }) => {
   const internalPlugins: PluginOption[] = [];
 
   internalPlugins.push(tailwindcss());
   internalPlugins.push(tsConfigPaths({ projects: ["./tsconfig.json"] }));
-
-  if (command === "build") {
-    try {
-      const { cloudflare } = await import("@cloudflare/vite-plugin");
-      internalPlugins.push(cloudflare({ viteEnvironment: { name: "ssr" } }));
-    } catch {}
-  }
 
   internalPlugins.push(
     tanstackStart({
       importProtection: {
         behavior: "error",
         client: {
-          files: ["**/server/**"],
+          files: ["/server/"],
           specifiers: ["server-only"],
         },
       },
@@ -94,6 +85,7 @@ export default defineConfig(async (env) => {
   }
 
   return {
+    base: "/",
     define: envDefine,
     resolve: {
       alias: {
@@ -111,13 +103,21 @@ export default defineConfig(async (env) => {
     plugins: internalPlugins,
     server: {
       host: "::",
-      port: 8080,
+      port: 8085,
+      // Fix for development mode
+      allowedHosts: ["distr.mxsoft.uz"],
       watch: {
         awaitWriteFinish: {
           stabilityThreshold: 1000,
           pollInterval: 100,
         },
       },
+    },
+    preview: {
+      host: "::",
+      port: 8085,
+      // Fix for production (npm run preview) mode
+      allowedHosts: ["distr.mxsoft.uz"],
     },
   };
 });
