@@ -2,7 +2,28 @@ import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
-import { adminUsers, adminCompanies, type AdminUser, type UserRole, type UserStatus } from "@/features/admin/mock-data";
+export type UserRole = "Super Admin" | "Admin" | "Manager" | "Moderator" | "Agent" | "Viewer";
+export type UserStatus = "Faol" | "Kutilmoqda" | "Blokirovka";
+
+export interface AdminUser {
+  id: number;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: UserRole;
+  status: UserStatus;
+  companyId: number | null;
+  companyName: string | null;
+  avatar?: string;
+  lastLogin: string | null;
+  createdAt: string;
+  permissions: string[];
+  twoFactorEnabled: boolean;
+  department?: string;
+  address?: string;
+}
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { fetchUsers, createUser, updateUser, deleteUser, fetchCompanies, getUserFullName, getUserTypeLabel, getUserStatusLabel, type ApiUser, type ApiUserType, type ApiUserStatus } from "@/lib/admin-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -81,7 +102,39 @@ export const Route = createFileRoute("/admin/users")({
 
 function AdminUsersPage() {
   const { t } = useSettings();
-  const [users, setUsers] = useState<AdminUser[]>(adminUsers);
+  const queryClient = useQueryClient();
+
+  const { data: apiUsers = [], isLoading: isUsersLoading } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: () => fetchUsers(),
+  });
+
+  const { data: apiCompanies = [] } = useQuery({
+    queryKey: ["admin-companies"],
+    queryFn: () => fetchCompanies(),
+  });
+
+  const users: (AdminUser & { _apiUser?: ApiUser })[] = useMemo(() => {
+    return apiUsers.map(u => ({
+      id: u.id,
+      fullName: getUserFullName(u),
+      email: u.email || "",
+      phone: u.phone_number || "",
+      role: getUserTypeLabel(u.user_type) as UserRole,
+      status: getUserStatusLabel(u.user_status) as UserStatus,
+      companyId: u.company_id,
+      companyName: u.company_rel?.name || null,
+      avatar: u.photo || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`,
+      lastLogin: null,
+      createdAt: new Date(u.created_at).toISOString().split("T")[0],
+      permissions: [],
+      twoFactorEnabled: false,
+      department: "",
+      address: "",
+      _apiUser: u
+    }));
+  }, [apiUsers]);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState<SortField>("id");
   const [sortOrder, setSortOrder] = useState<SortOrder>("asc");
@@ -213,13 +266,25 @@ function AdminUsersPage() {
     setIsDeleteDialogOpen(true);
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: deleteUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Foydalanuvchi muvaffaqiyatli o'chirildi");
+      setIsDeleteDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Xatolik yuz berdi");
+    }
+  });
+
   const confirmDelete = () => {
     if (selectedUser) {
-      setUsers(users.filter((u) => u.id !== selectedUser.id));
-      toast.success("Foydalanuvchi muvaffaqiyatli o'chirildi");
+      deleteMutation.mutate(selectedUser.id);
+    } else {
+      setIsDeleteDialogOpen(false);
     }
-    setIsDeleteDialogOpen(false);
-    setSelectedUser(null);
   };
 
   const handleAddNew = () => {
@@ -243,62 +308,84 @@ function AdminUsersPage() {
     console.log("Dialog should be open now");
   };
 
+  const createMutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Yangi foydalanuvchi qo'shildi");
+      setIsAddDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Xatolik yuz berdi");
+    }
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number, data: any }) => updateUser(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      toast.success("Foydalanuvchi muvaffaqiyatli tahrirlandi");
+      setIsEditDialogOpen(false);
+      setSelectedUser(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Xatolik yuz berdi");
+    }
+  });
+
   const handleSaveUser = () => {
     if (!formData.fullName || !formData.email) {
       toast.error("Ism va email majburiy maydonlar");
       return;
     }
 
-    const company = adminCompanies.find((c) => c.id === formData.companyId);
+    // Map UI role to API user_type
+    const roleMap: Record<string, ApiUserType> = {
+      "Super Admin": "SUPERADMIN",
+      "Admin": "ADMIN",
+      "Manager": "MANAGER",
+      "Moderator": "MANAGER",
+      "Agent": "AGENT",
+      "Viewer": "USER",
+    };
+    
+    // Map UI status to API user_status
+    const statusMap: Record<string, ApiUserStatus> = {
+      "Faol": "ACTIVE",
+      "Kutilmoqda": "ACTIVE",
+      "Blokirovka": "BLOCKED"
+    };
+
+    const userType = roleMap[formData.role || "Agent"] || "USER";
+    const userStatus = statusMap[formData.status || "Faol"] || "ACTIVE";
 
     if (selectedUser) {
-      // Edit existing user
-      const updatedUsers = users.map((u) =>
-        u.id === selectedUser.id
-          ? {
-              ...u,
-              fullName: formData.fullName!,
-              email: formData.email!,
-              phone: formData.phone!,
-              role: formData.role as UserRole,
-              status: formData.status as UserStatus,
-              companyId: formData.companyId ?? null,
-              companyName: company ? company.name : null,
-              department: formData.department ?? u.department,
-              address: formData.address ?? u.address,
-              twoFactorEnabled: formData.twoFactorEnabled ?? u.twoFactorEnabled,
-              permissions: formData.permissions ?? u.permissions,
-            }
-          : u
-      ) as AdminUser[];
-      setUsers(updatedUsers);
-      toast.success("Foydalanuvchi muvaffaqiyatli tahrirlandi");
-      setIsEditDialogOpen(false);
+      // Edit
+      updateMutation.mutate({
+        id: selectedUser.id,
+        data: {
+          username: formData.email!.split('@')[0],
+          email: formData.email,
+          first_name: formData.fullName!.split(' ')[0] || '',
+          last_name: formData.fullName!.split(' ').slice(1).join(' ') || '',
+          phone_number: formData.phone,
+          user_type: userType,
+          user_status: userStatus,
+          company_id: formData.companyId || undefined,
+        }
+      });
     } else {
-      // Add new user
-      const newUser: AdminUser = {
-        id: Math.max(...users.map((u) => u.id)) + 1,
-        fullName: formData.fullName!,
-        email: formData.email!,
-        phone: formData.phone!,
-        role: formData.role as UserRole,
-        status: formData.status as UserStatus,
-        companyId: formData.companyId ?? null,
-        companyName: company ? company.name : null,
-        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.fullName}`,
-        lastLogin: null,
-        createdAt: new Date().toISOString().split("T")[0],
-        department: formData.department ?? "",
-        address: formData.address ?? "",
-        twoFactorEnabled: formData.twoFactorEnabled ?? false,
-        permissions: formData.permissions ?? [],
-      };
-      setUsers([...users, newUser]);
-      toast.success("Yangi foydalanuvchi qo'shildi");
-      setIsAddDialogOpen(false);
+      // Create
+      createMutation.mutate({
+        username: formData.email!.split('@')[0] || `user_${Date.now()}`,
+        password: "password123", // default password
+        email: formData.email,
+        first_name: formData.fullName!.split(' ')[0] || '',
+        last_name: formData.fullName!.split(' ').slice(1).join(' ') || '',
+        phone_number: formData.phone,
+      });
     }
-
-    setSelectedUser(null);
   };
 
   const handlePermissionChange = (permissionId: string, checked: boolean) => {
@@ -443,6 +530,11 @@ function AdminUsersPage() {
     <AdminGuard>
       <AdminLayout title={t("adminUsers")} subtitle={t("adminUsersSubtitle")}>
         {/* Filters and Controls */}
+        {isUsersLoading && (
+          <div className="flex items-center justify-center p-12">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          </div>
+        )}
         <div className="space-y-4 mb-6">
           {/* Search and Add */}
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -469,7 +561,7 @@ function AdminUsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Barcha kompaniyalar</SelectItem>
-                {adminCompanies.map((company) => (
+                {apiCompanies.map((company) => (
                   <SelectItem key={company.id} value={company.id.toString()}>
                     {company.name}
                   </SelectItem>
@@ -902,7 +994,7 @@ function AdminUsersPage() {
                           companyName: null,
                         });
                       } else {
-                        const company = adminCompanies.find((c) => c.id === Number(v));
+                        const company = apiCompanies.find((c) => c.id === Number(v));
                         setFormData({
                           ...formData,
                           companyId: company ? company.id : null,
@@ -916,7 +1008,7 @@ function AdminUsersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="none">Tanlanmagan</SelectItem>
-                      {adminCompanies.map((company) => (
+                      {apiCompanies.map((company) => (
                         <SelectItem key={company.id} value={company.id.toString()}>
                           {company.name}
                         </SelectItem>

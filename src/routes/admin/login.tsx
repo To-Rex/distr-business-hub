@@ -17,15 +17,20 @@ function AdminLoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
   if (isAuthenticated) return <Navigate to="/admin/users" />;
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const ok = login(username, password);
+    setIsLoading(true);
+    setError("");
+    const ok = await login(username, password);
+    setIsLoading(false);
+    
     if (!ok) {
-      setError(t("adminLoginRequired"));
+      setError(t("adminLoginRequired") || "Xato login yoki parol");
       return;
     }
     navigate({ to: "/admin/users" });
@@ -60,7 +65,9 @@ function AdminLoginPage() {
               />
             </div>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
-            <Button type="submit" className="w-full">{t("signIn")}</Button>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? t("loading") || "Yuklanmoqda..." : t("signIn")}
+            </Button>
           </form>
         </CardContent>
       </Card>

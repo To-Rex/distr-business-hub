@@ -11,6 +11,7 @@ const proxied1C = (baseUrl: string, path: string) =>
 type ApiEndpoints = {
   login: string;
   profile: string;
+  logout: string;
   wsLocations: (token: string) => string;
   userHistory: (userId: number) => string;
   workingSession: (userId: number, role?: string) => string;
@@ -25,10 +26,31 @@ type ApiEndpoints = {
   salesByCategory: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
   reportByClient: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
   financeOrders: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
+  companyById: (id: number) => string;
+  companies: string;
+  companySecurityKeys: (id: number) => string;
+  securityKeyById: (id: number) => string;
+  notifications: string;
+  notificationsCreate: string;
+  notificationById: (id: number) => string;
+  notificationRead: (id: number) => string;
+  notificationsReadMultiple: string;
+  notificationsUnreadCount: string;
+  apps: string;
+  appById: (id: number) => string;
+  appVersions: (id: number) => string;
+  versionById: (id: number) => string;
+  latestVersion: (appType: string) => string;
+  uploadApk: string;
+  devices: string;
+  workingSessions: string;
+  userManagerCreate: string;
+  userManagerById: (id: number) => string;
 };
 
 export const API: ApiEndpoints = {
   login: `${BASE_URL}/v1/authentication/login`,
+  logout: `${BASE_URL}/v1/authentication/logout`,
   profile: `${BASE_URL}/v1/authentication/profile`,
   wsLocations: (token: string) => `${WS_BASE}/v1/locations/ws/admvs?token=${token}`,
   userHistory: (userId: number) => `${BASE_URL}/v1/locations/user-history/${userId}`,
@@ -64,4 +86,24 @@ export const API: ApiEndpoints = {
       baseUrl,
       `/hs/manager/api/GetlistordersAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
     ),
+  companyById: (id: number) => `${BASE_URL}/v1/companies/${id}`,
+  companies: `${BASE_URL}/v1/companies/`,
+  companySecurityKeys: (id: number) => `${BASE_URL}/v1/companies/${id}/security-keys`,
+  securityKeyById: (id: number) => `${BASE_URL}/v1/companies/security-keys/${id}`,
+  notifications: `${BASE_URL}/v1/notifications`,
+  notificationsCreate: `${BASE_URL}/v1/notifications/create`,
+  notificationById: (id: number) => `${BASE_URL}/v1/notifications/${id}`,
+  notificationRead: (id: number) => `${BASE_URL}/v1/notifications/${id}/read`,
+  notificationsReadMultiple: `${BASE_URL}/v1/notifications/read-multiple`,
+  notificationsUnreadCount: `${BASE_URL}/v1/notifications/unread-count`,
+  apps: `${BASE_URL}/v1/apps/`,
+  appById: (id: number) => `${BASE_URL}/v1/apps/${id}`,
+  appVersions: (id: number) => `${BASE_URL}/v1/apps/${id}/versions`,
+  versionById: (id: number) => `${BASE_URL}/v1/apps/versions/${id}`,
+  latestVersion: (appType: string) => `${BASE_URL}/v1/apps/latest-version?app_type=${appType}`,
+  uploadApk: `${BASE_URL}/v1/apps/upload-apk`,
+  devices: `${BASE_URL}/v1/devices/`,
+  workingSessions: `${BASE_URL}/v1/working-sessions`,
+  userManagerCreate: `${BASE_URL}/v1/user-manager/create`,
+  userManagerById: (id: number) => `${BASE_URL}/v1/user-manager/${id}`,
 };

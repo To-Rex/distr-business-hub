@@ -222,5 +222,5 @@ export function AdminLayout({ title, subtitle, children }: AdminLayoutProps) {
       </div>
     </div>
     </TooltipProvider>
-  );
-}
+   );
+  }

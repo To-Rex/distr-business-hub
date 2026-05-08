@@ -1,8 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
 import { useSettings } from "@/lib/settings";
+import {
+  fetchCompanies,
+  fetchSecurityKeys,
+  createSecurityKey,
+  updateSecurityKey,
+  deleteSecurityKey,
+  type ApiSecurityKey,
+} from "@/lib/admin-api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -62,14 +71,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// Security Keys data
-const initialSecurityKeys = [
-  { id: 1, name: "Production API Key", key: "pk_live_••••••••••••••••", created: "2026-01-15", lastUsed: "2026-05-07", status: "active" },
-  { id: 2, name: "Development API Key", key: "pk_test_••••••••••••••••", created: "2026-02-20", lastUsed: "2026-05-06", status: "active" },
-  { id: 3, name: "Webhook Secret", key: "whsec_••••••••••••••••", created: "2026-03-10", lastUsed: "2026-05-07", status: "active" },
-];
-
-// Alembic Versions data
 const alembicVersions = [
   { version: "0042", name: "Add notification preferences", timestamp: "2026-05-01 14:30:00", status: "applied" },
   { version: "0041", name: "Update user permissions schema", timestamp: "2026-04-28 09:15:00", status: "applied" },
@@ -78,13 +79,11 @@ const alembicVersions = [
   { version: "0038", name: "Add payment methods", timestamp: "2026-03-20 10:00:00", status: "applied" },
 ];
 
-// Webhooks data
 const initialWebhooks = [
   { id: 1, url: "https://api.example.com/webhooks/orders", events: ["order.created", "order.updated"], active: true },
   { id: 2, url: "https://api.example.com/webhooks/payments", events: ["payment.received", "payment.failed"], active: true },
 ];
 
-// Email templates data
 const emailTemplates = [
   { id: 1, name: "Order Confirmation", subject: "Buyurtmangiz qabul qilindi", status: "active" },
   { id: 2, name: "Payment Receipt", subject: "To'lov qabul qilindi", status: "active" },
@@ -98,15 +97,64 @@ export const Route = createFileRoute("/admin/settings")({
 
 function AdminSettingsPage() {
   const { t } = useSettings();
-  const [securityKeys, setSecurityKeys] = useState(initialSecurityKeys);
+  const queryClient = useQueryClient();
   const [webhooks, setWebhooks] = useState(initialWebhooks);
   const [showKey, setShowKey] = useState<Record<number, boolean>>({});
   const [isAddKeyDialogOpen, setIsAddKeyDialogOpen] = useState(false);
   const [isAddWebhookDialogOpen, setIsAddWebhookDialogOpen] = useState(false);
-  const [newKeyName, setNewKeyName] = useState("");
+  const [newKeyCompanyId, setNewKeyCompanyId] = useState<string>("");
+  const [newKeyValue, setNewKeyValue] = useState("");
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
 
-  // General settings state
+  const { data: companies = [] } = useQuery({
+    queryKey: ["admin-companies"],
+    queryFn: () => fetchCompanies(),
+  });
+
+  const { data: allSecurityKeys = [], isLoading: isLoadingKeys } = useQuery({
+    queryKey: ["admin-all-security-keys"],
+    queryFn: async () => {
+      const allKeys: (ApiSecurityKey & { company_name?: string })[] = [];
+      for (const company of companies) {
+        const keys = await fetchSecurityKeys(company.id);
+        allKeys.push(...keys.map((k) => ({ ...k, company_name: company.name })));
+      }
+      return allKeys;
+    },
+    enabled: companies.length > 0,
+  });
+
+  const createKeyMutation = useMutation({
+    mutationFn: ({ companyId, data }: { companyId: number; data: { key: string; company_id: number } }) =>
+      createSecurityKey(companyId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-all-security-keys"] });
+      toast.success("Yangi xavfsizlik kaliti qo'shildi");
+      setIsAddKeyDialogOpen(false);
+      setNewKeyValue("");
+      setNewKeyCompanyId("");
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const deleteKeyMutation = useMutation({
+    mutationFn: deleteSecurityKey,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-all-security-keys"] });
+      toast.success("Xavfsizlik kaliti o'chirildi");
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const updateKeyMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { key?: string } }) => updateSecurityKey(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-all-security-keys"] });
+      toast.success("Xavfsizlik kaliti yangilandi");
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
   const [generalSettings, setGeneralSettings] = useState({
     platformName: "Distr Business Hub",
     defaultLanguage: "uz",
@@ -118,7 +166,7 @@ function AdminSettingsPage() {
     maxLoginAttempts: "5",
   });
 
-  const handleCopyKey = (key: string, id: number) => {
+  const handleCopyKey = (key: string) => {
     navigator.clipboard.writeText(key);
     toast.success("API kalit nusxalandi");
   };
@@ -128,27 +176,23 @@ function AdminSettingsPage() {
   };
 
   const handleAddSecurityKey = () => {
-    if (!newKeyName.trim()) {
-      toast.error("Kalit nomini kiriting");
+    if (!newKeyValue.trim()) {
+      toast.error("Kalit qiymatini kiriting");
       return;
     }
-    const newKey = {
-      id: Date.now(),
-      name: newKeyName,
-      key: `pk_${Math.random().toString(36).substring(2, 15)}_••••••••••••`,
-      created: new Date().toISOString().split("T")[0],
-      lastUsed: "Hech qachon",
-      status: "active",
-    };
-    setSecurityKeys([...securityKeys, newKey]);
-    setNewKeyName("");
-    setIsAddKeyDialogOpen(false);
-    toast.success("Yangi API kalit qo'shildi");
+    if (!newKeyCompanyId || newKeyCompanyId === "none") {
+      toast.error("Kompaniyani tanlang");
+      return;
+    }
+    const companyId = Number(newKeyCompanyId);
+    createKeyMutation.mutate({
+      companyId,
+      data: { key: newKeyValue, company_id: companyId },
+    });
   };
 
   const handleDeleteSecurityKey = (id: number) => {
-    setSecurityKeys(securityKeys.filter((k) => k.id !== id));
-    toast.success("API kalit o'chirildi");
+    deleteKeyMutation.mutate(id);
   };
 
   const handleAddWebhook = () => {
@@ -183,7 +227,7 @@ function AdminSettingsPage() {
   };
 
   const handleExportSettings = () => {
-    const data = JSON.stringify({ generalSettings, securityKeys, webhooks }, null, 2);
+    const data = JSON.stringify({ generalSettings, webhooks }, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -198,7 +242,6 @@ function AdminSettingsPage() {
     <AdminGuard>
       <AdminLayout title={t("adminSettings")} subtitle={t("adminSettingsSubtitle")}>
         <div className="space-y-6">
-          {/* Action Bar */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={handleExportSettings}>
@@ -236,7 +279,6 @@ function AdminSettingsPage() {
               </TabsTrigger>
             </TabsList>
 
-            {/* General Settings Tab */}
             <TabsContent value="general" className="space-y-6">
               <Card>
                 <CardHeader>
@@ -409,7 +451,6 @@ function AdminSettingsPage() {
               </Card>
             </TabsContent>
 
-            {/* Security Keys Tab */}
             <TabsContent value="security" className="space-y-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -420,7 +461,7 @@ function AdminSettingsPage() {
                     </CardTitle>
                     <CardDescription>{t("apiKeysDesc")}</CardDescription>
                   </div>
-                  <Dialog open={isAddKeyDialogOpen} onOpenChange={setIsAddKeyDialogOpen}>
+                  <Dialog open={isAddKeyDialogOpen} onOpenChange={(open) => { setIsAddKeyDialogOpen(open); if (!open) { setNewKeyValue(""); setNewKeyCompanyId(""); } }}>
                     <DialogTrigger asChild>
                       <Button size="sm">
                         <Plus className="h-4 w-4 mr-2" />
@@ -430,18 +471,31 @@ function AdminSettingsPage() {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>{t("addNewKey")}</DialogTitle>
-                        <DialogDescription>
-                          {t("addNewKeyDesc")}
-                        </DialogDescription>
+                        <DialogDescription>{t("addNewKeyDesc")}</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
-                          <Label htmlFor="keyName">{t("keyName")}</Label>
+                          <Label>Kompaniya *</Label>
+                          <Select value={newKeyCompanyId} onValueChange={setNewKeyCompanyId}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Kompaniyani tanlang" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {companies.map((company) => (
+                                <SelectItem key={company.id} value={company.id.toString()}>
+                                  {company.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="keyValue">Kalit qiymati *</Label>
                           <Input
-                            id="keyName"
-                            placeholder="Masalan: Production API Key"
-                            value={newKeyName}
-                            onChange={(e) => setNewKeyName(e.target.value)}
+                            id="keyValue"
+                            placeholder="API kalit qiymati"
+                            value={newKeyValue}
+                            onChange={(e) => setNewKeyValue(e.target.value)}
                           />
                         </div>
                       </div>
@@ -455,96 +509,73 @@ function AdminSettingsPage() {
                   </Dialog>
                 </CardHeader>
                 <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("name")}</TableHead>
-                        <TableHead>{t("apiKey")}</TableHead>
-                        <TableHead>{t("created")}</TableHead>
-                        <TableHead>{t("lastUsed")}</TableHead>
-                        <TableHead>{t("status")}</TableHead>
-                        <TableHead className="text-right">{t("actions")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {securityKeys.map((key) => (
-                        <TableRow key={key.id}>
-                          <TableCell className="font-medium">{key.name}</TableCell>
-                          <TableCell className="font-mono text-sm">
-                            <span className="flex items-center gap-2">
-                              {showKey[key.id]
-                                ? key.key.replace(/•/g, "x")
-                                : key.key}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleToggleKeyVisibility(key.id)}
-                              >
-                                {showKey[key.id] ? (
-                                  <EyeOff className="h-3 w-3" />
-                                ) : (
-                                  <Eye className="h-3 w-3" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-6 w-6"
-                                onClick={() => handleCopyKey(key.key, key.id)}
-                              >
-                                <Copy className="h-3 w-3" />
-                              </Button>
-                            </span>
-                          </TableCell>
-                          <TableCell>{key.created}</TableCell>
-                          <TableCell>
-                            <span className="flex items-center gap-1 text-muted-foreground">
-                              <Clock className="h-3 w-3" />
-                              {key.lastUsed}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={key.status === "active" ? "default" : "secondary"}>
-                              {key.status === "active" ? t("active") : t("inactive")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Edit3 className="h-4 w-4 mr-2" />
-                                  {t("edit")}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <RefreshCw className="h-4 w-4 mr-2" />
-                                  {t("regenerate")}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteSecurityKey(key.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  {t("delete")}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
+                  {isLoadingKeys ? (
+                    <div className="flex items-center justify-center p-8">
+                      <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>ID</TableHead>
+                          <TableHead>Kompaniya</TableHead>
+                          <TableHead>{t("apiKey")}</TableHead>
+                          <TableHead className="text-right">{t("actions")}</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {allSecurityKeys.map((key) => (
+                          <TableRow key={key.id}>
+                            <TableCell className="font-mono text-sm">{key.id}</TableCell>
+                            <TableCell>{key.company_name || `#${key.company_id}`}</TableCell>
+                            <TableCell className="font-mono text-sm">
+                              <span className="flex items-center gap-2">
+                                {showKey[key.id]
+                                  ? key.key
+                                  : key.key.length > 20 ? key.key.slice(0, 8) + "••••" + key.key.slice(-4) : key.key}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleToggleKeyVisibility(key.id)}
+                                >
+                                  {showKey[key.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => handleCopyKey(key.key)}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="text-destructive"
+                                onClick={() => handleDeleteSecurityKey(key.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                  {allSecurityKeys.length === 0 && !isLoadingKeys && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Key className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p>Xavfsizlik kalitlari topilmadi</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
 
-            {/* Database Tab */}
             <TabsContent value="database" className="space-y-6">
               <Card>
                 <CardHeader>
@@ -556,16 +587,13 @@ function AdminSettingsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {/* Current Version Badge */}
                     <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
                       <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                         <Database className="h-5 w-5 text-primary" />
                       </div>
                       <div className="flex-1">
                         <p className="text-sm font-medium">{t("currentVersion")}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {t("headRevision")}
-                        </p>
+                        <p className="text-xs text-muted-foreground">{t("headRevision")}</p>
                       </div>
                       <Badge variant="default" className="font-mono">
                         0042 (head)
@@ -585,21 +613,12 @@ function AdminSettingsPage() {
                         {alembicVersions.map((version) => (
                           <TableRow key={version.version}>
                             <TableCell>
-                              <Badge variant="outline" className="font-mono">
-                                {version.version}
-                              </Badge>
+                              <Badge variant="outline" className="font-mono">{version.version}</Badge>
                             </TableCell>
-                            <TableCell className="font-medium">
-                              {version.name}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground">
-                              {version.timestamp}
-                            </TableCell>
+                            <TableCell className="font-medium">{version.name}</TableCell>
+                            <TableCell className="text-muted-foreground">{version.timestamp}</TableCell>
                             <TableCell>
-                              <Badge
-                                variant={version.status === "applied" ? "default" : "secondary"}
-                                className="gap-1"
-                              >
+                              <Badge variant={version.status === "applied" ? "default" : "secondary"} className="gap-1">
                                 <Check className="h-3 w-3" />
                                 {version.status === "applied" ? t("applied") : t("pending")}
                               </Badge>
@@ -643,7 +662,6 @@ function AdminSettingsPage() {
               </Card>
             </TabsContent>
 
-            {/* Integrations Tab */}
             <TabsContent value="integrations" className="space-y-6">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -664,9 +682,7 @@ function AdminSettingsPage() {
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>{t("addNewWebhook")}</DialogTitle>
-                        <DialogDescription>
-                          {t("addNewWebhookDesc")}
-                        </DialogDescription>
+                        <DialogDescription>{t("addNewWebhookDesc")}</DialogDescription>
                       </DialogHeader>
                       <div className="space-y-4">
                         <div className="space-y-2">
@@ -707,9 +723,7 @@ function AdminSettingsPage() {
                           <TableCell>
                             <div className="flex flex-wrap gap-1">
                               {webhook.events.map((event) => (
-                                <Badge key={event} variant="secondary" className="text-xs">
-                                  {event}
-                                </Badge>
+                                <Badge key={event} variant="secondary" className="text-xs">{event}</Badge>
                               ))}
                             </div>
                           </TableCell>
@@ -720,31 +734,14 @@ function AdminSettingsPage() {
                             />
                           </TableCell>
                           <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem>
-                                  <Edit3 className="h-4 w-4 mr-2" />
-                                  {t("edit")}
-                                </DropdownMenuItem>
-                                <DropdownMenuItem>
-                                  <Copy className="h-4 w-4 mr-2" />
-                                  {t("copyUrl")}
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem
-                                  className="text-destructive"
-                                  onClick={() => handleDeleteWebhook(webhook.id)}
-                                >
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  {t("delete")}
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-destructive"
+                              onClick={() => handleDeleteWebhook(webhook.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -775,9 +772,7 @@ function AdminSettingsPage() {
                       {emailTemplates.map((template) => (
                         <TableRow key={template.id}>
                           <TableCell className="font-medium">{template.name}</TableCell>
-                          <TableCell className="text-muted-foreground">
-                            {template.subject}
-                          </TableCell>
+                          <TableCell className="text-muted-foreground">{template.subject}</TableCell>
                           <TableCell>
                             <Badge variant={template.status === "active" ? "default" : "secondary"}>
                               {template.status === "active" ? t("active") : t("draft")}
@@ -814,17 +809,11 @@ function AdminSettingsPage() {
                       { name: "Visa", status: "pending", icon: "💳" },
                       { name: "Mastercard", status: "pending", icon: "💳" },
                     ].map((method) => (
-                      <div
-                        key={method.name}
-                        className="flex items-center gap-3 p-4 rounded-lg border bg-card"
-                      >
+                      <div key={method.name} className="flex items-center gap-3 p-4 rounded-lg border bg-card">
                         <span className="text-2xl">{method.icon}</span>
                         <div className="flex-1">
                           <p className="font-medium">{method.name}</p>
-                          <Badge
-                            variant={method.status === "active" ? "default" : "secondary"}
-                            className="mt-1"
-                          >
+                          <Badge variant={method.status === "active" ? "default" : "secondary"} className="mt-1">
                             {method.status === "active" ? t("connected") : t("pending")}
                           </Badge>
                         </div>
