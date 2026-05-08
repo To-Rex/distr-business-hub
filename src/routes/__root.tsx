@@ -5,8 +5,15 @@ import { Toaster } from "@/components/ui/sonner";
 import { Button } from "@/components/ui/button";
 import { Home, ArrowLeft, Compass } from "lucide-react";
 import { useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 import appCss from "../styles.css?url";
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 1000 * 60, retry: 1 },
+  },
+});
 
 export const Route = createRootRoute({
   head: () => ({
@@ -23,12 +30,14 @@ export const Route = createRootRoute({
   }),
   shellComponent: RootShell,
   component: () => (
-    <AppSettingsProvider>
-      <AuthProvider>
-        <Outlet />
-        <Toaster />
-      </AuthProvider>
-    </AppSettingsProvider>
+    <QueryClientProvider client={queryClient}>
+      <AppSettingsProvider>
+        <AuthProvider>
+          <Outlet />
+          <Toaster />
+        </AuthProvider>
+      </AppSettingsProvider>
+    </QueryClientProvider>
   ),
   notFoundComponent: NotFoundPage,
 });
