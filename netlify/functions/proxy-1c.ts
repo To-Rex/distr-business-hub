@@ -19,6 +19,7 @@ export default async (req: Request) => {
   headers.delete("host");
   headers.delete("connection");
 
+  
   try {
     const proxyRes = await fetch(targetUrl, {
       method: req.method,
