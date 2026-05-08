@@ -44,8 +44,10 @@ type ApiEndpoints = {
   uploadApk: string;
   devices: string;
   workingSessions: string;
+  workingSessionsByUser: (userId: number) => string;
   userManagerCreate: string;
   userManagerById: (id: number) => string;
+  systemMonitor: string;
 };
 
 export const API: ApiEndpoints = {
@@ -104,6 +106,8 @@ export const API: ApiEndpoints = {
   uploadApk: `${BASE_URL}/v1/apps/upload-apk`,
   devices: `${BASE_URL}/v1/devices/`,
   workingSessions: `${BASE_URL}/v1/working-sessions`,
+  workingSessionsByUser: (userId: number) => `${BASE_URL}/v1/working-sessions/user/${userId}`,
   userManagerCreate: `${BASE_URL}/v1/user-manager/create`,
   userManagerById: (id: number) => `${BASE_URL}/v1/user-manager/${id}`,
+  systemMonitor: `${BASE_URL}/v1/system-monitor/`,
 };

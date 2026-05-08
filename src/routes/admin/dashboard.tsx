@@ -10,6 +10,7 @@ import {
 import { TrendingUp, Users, Building, ArrowUpRight, Activity, Package, DollarSign } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchUsers, fetchCompanies, fetchApps } from "@/lib/admin-api";
+import { SystemMonitor } from "@/components/SystemMonitor";
 
 export const Route = createFileRoute("/admin/dashboard")({
   component: AdminDashboard,
@@ -275,7 +276,7 @@ function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base text-sm">Platforma statistikasi</CardTitle>
@@ -312,7 +313,10 @@ function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-sm">Tizim holati</CardTitle>
+            <CardTitle className="text-base text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Tizim holati
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">
@@ -330,6 +334,8 @@ function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <SystemMonitor />
     </AdminLayout>
     </AdminGuard>
   );
