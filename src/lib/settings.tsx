@@ -281,6 +281,8 @@ const dict = {
     adminLoginTitle: "Admin Login",
     adminLoginSubtitle: "Admin panelga kirish uchun login qiling",
     adminLoginRequired: "Login yoki parol kiriting.",
+    goToMainSite: "Asosiy saytga o'tish",
+    adminPanel: "Admin Panel",
     // Admin settings new keys
     export: "Eksport",
     import: "Import",
@@ -618,6 +620,8 @@ const dict = {
     adminLoginTitle: "Админ логин",
     adminLoginSubtitle: "Войдите для доступа к админ-панели",
     adminLoginRequired: "Введите логин или пароль.",
+    goToMainSite: "Перейти на основной сайт",
+    adminPanel: "Админ Панель",
     // Admin settings new keys
     export: "Экспорт",
     import: "Импорт",
@@ -955,6 +959,8 @@ const dict = {
     adminLoginTitle: "Admin Login",
     adminLoginSubtitle: "Sign in to access admin panel",
     adminLoginRequired: "Enter login or password.",
+    goToMainSite: "Go to main site",
+    adminPanel: "Admin Panel",
     // Admin settings new keys
     export: "Export",
     import: "Import",
