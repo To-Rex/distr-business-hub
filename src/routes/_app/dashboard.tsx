@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/lib/settings";
@@ -459,6 +459,8 @@ function Dashboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dateBeginRef = useRef<HTMLInputElement>(null);
+  const dateEndRef = useRef<HTMLInputElement>(null);
 
   const [dateBegin, setDateBegin] = useState(monthStartIsoDate());
   const [dateEnd, setDateEnd] = useState(todayIsoDate());
@@ -529,35 +531,33 @@ function Dashboard() {
       </div>
 
       <div className="flex items-center justify-center gap-3 px-4 py-3 mb-5">
-        <label className="relative flex items-center gap-2 px-4 py-2.5 bg-muted rounded-xl cursor-pointer flex-1 max-w-[200px] overflow-hidden">
+        <input ref={dateBeginRef} type="date" value={dateBegin} onChange={(e) => setDateBegin(e.target.value)} className="sr-only" />
+        <button
+          type="button"
+          onClick={() => dateBeginRef.current?.showPicker()}
+          className="flex items-center gap-2 px-4 py-2.5 bg-muted rounded-xl cursor-pointer flex-1 max-w-[200px] border border-transparent hover:border-primary/20 transition-colors"
+        >
           <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col items-start min-w-0">
             <span className="text-[10px] text-muted-foreground leading-none">Dan</span>
-            <input
-              type="date"
-              value={dateBegin}
-              onChange={(e) => setDateBegin(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-            />
             <span className="text-sm font-medium leading-tight">{formatDisplayDate(dateBegin)}</span>
           </div>
-        </label>
+        </button>
 
         <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
 
-        <label className="relative flex items-center gap-2 px-4 py-2.5 bg-muted rounded-xl cursor-pointer flex-1 max-w-[200px] overflow-hidden">
+        <input ref={dateEndRef} type="date" value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} className="sr-only" />
+        <button
+          type="button"
+          onClick={() => dateEndRef.current?.showPicker()}
+          className="flex items-center gap-2 px-4 py-2.5 bg-muted rounded-xl cursor-pointer flex-1 max-w-[200px] border border-transparent hover:border-primary/20 transition-colors"
+        >
           <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
-          <div className="flex flex-col min-w-0">
+          <div className="flex flex-col items-start min-w-0">
             <span className="text-[10px] text-muted-foreground leading-none">Gacha</span>
-            <input
-              type="date"
-              value={dateEnd}
-              onChange={(e) => setDateEnd(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-            />
             <span className="text-sm font-medium leading-tight">{formatDisplayDate(dateEnd)}</span>
           </div>
-        </label>
+        </button>
       </div>
 
       {error && (
