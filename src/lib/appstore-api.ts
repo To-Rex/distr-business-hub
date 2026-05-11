@@ -96,10 +96,13 @@ async function appstoreFetch<T>(url: string, options?: RequestInit): Promise<T> 
 }
 
 export async function fetchAppStoreApps(): Promise<AppStoreApp[]> {
-  const res = await appstoreFetch<AppStoreResponse<AppStoreApp[]>>(
+  const res = await appstoreFetch<AppStoreResponse<any>>(
     `${APPSTORE_BASE}/admin/apps`,
   );
-  return res.data;
+  return (res.data || []).map((app: any) => {
+    const latest = app.versions?.find((v: any) => v.isLatest)?.version || app.versions?.[0]?.version || "";
+    return { ...app, latestVersion: latest };
+  });
 }
 
 export async function fetchAppStoreUsers(): Promise<AppStoreUser[]> {
@@ -196,5 +199,34 @@ export async function deleteAppStoreAppScreenshot(appId: string, index: number):
   await appstoreFetch<void>(
     `${APPSTORE_BASE}/admin/apps/${appId}/screenshots/${index}`,
     { method: "DELETE" },
+  );
+}
+
+export async function clearAppStoreData(): Promise<void> {
+  await appstoreFetch<void>(
+    `${APPSTORE_BASE}/admin/data/clear`,
+    { method: "POST" },
+  );
+}
+
+type ExportResponse = {
+  message: string;
+  download_url: string;
+  filename: string;
+};
+
+export async function exportAppStoreData(): Promise<ExportResponse> {
+  const res = await appstoreFetch<AppStoreResponse<ExportResponse>>(
+    `${APPSTORE_BASE}/admin/data/export`,
+  );
+  return res.data;
+}
+
+export async function importAppStoreData(file: File): Promise<void> {
+  const fd = new FormData();
+  fd.append("file", file);
+  await appstoreFetch<void>(
+    `${APPSTORE_BASE}/admin/data/import`,
+    { method: "POST", body: fd },
   );
 }

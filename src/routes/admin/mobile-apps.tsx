@@ -32,6 +32,9 @@ import {
   deleteAppStoreAppVersion,
   uploadAppStoreAppScreenshots,
   deleteAppStoreAppScreenshot,
+  clearAppStoreData,
+  exportAppStoreData,
+  importAppStoreData,
   getAppStoreAssetUrl,
   type AppStoreApp,
   type AppStoreAppDetail,
@@ -85,6 +88,8 @@ import {
   Trash2,
   Search,
   Upload,
+  Download,
+  Loader2,
   ChevronDown,
   ChevronUp,
   Package,
@@ -192,6 +197,8 @@ function AdminMobileAppsPage() {
   const [selectedAppStoreVersion, setSelectedAppStoreVersion] = useState<string | null>(null);
   const [selectedAppStoreAppForUrl, setSelectedAppStoreAppForUrl] = useState("");
   const [selectedAppStoreAppVersionForUrl, setSelectedAppStoreAppVersionForUrl] = useState("");
+  const [isClearAppStoreDataDialogOpen, setIsClearAppStoreDataDialogOpen] = useState(false);
+  const appStoreImportInputRef = useRef<HTMLInputElement>(null);
 
   const [appStoreFormData, setAppStoreFormData] = useState<AppStoreAppFormData>(emptyAppStoreAppForm);
   const [appStoreVersionFormData, setAppStoreVersionFormData] = useState<AppStoreVersionFormData>(emptyAppStoreVersionForm);
@@ -424,6 +431,35 @@ function AdminMobileAppsPage() {
       toast.success("Versiya o'chirildi");
       setIsDeleteAppStoreVersionDialogOpen(false);
       setSelectedAppStoreVersion(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const clearAppStoreDataMutation = useMutation({
+    mutationFn: clearAppStoreData,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-apps"] });
+      toast.success("AppStore ma'lumotlari tozalandi");
+      setIsClearAppStoreDataDialogOpen(false);
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const exportAppStoreDataMutation = useMutation({
+    mutationFn: exportAppStoreData,
+    onSuccess: (data) => {
+      const fullUrl = getAppStoreAssetUrl(data.download_url);
+      window.open(fullUrl, "_blank");
+      toast.success("Eksport boshlandi");
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const importAppStoreDataMutation = useMutation({
+    mutationFn: importAppStoreData,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-apps"] });
+      toast.success("Import muvaffaqiyatli");
     },
     onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
   });
@@ -670,7 +706,10 @@ function AdminMobileAppsPage() {
 
         <Tabs defaultValue="main" className="space-y-4 mb-6">
           <TabsList>
-            <TabsTrigger value="main">Mobil ilovalar</TabsTrigger>
+            <TabsTrigger value="main">
+              <Smartphone className="h-4 w-4 mr-1.5" />
+              Mavjud Ilovalar
+            </TabsTrigger>
             <TabsTrigger value="appstore">
               <Store className="h-4 w-4 mr-1.5" />
               AppStore
@@ -679,8 +718,8 @@ function AdminMobileAppsPage() {
 
           <TabsContent value="main" className="space-y-4 mt-0">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="relative max-w-md flex-1">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              <div className="relative max-w-md flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Qidirish (nomi, tag)..."
@@ -713,7 +752,7 @@ function AdminMobileAppsPage() {
                 </Button>
               </div>
             </div>
-            <Button onClick={handleAddApp}>
+            <Button onClick={handleAddApp} className="w-full sm:w-auto">
               <Plus className="h-4 w-4 mr-2" />
               {t("add")}
             </Button>
@@ -721,6 +760,7 @@ function AdminMobileAppsPage() {
         <Card>
           <CardContent className="pt-6">
             {viewMode === "table" ? (
+              <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -753,7 +793,7 @@ function AdminMobileAppsPage() {
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity max-sm:opacity-100">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -783,6 +823,7 @@ function AdminMobileAppsPage() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
             ) : (
               <div className="grid gap-3 md:grid-cols-2">
                 {filteredApps.map((app) => (
@@ -833,10 +874,10 @@ function AdminMobileAppsPage() {
         </Card>
         </TabsContent>
 
-        <TabsContent value="appstore" className="space-y-4 mt-0">
+          <TabsContent value="appstore" className="space-y-4 mt-0">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="relative max-w-md flex-1">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              <div className="relative max-w-md flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Qidirish (nomi, dasturchi, kategoriya)..."
@@ -869,11 +910,64 @@ function AdminMobileAppsPage() {
                 </Button>
               </div>
             </div>
-            <Button onClick={handleAddAppStoreApp}>
-              <Plus className="h-4 w-4 mr-2" />
-              {t("add")}
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button onClick={handleAddAppStoreApp} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-2" />
+                {t("add")}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
+                onClick={() => setIsClearAppStoreDataDialogOpen(true)}
+                title="AppStore ma'lumotlarini tozalash"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => exportAppStoreDataMutation.mutate()}
+                disabled={exportAppStoreDataMutation.isPending}
+                title="Eksport"
+              >
+                {exportAppStoreDataMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => appStoreImportInputRef.current?.click()}
+                disabled={importAppStoreDataMutation.isPending}
+                title="Import"
+              >
+                {importAppStoreDataMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4" />
+                )}
+              </Button>
+              <input
+                ref={appStoreImportInputRef}
+                type="file"
+                accept=".zip,application/zip"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) importAppStoreDataMutation.mutate(file);
+                  if (e.target) e.target.value = "";
+                }}
+              />
+            </div>
           </div>
+          {(importAppStoreDataMutation.isPending || exportAppStoreDataMutation.isPending) && (
+            <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+              <div className="bg-primary h-full rounded-full animate-pulse" style={{ width: "60%" }} />
+            </div>
+          )}
           <Card>
             <CardContent className="pt-6">
               {appstoreLoading ? (
@@ -886,6 +980,7 @@ function AdminMobileAppsPage() {
                   <p>AppStore ilovalari topilmadi</p>
                 </div>
               ) : appstoreViewMode === "table" ? (
+                <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -903,34 +998,46 @@ function AdminMobileAppsPage() {
                       <TableRow key={app.id} className="group">
                         <TableCell>
                           <div className="flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-lg border bg-muted/20 flex items-center justify-center overflow-hidden">
+                            <div className="h-9 w-9 rounded-lg border bg-muted/20 flex items-center justify-center overflow-hidden shrink-0">
                               {app.icon ? (
-                                <img src={getAppStoreAssetUrl(app.icon)} alt={app.name} className="h-full w-full object-cover" />
-                              ) : (
-                                <Store className="h-5 w-5 text-muted-foreground" />
-                              )}
+                                <img
+                                  src={getAppStoreAssetUrl(app.icon)}
+                                  alt={app.name}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.style.display = "none";
+                                    const parent = img.parentElement;
+                                    if (parent) {
+                                      const fallback = parent.querySelector(".app-icon-fallback");
+                                      if (fallback) fallback.classList.remove("hidden");
+                                    }
+                                  }}
+                                />
+                              ) : null}
+                              <Store className={"h-5 w-5 text-muted-foreground app-icon-fallback" + (app.icon ? " hidden" : "")} />
                             </div>
-                            <div>
-                              <span className="font-medium">{app.name}</span>
-                              <p className="text-xs text-muted-foreground">{app.shortDescription}</p>
+                            <div className="min-w-0">
+                              <span className="font-medium truncate block">{app.name}</span>
+                              <p className="text-xs text-muted-foreground truncate">{app.shortDescription}</p>
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>{app.developer || "—"}</TableCell>
+                        <TableCell><span className="truncate block max-w-[120px]">{app.developer || "—"}</span></TableCell>
                         <TableCell><Badge variant="outline">{app.category}</Badge></TableCell>
-                        <TableCell className="font-mono">{app.latestVersion || "—"}</TableCell>
-                        <TableCell>{app.totalDownloads.toLocaleString()}</TableCell>
+                        <TableCell className="font-mono whitespace-nowrap">{app.latestVersion || "—"}</TableCell>
+                        <TableCell className="whitespace-nowrap">{app.totalDownloads.toLocaleString()}</TableCell>
                         <TableCell>
                           {app.published ? (
-                            <Badge variant="default" className="bg-green-600">Nashr qilingan</Badge>
+                            <Badge variant="default" className="bg-green-600 whitespace-nowrap">Nashr qilingan</Badge>
                           ) : (
-                            <Badge variant="secondary">Qoralama</Badge>
+                            <Badge variant="secondary" className="whitespace-nowrap">Qoralama</Badge>
                           )}
                         </TableCell>
                         <TableCell>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity max-sm:opacity-100">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -964,6 +1071,7 @@ function AdminMobileAppsPage() {
                     ))}
                   </TableBody>
                 </Table>
+                </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
                   {appstoreApps.map((app) => (
@@ -973,10 +1081,22 @@ function AdminMobileAppsPage() {
                           <div className="flex items-center gap-4 min-w-0">
                             <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
                               {app.icon ? (
-                                <img src={getAppStoreAssetUrl(app.icon)} alt={app.name} className="h-full w-full object-cover" />
-                              ) : (
-                                <Store className="h-7 w-7 text-primary/60" />
-                              )}
+                                <img
+                                  src={getAppStoreAssetUrl(app.icon)}
+                                  alt={app.name}
+                                  className="h-full w-full object-cover"
+                                  onError={(e) => {
+                                    const img = e.target as HTMLImageElement;
+                                    img.style.display = "none";
+                                    const parent = img.parentElement;
+                                    if (parent) {
+                                      const fallback = parent.querySelector(".app-icon-fallback");
+                                      if (fallback) fallback.classList.remove("hidden");
+                                    }
+                                  }}
+                                />
+                              ) : null}
+                              <Store className={"h-7 w-7 text-primary/60 app-icon-fallback" + (app.icon ? " hidden" : "")} />
                             </div>
                             <div className="min-w-0">
                               <h3 className="font-semibold text-base truncate">{app.name}</h3>
@@ -985,7 +1105,7 @@ function AdminMobileAppsPage() {
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity max-sm:opacity-100">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
@@ -1008,13 +1128,13 @@ function AdminMobileAppsPage() {
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
-                        <div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground">
-                          <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-xs font-normal">{app.developer || app.category}</Badge>
+                        <div className="flex flex-wrap items-center gap-3 mt-4 text-xs text-muted-foreground">
+                          <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-xs font-normal shrink-0">{app.developer || app.category}</Badge>
                           <span className="flex items-center gap-1">
-                            <Package className="h-3.5 w-3.5" />
+                            <Package className="h-3.5 w-3.5 shrink-0" />
                             {app.latestVersion || "—"}
                           </span>
-                          <span className="flex items-center gap-1 ml-auto">
+                          <span className="flex items-center gap-1 ml-auto max-sm:ml-0">
                             <span className="font-medium tabular-nums">{app.totalDownloads.toLocaleString()}</span>
                             <span>yuklama</span>
                           </span>
@@ -1063,6 +1183,27 @@ function AdminMobileAppsPage() {
           </Card>
         </TabsContent>
         </Tabs>
+
+        <AlertDialog open={isClearAppStoreDataDialogOpen} onOpenChange={setIsClearAppStoreDataDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="text-red-600">AppStore ma'lumotlarini tozalash</AlertDialogTitle>
+              <AlertDialogDescription className="space-y-2">
+                <p className="font-semibold text-foreground">Bu amal qaytarib bo'lmaydi!</p>
+                <p>Barcha AppStore ilovalari, versiyalar, skrinshotlar, foydalanuvchilar va boshqa ma'lumotlar butunlay o'chiriladi. Ma'lumotlar dastlabki holatga qaytariladi.</p>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => clearAppStoreDataMutation.mutate()}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Ha, tozalash
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={isEditAppStoreAppDialogOpen} onOpenChange={(open) => {
           if (!open) { setIsEditAppStoreAppDialogOpen(false); setSelectedAppStoreApp(null); setAppStoreFormData(emptyAppStoreAppForm); }
@@ -1436,6 +1577,11 @@ function AdminMobileAppsPage() {
                         <TableCell>{new Date(v.releaseDate).toLocaleDateString()}</TableCell>
                         <TableCell>
                           <div className="flex gap-1">
+                            {v.downloadUrl && (
+                              <Button variant="ghost" size="sm" onClick={() => window.open(getAppStoreAssetUrl(v.downloadUrl), "_blank")}>
+                                <Download className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteAppStoreVersion(v.version)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
