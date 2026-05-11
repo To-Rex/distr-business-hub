@@ -213,11 +213,12 @@ function AdminMobileAppsPage() {
     queryFn: () => fetchAppStoreApps(),
   });
 
-  const { data: appstoreVersions = [] } = useQuery({
-    queryKey: ["admin-appstore-versions", selectedAppStoreApp?.id],
-    queryFn: () => fetchAppStoreAppVersions(selectedAppStoreApp!.id),
+  const { data: appstoreAppVersionsDetail } = useQuery({
+    queryKey: ["admin-appstore-app-versions-detail", selectedAppStoreApp?.id],
+    queryFn: () => fetchAppStoreApp(selectedAppStoreApp!.id),
     enabled: !!selectedAppStoreApp && isAppStoreVersionsDialogOpen,
   });
+  const appstoreVersions = appstoreAppVersionsDetail?.versions || [];
 
   const { data: appstoreUsers = [] } = useQuery({
     queryKey: ["admin-appstore-users"],
@@ -1415,11 +1416,15 @@ function AdminMobileAppsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {appstoreVersions.map((v) => (
+                    {appstoreVersions.slice().sort((a, b) => {
+                      if (a.isLatest) return -1;
+                      if (b.isLatest) return 1;
+                      return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+                    }).map((v) => (
                       <TableRow key={v.version}>
                         <TableCell className="font-mono font-medium">{v.version}</TableCell>
                         <TableCell>{v.minAndroid}</TableCell>
-                        <TableCell>{(v.fileSize / 1048576).toFixed(1)} MB</TableCell>
+                        <TableCell>{v.fileSize || "—"}</TableCell>
                         <TableCell>{v.downloadCount}</TableCell>
                         <TableCell>
                           {v.isLatest ? (
@@ -1693,7 +1698,12 @@ function AdminMobileAppsPage() {
                   <SelectContent>
                     {appstoreApps.map((app) => (
                       <SelectItem key={app.id} value={app.id}>
-                        {app.name}
+                        <div className="flex items-center gap-2">
+                          {app.icon && (
+                            <img src={getAppStoreAssetUrl(app.icon)} alt="" className="h-5 w-5 rounded object-cover" />
+                          )}
+                          <span>{app.name}</span>
+                        </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
