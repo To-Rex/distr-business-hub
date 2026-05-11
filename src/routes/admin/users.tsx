@@ -3,26 +3,26 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
 export type UserRole =
-  | "Foydalanuvchi"
-  | "Super Admin"
-  | "Admin"
-  | "Menejer"
-  | "Supervizor"
-  | "Agent"
-  | "Yetkazib beruvchi"
-  | "Vendor Agent"
-  | "Klient"
-  | "Dealer"
-  | "Fabrika"
-  | "Bosh direktor"
-  | "Buhgalter"
-  | "Ombor"
-  | "Sotuvchi"
-  | "Kassir"
+  | "USER"
+  | "SUPERADMIN"
+  | "ADMIN"
+  | "MANAGER"
+  | "SUPERVISOR"
+  | "AGENT"
+  | "DELIVERER"
+  | "VENDOR_AGENT"
+  | "CLIENT"
+  | "DEALER"
+  | "FACTORY"
+  | "CEO"
+  | "FINANCIST"
+  | "WAREHOUSE"
+  | "SALESMAN"
+  | "CASHIER"
   | "HR"
-  | "Marketing"
-  | "Tashqi sotuvchi"
-  | "Merchandiser";
+  | "MARKETING"
+  | "EXTERNAL_SELLER"
+  | "MERCHANDISER";
 export type UserStatus = "Faol" | "Kutilmoqda" | "Blokirovka";
 
 export interface AdminUser {
@@ -362,26 +362,26 @@ function AdminUsersPage() {
 
     // Map UI role to API user_type
     const roleMap: Record<string, ApiUserType> = {
-      "Foydalanuvchi": "USER",
-      "Super Admin": "SUPERADMIN",
-      "Admin": "ADMIN",
-      "Menejer": "MANAGER",
-      "Supervizor": "SUPERVISOR",
-      "Agent": "AGENT",
-      "Yetkazib beruvchi": "DELIVERER",
-      "Vendor Agent": "VENDOR_AGENT",
-      "Klient": "CLIENT",
-      "Dealer": "DEALER",
-      "Fabrika": "FACTORY",
-      "Bosh direktor": "CEO",
-      "Buhgalter": "FINANCIST",
-      "Ombor": "WAREHOUSE",
-      "Sotuvchi": "SALESMAN",
-      "Kassir": "CASHIER",
+      "USER": "USER",
+      "SUPERADMIN": "SUPERADMIN",
+      "ADMIN": "ADMIN",
+      "MANAGER": "MANAGER",
+      "SUPERVISOR": "SUPERVISOR",
+      "AGENT": "AGENT",
+      "DELIVERER": "DELIVERER",
+      "VENDOR_AGENT": "VENDOR_AGENT",
+      "CLIENT": "CLIENT",
+      "DEALER": "DEALER",
+      "FACTORY": "FACTORY",
+      "CEO": "CEO",
+      "FINANCIST": "FINANCIST",
+      "WAREHOUSE": "WAREHOUSE",
+      "SALESMAN": "SALESMAN",
+      "CASHIER": "CASHIER",
       "HR": "HR",
-      "Marketing": "MARKETING",
-      "Tashqi sotuvchi": "EXTERNAL_SELLER",
-      "Merchandiser": "MERCHANDISER",
+      "MARKETING": "MARKETING",
+      "EXTERNAL_SELLER": "EXTERNAL_SELLER",
+      "MERCHANDISER": "MERCHANDISER",
     };
     
     // Map UI status to API user_status
@@ -455,24 +455,91 @@ function AdminUsersPage() {
   };
 
   const getRoleBadgeVariant = (role: UserRole) => {
+    // switch (role) {
+    //   case "Super Admin":
+    //     return "destructive";
+    //   case "Admin":
+    //     return "default";
+    //   case "Menejer":
+    //     return "outline";
+    //   case "Bosh direktor":
+    //     return "outline";
+    //   case "Supervizor":
+    //     return "outline";
+    //   case "Agent":
+    //     return "secondary";
+    //   case "Yetkazib beruvchi":
+    //     return "secondary";
+    //   default:
+    //     return "secondary";
+    // }
+    //nst roleMap: Record<string, ApiUserType> = {
+      // "USER": "USER",
+      // "SUPERADMIN": "SUPERADMIN",
+      // "ADMIN": "ADMIN",
+      // "MANAGER": "MANAGER",
+      // "SUPERVISOR": "SUPERVISOR",
+      // "AGENT": "AGENT",
+      // "DELIVERER": "DELIVERER",
+      // "VENDOR_AGENT": "VENDOR_AGENT",
+      // "CLIENT": "CLIENT",
+      // "DEALER": "DEALER",
+      // "FACTORY": "FACTORY",
+      // "CEO": "CEO",
+      // "FINANCIST": "FINANCIST",
+      // "WAREHOUSE": "WAREHOUSE",
+      // "SALESMAN": "SALESMAN",
+      // "CASHIER": "CASHIER",
+      // "HR": "HR",
+      // "MARKETING": "MARKETING",
+      // "EXTERNAL_SELLER": "EXTERNAL_SELLER",
+      // "MERCHANDISER": "MERCHANDISER",
+
     switch (role) {
-      case "Super Admin":
+      case "SUPERADMIN":
         return "destructive";
-      case "Admin":
+      case "ADMIN":
         return "default";
-      case "Menejer":
-        return "outline";
-      case "Bosh direktor":
-        return "outline";
-      case "Supervizor":
-        return "outline";
-      case "Agent":
+      case "USER":
         return "secondary";
-      case "Yetkazib beruvchi":
+      case "MANAGER":
+        return "outline";
+      case "SUPERVISOR":
+        return "outline";
+      case "AGENT":
+        return "secondary";
+      case "DELIVERER":
+        return "secondary";
+      case "VENDOR_AGENT":
+        return "secondary";
+      case "CLIENT":
+        return "secondary";
+      case "DEALER":
+        return "secondary";
+      case "FACTORY":
+        return "secondary";
+      case "CEO":
+        return "outline";
+      case "FINANCIST":
+        return "outline";
+      case "WAREHOUSE":
+        return "secondary";
+      case "SALESMAN":
+        return "secondary";
+      case "CASHIER":
+        return "secondary";
+      case "HR":
+        return "secondary";
+      case "MARKETING":
+        return "secondary";
+      case "EXTERNAL_SELLER":
+        return "secondary";
+      case "MERCHANDISER":
         return "secondary";
       default:
         return "secondary";
     }
+
   };
 
   // User Card Component for card view
@@ -618,27 +685,28 @@ function AdminUsersPage() {
                 <SelectValue placeholder="Rol" />
               </SelectTrigger>
               <SelectContent>
+              
                 <SelectItem value="all">Barcha rollar</SelectItem>
-                <SelectItem value="Foydalanuvchi">Foydalanuvchi</SelectItem>
-                <SelectItem value="Super Admin">Super Admin</SelectItem>
-                <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="Menejer">Menejer</SelectItem>
-                <SelectItem value="Supervizor">Supervizor</SelectItem>
-                <SelectItem value="Agent">Agent</SelectItem>
-                <SelectItem value="Yetkazib beruvchi">Yetkazib beruvchi</SelectItem>
-                <SelectItem value="Vendor Agent">Vendor Agent</SelectItem>
-                <SelectItem value="Klient">Klient</SelectItem>
-                <SelectItem value="Dealer">Dealer</SelectItem>
-                <SelectItem value="Fabrika">Fabrika</SelectItem>
-                <SelectItem value="Bosh direktor">Bosh direktor</SelectItem>
-                <SelectItem value="Buhgalter">Buhgalter</SelectItem>
-                <SelectItem value="Ombor">Ombor</SelectItem>
-                <SelectItem value="Sotuvchi">Sotuvchi</SelectItem>
-                <SelectItem value="Kassir">Kassir</SelectItem>
+                <SelectItem value="USER">USER</SelectItem>
+                <SelectItem value="SUPERADMIN">SUPERADMIN</SelectItem>
+                <SelectItem value="ADMIN">ADMIN</SelectItem>
+                <SelectItem value="MANAGER">MANAGER</SelectItem>
+                <SelectItem value="SUPERVISOR">SUPERVISOR</SelectItem>
+                <SelectItem value="AGENT">AGENT</SelectItem>
+                <SelectItem value="DELIVERER">DELIVERER</SelectItem>
+                <SelectItem value="VENDOR_AGENT">VENDOR_AGENT</SelectItem>
+                <SelectItem value="CLIENT">CLIENT</SelectItem>
+                <SelectItem value="DEALER">DEALER</SelectItem>
+                <SelectItem value="FACTORY">FACTORY</SelectItem>
+                <SelectItem value="CEO">CEO</SelectItem>
+                <SelectItem value="FINANCIST">FINANCIST</SelectItem>
+                <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
+                <SelectItem value="SALESMAN">SALESMAN</SelectItem>
+                <SelectItem value="CASHIER">CASHIER</SelectItem>
                 <SelectItem value="HR">HR</SelectItem>
-                <SelectItem value="Marketing">Marketing</SelectItem>
-                <SelectItem value="Tashqi sotuvchi">Tashqi sotuvchi</SelectItem>
-                <SelectItem value="Merchandiser">Merchandiser</SelectItem>
+                <SelectItem value="MARKETING">MARKETING</SelectItem>
+                <SelectItem value="EXTERNAL_SELLER">EXTERNAL_SELLER</SelectItem>
+                <SelectItem value="MERCHANDISER">MERCHANDISER</SelectItem>
               </SelectContent>
             </Select>
 
@@ -1011,26 +1079,28 @@ function AdminUsersPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Foydalanuvchi">Foydalanuvchi</SelectItem>
-                      <SelectItem value="Super Admin">Super Admin</SelectItem>
-                      <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Menejer">Menejer</SelectItem>
-                      <SelectItem value="Supervizor">Supervizor</SelectItem>
-                      <SelectItem value="Agent">Agent</SelectItem>
-                      <SelectItem value="Yetkazib beruvchi">Yetkazib beruvchi</SelectItem>
-                      <SelectItem value="Vendor Agent">Vendor Agent</SelectItem>
-                      <SelectItem value="Klient">Klient</SelectItem>
-                      <SelectItem value="Dealer">Dealer</SelectItem>
-                      <SelectItem value="Fabrika">Fabrika</SelectItem>
-                      <SelectItem value="Bosh direktor">Bosh direktor</SelectItem>
-                      <SelectItem value="Buhgalter">Buhgalter</SelectItem>
-                      <SelectItem value="Ombor">Ombor</SelectItem>
-                      <SelectItem value="Sotuvchi">Sotuvchi</SelectItem>
-                      <SelectItem value="Kassir">Kassir</SelectItem>
-                      <SelectItem value="HR">HR</SelectItem>
-                      <SelectItem value="Marketing">Marketing</SelectItem>
-                      <SelectItem value="Tashqi sotuvchi">Tashqi sotuvchi</SelectItem>
-                      <SelectItem value="Merchandiser">Merchandiser</SelectItem>
+                    
+                <SelectItem value="all">Barcha rollar</SelectItem>
+                <SelectItem value="USER">USER</SelectItem>
+                <SelectItem value="SUPERADMIN">SUPERADMIN</SelectItem>
+                <SelectItem value="ADMIN">ADMIN</SelectItem>
+                <SelectItem value="MANAGER">MANAGER</SelectItem>
+                <SelectItem value="SUPERVISOR">SUPERVISOR</SelectItem>
+                <SelectItem value="AGENT">AGENT</SelectItem>
+                <SelectItem value="DELIVERER">DELIVERER</SelectItem>
+                <SelectItem value="VENDOR_AGENT">VENDOR_AGENT</SelectItem>
+                <SelectItem value="CLIENT">CLIENT</SelectItem>
+                <SelectItem value="DEALER">DEALER</SelectItem>
+                <SelectItem value="FACTORY">FACTORY</SelectItem>
+                <SelectItem value="CEO">CEO</SelectItem>
+                <SelectItem value="FINANCIST">FINANCIST</SelectItem>
+                <SelectItem value="WAREHOUSE">WAREHOUSE</SelectItem>
+                <SelectItem value="SALESMAN">SALESMAN</SelectItem>
+                <SelectItem value="CASHIER">CASHIER</SelectItem>
+                <SelectItem value="HR">HR</SelectItem>
+                <SelectItem value="MARKETING">MARKETING</SelectItem>
+                <SelectItem value="EXTERNAL_SELLER">EXTERNAL_SELLER</SelectItem>
+                <SelectItem value="MERCHANDISER">MERCHANDISER</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
