@@ -2,7 +2,27 @@ import { useState, useMemo } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
-export type UserRole = "Super Admin" | "Admin" | "Manager" | "Moderator" | "Agent" | "Viewer";
+export type UserRole =
+  | "Foydalanuvchi"
+  | "Super Admin"
+  | "Admin"
+  | "Menejer"
+  | "Supervizor"
+  | "Agent"
+  | "Yetkazib beruvchi"
+  | "Vendor Agent"
+  | "Klient"
+  | "Dealer"
+  | "Fabrika"
+  | "Bosh direktor"
+  | "Buhgalter"
+  | "Ombor"
+  | "Sotuvchi"
+  | "Kassir"
+  | "HR"
+  | "Marketing"
+  | "Tashqi sotuvchi"
+  | "Merchandiser";
 export type UserStatus = "Faol" | "Kutilmoqda" | "Blokirovka";
 
 export interface AdminUser {
@@ -342,12 +362,26 @@ function AdminUsersPage() {
 
     // Map UI role to API user_type
     const roleMap: Record<string, ApiUserType> = {
+      "Foydalanuvchi": "USER",
       "Super Admin": "SUPERADMIN",
       "Admin": "ADMIN",
-      "Manager": "MANAGER",
-      "Moderator": "MANAGER",
+      "Menejer": "MANAGER",
+      "Supervizor": "SUPERVISOR",
       "Agent": "AGENT",
-      "Viewer": "USER",
+      "Yetkazib beruvchi": "DELIVERER",
+      "Vendor Agent": "VENDOR_AGENT",
+      "Klient": "CLIENT",
+      "Dealer": "DEALER",
+      "Fabrika": "FACTORY",
+      "Bosh direktor": "CEO",
+      "Buhgalter": "FINANCIST",
+      "Ombor": "WAREHOUSE",
+      "Sotuvchi": "SALESMAN",
+      "Kassir": "CASHIER",
+      "HR": "HR",
+      "Marketing": "MARKETING",
+      "Tashqi sotuvchi": "EXTERNAL_SELLER",
+      "Merchandiser": "MERCHANDISER",
     };
     
     // Map UI status to API user_status
@@ -384,6 +418,7 @@ function AdminUsersPage() {
         first_name: formData.fullName!.split(' ')[0] || '',
         last_name: formData.fullName!.split(' ').slice(1).join(' ') || '',
         phone_number: formData.phone,
+        user_type: userType,
       });
     }
   };
@@ -425,8 +460,16 @@ function AdminUsersPage() {
         return "destructive";
       case "Admin":
         return "default";
-      case "Manager":
+      case "Menejer":
         return "outline";
+      case "Bosh direktor":
+        return "outline";
+      case "Supervizor":
+        return "outline";
+      case "Agent":
+        return "secondary";
+      case "Yetkazib beruvchi":
+        return "secondary";
       default:
         return "secondary";
     }
@@ -576,12 +619,26 @@ function AdminUsersPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Barcha rollar</SelectItem>
+                <SelectItem value="Foydalanuvchi">Foydalanuvchi</SelectItem>
                 <SelectItem value="Super Admin">Super Admin</SelectItem>
                 <SelectItem value="Admin">Admin</SelectItem>
-                <SelectItem value="Manager">Manager</SelectItem>
-                <SelectItem value="Moderator">Moderator</SelectItem>
+                <SelectItem value="Menejer">Menejer</SelectItem>
+                <SelectItem value="Supervizor">Supervizor</SelectItem>
                 <SelectItem value="Agent">Agent</SelectItem>
-                <SelectItem value="Viewer">Viewer</SelectItem>
+                <SelectItem value="Yetkazib beruvchi">Yetkazib beruvchi</SelectItem>
+                <SelectItem value="Vendor Agent">Vendor Agent</SelectItem>
+                <SelectItem value="Klient">Klient</SelectItem>
+                <SelectItem value="Dealer">Dealer</SelectItem>
+                <SelectItem value="Fabrika">Fabrika</SelectItem>
+                <SelectItem value="Bosh direktor">Bosh direktor</SelectItem>
+                <SelectItem value="Buhgalter">Buhgalter</SelectItem>
+                <SelectItem value="Ombor">Ombor</SelectItem>
+                <SelectItem value="Sotuvchi">Sotuvchi</SelectItem>
+                <SelectItem value="Kassir">Kassir</SelectItem>
+                <SelectItem value="HR">HR</SelectItem>
+                <SelectItem value="Marketing">Marketing</SelectItem>
+                <SelectItem value="Tashqi sotuvchi">Tashqi sotuvchi</SelectItem>
+                <SelectItem value="Merchandiser">Merchandiser</SelectItem>
               </SelectContent>
             </Select>
 
@@ -954,12 +1011,26 @@ function AdminUsersPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="Foydalanuvchi">Foydalanuvchi</SelectItem>
                       <SelectItem value="Super Admin">Super Admin</SelectItem>
                       <SelectItem value="Admin">Admin</SelectItem>
-                      <SelectItem value="Manager">Manager</SelectItem>
-                      <SelectItem value="Moderator">Moderator</SelectItem>
+                      <SelectItem value="Menejer">Menejer</SelectItem>
+                      <SelectItem value="Supervizor">Supervizor</SelectItem>
                       <SelectItem value="Agent">Agent</SelectItem>
-                      <SelectItem value="Viewer">Viewer</SelectItem>
+                      <SelectItem value="Yetkazib beruvchi">Yetkazib beruvchi</SelectItem>
+                      <SelectItem value="Vendor Agent">Vendor Agent</SelectItem>
+                      <SelectItem value="Klient">Klient</SelectItem>
+                      <SelectItem value="Dealer">Dealer</SelectItem>
+                      <SelectItem value="Fabrika">Fabrika</SelectItem>
+                      <SelectItem value="Bosh direktor">Bosh direktor</SelectItem>
+                      <SelectItem value="Buhgalter">Buhgalter</SelectItem>
+                      <SelectItem value="Ombor">Ombor</SelectItem>
+                      <SelectItem value="Sotuvchi">Sotuvchi</SelectItem>
+                      <SelectItem value="Kassir">Kassir</SelectItem>
+                      <SelectItem value="HR">HR</SelectItem>
+                      <SelectItem value="Marketing">Marketing</SelectItem>
+                      <SelectItem value="Tashqi sotuvchi">Tashqi sotuvchi</SelectItem>
+                      <SelectItem value="Merchandiser">Merchandiser</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

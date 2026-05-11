@@ -1,13 +1,26 @@
 import { API } from "./api";
 
 export type ApiUserType =
+  | "USER"
   | "SUPERADMIN"
   | "ADMIN"
-  | "CEO"
   | "MANAGER"
-  | "USER"
+  | "SUPERVISOR"
   | "AGENT"
-  | "DELIVERER";
+  | "DELIVERER"
+  | "VENDOR_AGENT"
+  | "CLIENT"
+  | "DEALER"
+  | "FACTORY"
+  | "CEO"
+  | "FINANCIST"
+  | "WAREHOUSE"
+  | "SALESMAN"
+  | "CASHIER"
+  | "HR"
+  | "MARKETING"
+  | "EXTERNAL_SELLER"
+  | "MERCHANDISER";
 export type ApiUserStatus = "ACTIVE" | "BLOCKED";
 
 export type ApiCompany = {
@@ -173,7 +186,8 @@ export type CreateUserPayload = {
   last_name?: string;
   phone_number?: string;
   photo?: string;
-};
+  user_type?: ApiUserType;
+}
 
 export async function createUser(data: CreateUserPayload): Promise<ApiUser> {
   return adminFetch<ApiUser>(API.userManagerCreate, {
@@ -194,7 +208,7 @@ export type UpdateUserPayload = {
   user_status?: ApiUserStatus;
   company_id?: number;
   manager_id?: number;
-};
+};;
 
 export async function updateUser(userId: number, data: UpdateUserPayload): Promise<ApiUser> {
   return adminFetch<ApiUser>(API.userManagerById(userId), {
@@ -475,13 +489,26 @@ export async function fetchUserWorkingSessions(userId: number): Promise<ApiWorki
 }
 
 export const USER_TYPE_LABELS: Record<ApiUserType, string> = {
+  USER: "Foydalanuvchi",
   SUPERADMIN: "Super Admin",
   ADMIN: "Admin",
-  CEO: "CEO",
-  MANAGER: "Manager",
-  USER: "User",
+  MANAGER: "Menejer",
+  SUPERVISOR: "Supervizor",
   AGENT: "Agent",
-  DELIVERER: "Deliverer",
+  DELIVERER: "Yetkazib beruvchi",
+  VENDOR_AGENT: "Vendor Agent",
+  CLIENT: "Klient",
+  DEALER: "Dealer",
+  FACTORY: "Fabrika",
+  CEO: "Bosh direktor",
+  FINANCIST: "Buhgalter",
+  WAREHOUSE: "Ombor",
+  SALESMAN: "Sotuvchi",
+  CASHIER: "Kassir",
+  HR: "HR",
+  MARKETING: "Marketing",
+  EXTERNAL_SELLER: "Tashqi sotuvchi",
+  MERCHANDISER: "Merchandiser",
 };
 
 export const USER_STATUS_LABELS: Record<ApiUserStatus, string> = {
