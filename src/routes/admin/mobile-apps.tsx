@@ -190,6 +190,8 @@ function AdminMobileAppsPage() {
   const [isAddAppStoreVersionDialogOpen, setIsAddAppStoreVersionDialogOpen] = useState(false);
   const [isDeleteAppStoreVersionDialogOpen, setIsDeleteAppStoreVersionDialogOpen] = useState(false);
   const [selectedAppStoreVersion, setSelectedAppStoreVersion] = useState<string | null>(null);
+  const [selectedAppStoreAppForUrl, setSelectedAppStoreAppForUrl] = useState("");
+  const [selectedAppStoreAppVersionForUrl, setSelectedAppStoreAppVersionForUrl] = useState("");
 
   const [appStoreFormData, setAppStoreFormData] = useState<AppStoreAppFormData>(emptyAppStoreAppForm);
   const [appStoreVersionFormData, setAppStoreVersionFormData] = useState<AppStoreVersionFormData>(emptyAppStoreVersionForm);
@@ -225,6 +227,12 @@ function AdminMobileAppsPage() {
   const { data: appstoreCategories = [] } = useQuery({
     queryKey: ["admin-appstore-categories"],
     queryFn: () => fetchAppStoreCategories(),
+  });
+
+  const { data: appstoreAppDetailForUrl } = useQuery({
+    queryKey: ["admin-appstore-app-detail-url", selectedAppStoreAppForUrl],
+    queryFn: () => fetchAppStoreApp(selectedAppStoreAppForUrl),
+    enabled: !!selectedAppStoreAppForUrl && (isAddVersionDialogOpen || isEditVersionDialogOpen),
   });
 
   const filteredApps = apps.filter((app) => {
@@ -454,6 +462,8 @@ function AdminMobileAppsPage() {
 
   const handleAddVersion = () => {
     setVersionFormData(emptyVersionForm);
+    setSelectedAppStoreAppForUrl("");
+    setSelectedAppStoreAppVersionForUrl("");
     setIsAddVersionDialogOpen(true);
   };
 
@@ -467,6 +477,8 @@ function AdminMobileAppsPage() {
       message: version.message || "",
       title: version.title || "",
     });
+    setSelectedAppStoreAppForUrl("");
+    setSelectedAppStoreAppVersionForUrl("");
     setIsEditVersionDialogOpen(true);
   };
 
@@ -1635,7 +1647,7 @@ function AdminMobileAppsPage() {
         </Dialog>
 
         <Dialog open={isAddVersionDialogOpen || isEditVersionDialogOpen} onOpenChange={(open) => {
-          if (!open) { setIsAddVersionDialogOpen(false); setIsEditVersionDialogOpen(false); setVersionFormData(emptyVersionForm); }
+          if (!open) { setIsAddVersionDialogOpen(false); setIsEditVersionDialogOpen(false); setVersionFormData(emptyVersionForm); setSelectedAppStoreAppForUrl(""); setSelectedAppStoreAppVersionForUrl(""); }
         }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
@@ -1665,6 +1677,58 @@ function AdminMobileAppsPage() {
                     placeholder="1"
                   />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <Label>AppStore ilovasidan URL olish</Label>
+                <Select
+                  value={selectedAppStoreAppForUrl}
+                  onValueChange={(val) => {
+                    setSelectedAppStoreAppForUrl(val);
+                    setSelectedAppStoreAppVersionForUrl("");
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Ilovani tanlang..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appstoreApps.map((app) => (
+                      <SelectItem key={app.id} value={app.id}>
+                        {app.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedAppStoreAppForUrl && appstoreAppDetailForUrl && (
+                  <Select
+                    value={selectedAppStoreAppVersionForUrl}
+                    onValueChange={(val) => {
+                      setSelectedAppStoreAppVersionForUrl(val);
+                      const versions = appstoreAppDetailForUrl.versions || [];
+                      const found = versions.find((v) => v.version === val);
+                      if (found?.downloadUrl) {
+                        setVersionFormData((prev) => ({ ...prev, update_url: getAppStoreAssetUrl(found.downloadUrl) }));
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Versiyani tanlang..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(appstoreAppDetailForUrl.versions || [])
+                        .slice()
+                        .sort((a, b) => {
+                          if (a.isLatest) return -1;
+                          if (b.isLatest) return 1;
+                          return new Date(b.releaseDate).getTime() - new Date(a.releaseDate).getTime();
+                        })
+                        .map((v) => (
+                        <SelectItem key={v.version} value={v.version}>
+                          {v.version}{v.isLatest ? " (so'nggi)" : ""}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
