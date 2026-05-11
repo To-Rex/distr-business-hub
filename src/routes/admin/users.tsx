@@ -1039,16 +1039,18 @@ function AdminUsersPage() {
                 </div>
               </div>
 
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="twoFactor"
-                  checked={formData.twoFactorEnabled}
-                  onCheckedChange={(checked) =>
-                    setFormData({ ...formData, twoFactorEnabled: checked as boolean })
-                  }
-                />
-                <Label htmlFor="twoFactor">Ikki bosqichli autentifikatsiya (2FA)</Label>
-              </div>
+              {isEditDialogOpen && (
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="twoFactor"
+                    checked={formData.twoFactorEnabled}
+                    onCheckedChange={(checked) =>
+                      setFormData({ ...formData, twoFactorEnabled: checked as boolean })
+                    }
+                  />
+                  <Label htmlFor="twoFactor">Ikki bosqichli autentifikatsiya (2FA)</Label>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label>Ruxsatnomalar</Label>
