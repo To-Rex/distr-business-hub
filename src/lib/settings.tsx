@@ -275,7 +275,7 @@ const dict = {
     adminCompanies: "Companiyalar",
     adminCompaniesSubtitle: "Platformadagi kompaniyalar ro'yxati (mock)",
     adminMobileApps: "Mobil ilovalar",
-    adminMobileAppsSubtitle: "Admin nazorati ostidagi ilovalar (mock)",
+    adminMobileAppsSubtitle: "Admin nazorati ostidagi ilovalar",
     adminNotifications: "Xabarnomalar",
     adminNotificationsSubtitle: "Oxirgi tizim xabarnomalari (mock)",
     adminSettings: "Sozlamalar",
