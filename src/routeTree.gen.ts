@@ -13,6 +13,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminWorkingSessionsRouteImport } from './routes/admin/working-sessions'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
@@ -51,6 +52,11 @@ const IndexRoute = IndexRouteImport.update({
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/admin/',
   path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminWorkingSessionsRoute = AdminWorkingSessionsRouteImport.update({
+  id: '/admin/working-sessions',
+  path: '/admin/working-sessions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -177,6 +183,7 @@ export interface FileRoutesByFullPath {
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/working-sessions': typeof AdminWorkingSessionsRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
@@ -202,6 +209,7 @@ export interface FileRoutesByTo {
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/working-sessions': typeof AdminWorkingSessionsRoute
   '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   '/admin/notifications': typeof AdminNotificationsRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
+  '/admin/working-sessions': typeof AdminWorkingSessionsRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
@@ -256,6 +265,7 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/working-sessions'
     | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -281,6 +291,7 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/working-sessions'
     | '/admin'
   id:
     | '__root__'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '/admin/notifications'
     | '/admin/settings'
     | '/admin/users'
+    | '/admin/working-sessions'
     | '/admin/'
   fileRoutesById: FileRoutesById
 }
@@ -321,6 +333,7 @@ export interface RootRouteChildren {
   AdminNotificationsRoute: typeof AdminNotificationsRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
+  AdminWorkingSessionsRoute: typeof AdminWorkingSessionsRoute
   AdminIndexRoute: typeof AdminIndexRoute
 }
 
@@ -352,6 +365,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/working-sessions': {
+      id: '/admin/working-sessions'
+      path: '/admin/working-sessions'
+      fullPath: '/admin/working-sessions'
+      preLoaderRoute: typeof AdminWorkingSessionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -542,6 +562,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminNotificationsRoute: AdminNotificationsRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
+  AdminWorkingSessionsRoute: AdminWorkingSessionsRoute,
   AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport

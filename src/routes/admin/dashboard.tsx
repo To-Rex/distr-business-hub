@@ -1,13 +1,16 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
 import { useSettings } from "@/lib/settings";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend,
 } from "recharts";
 import { TrendingUp, Users, Building, ArrowUpRight, Activity, Package, DollarSign } from "lucide-react";
-import { adminMobileApps } from "@/features/admin/mock-data";
+import { useQuery } from "@tanstack/react-query";
+import { fetchUsers, fetchCompanies, fetchApps } from "@/lib/admin-api";
+import { SystemMonitor } from "@/components/SystemMonitor";
 
 export const Route = createFileRoute("/admin/dashboard")({
   component: AdminDashboard,
@@ -80,43 +83,68 @@ function KpiCard({ icon: Icon, label, value, change, changeLabel }: { icon: any;
 
 function AdminDashboard() {
   const { t } = useSettings();
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, []);
+  const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
+    queryKey: ["admin-companies"],
+    queryFn: () => fetchCompanies(),
+  });
+  
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery({
+    queryKey: ["admin-users"],
+    queryFn: () => fetchUsers(),
+  });
+  
+  const { data: apps = [], isLoading: isLoadingApps } = useQuery({
+    queryKey: ["admin-apps"],
+    queryFn: () => fetchApps(),
+  });
 
-  const stats = useMemo(() => ({
-    companies: mockPlatformStats.totalCompanies,
-    activeCompanies: mockPlatformStats.activeCompanies,
-    users: mockPlatformStats.totalUsers,
-    activeUsers: mockPlatformStats.activeUsers,
-    revenue: mockPlatformStats.monthlyRevenue,
-    newCompanies: mockPlatformStats.newCompaniesThisMonth,
-    newUsers: mockPlatformStats.newUsersThisMonth,
-  }), []);
+  const loading = isLoadingCompanies || isLoadingUsers || isLoadingApps;
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    const newUsersCount = users.filter(u => {
+      const d = new Date(u.created_at);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    }).length;
+
+    return {
+      companies: companies.length || mockPlatformStats.totalCompanies,
+      activeCompanies: companies.length || mockPlatformStats.activeCompanies,
+      users: users.length || mockPlatformStats.totalUsers,
+      activeUsers: users.filter(u => u.user_status === 'ACTIVE').length || mockPlatformStats.activeUsers,
+      revenue: mockPlatformStats.monthlyRevenue,
+      newCompanies: 0 || mockPlatformStats.newCompaniesThisMonth,
+      newUsers: newUsersCount || mockPlatformStats.newUsersThisMonth,
+    };
+  }, [companies, users]);
 
   if (loading) {
     return (
-      <AdminLayout title={t("adminDashboard")} subtitle={t("adminDashboardSubtitle")}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {Array.from({ length: 4 }).map((_, idx) => (
-            <Card key={idx}>
-              <CardContent className="p-6 space-y-2">
-                <div className="h-10 w-10 rounded-xl bg-muted" />
-                <div className="h-8 w-24 bg-muted" />
-                <div className="h-4 w-32 bg-muted" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </AdminLayout>
+      <AdminGuard>
+        <AdminLayout title={t("adminDashboard")} subtitle={t("adminDashboardSubtitle")}>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <Card key={idx}>
+                <CardContent className="p-6 space-y-2">
+                  <div className="h-10 w-10 rounded-xl bg-muted" />
+                  <div className="h-8 w-24 bg-muted" />
+                  <div className="h-4 w-32 bg-muted" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </AdminLayout>
+      </AdminGuard>
     );
   }
 
   return (
-    <AdminLayout title={t("adminDashboard")} subtitle={t("adminDashboardSubtitle")}>
+    <AdminGuard>
+      <AdminLayout title={t("adminDashboard")} subtitle={t("adminDashboardSubtitle")}>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard
           icon={Building}
@@ -248,7 +276,7 @@ function AdminDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader>
             <CardTitle className="text-base text-sm">Platforma statistikasi</CardTitle>
@@ -274,10 +302,10 @@ function AdminDashboard() {
             <CardTitle className="text-base text-sm">Mobil ilovalar</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {adminMobileApps.map((app) => (
+            {apps.map((app) => (
               <div key={app.id} className="flex justify-between text-sm">
                 <span className="text-muted-foreground">{app.name}</span>
-                <span className="font-medium">v{app.version} ({app.platform})</span>
+                <span className="font-medium">({app.tag})</span>
               </div>
             ))}
           </CardContent>
@@ -285,7 +313,10 @@ function AdminDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base text-sm">Tizim holati</CardTitle>
+            <CardTitle className="text-base text-sm flex items-center gap-2">
+              <Activity className="h-4 w-4 text-primary" />
+              Tizim holati
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">
@@ -303,6 +334,9 @@ function AdminDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      <SystemMonitor />
     </AdminLayout>
+    </AdminGuard>
   );
 }
