@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
@@ -18,6 +18,27 @@ import {
   type CreateAppPayload,
   type CreateVersionPayload,
 } from "@/lib/admin-api";
+import {
+  fetchAppStoreApps,
+  fetchAppStoreApp,
+  fetchAppStoreUsers,
+  fetchAppStoreCategories,
+  createAppStoreApp,
+  updateAppStoreApp,
+  deleteAppStoreApp,
+  toggleAppStoreAppPublish,
+  fetchAppStoreAppVersions,
+  createAppStoreAppVersion,
+  deleteAppStoreAppVersion,
+  uploadAppStoreAppScreenshots,
+  deleteAppStoreAppScreenshot,
+  getAppStoreAssetUrl,
+  type AppStoreApp,
+  type AppStoreAppDetail,
+  type AppStoreAppVersion,
+  type AppStoreUser,
+  type AppStoreCategory,
+} from "@/lib/appstore-api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -25,8 +46,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSettings } from "@/lib/settings";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -66,6 +89,8 @@ import {
   ChevronUp,
   Package,
   Eye,
+  Store,
+  Image,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/mobile-apps")({
@@ -86,6 +111,22 @@ type VersionFormData = {
   title: string;
 };
 
+type AppStoreAppFormData = {
+  name: string;
+  shortDescription: string;
+  category: string;
+  developer: string;
+  description: string;
+  tags: string;
+  published: boolean;
+};
+
+type AppStoreVersionFormData = {
+  version: string;
+  minAndroid: string;
+  changelog: string;
+};
+
 const emptyAppForm: AppFormData = { name: "", tag: "" };
 const emptyVersionForm: VersionFormData = {
   version: "",
@@ -94,6 +135,22 @@ const emptyVersionForm: VersionFormData = {
   update_url: "",
   message: "",
   title: "",
+};
+
+const emptyAppStoreAppForm: AppStoreAppFormData = {
+  name: "",
+  shortDescription: "",
+  category: "productivity",
+  developer: "",
+  description: "",
+  tags: "",
+  published: true,
+};
+
+const emptyAppStoreVersionForm: AppStoreVersionFormData = {
+  version: "",
+  minAndroid: "8.0",
+  changelog: "",
 };
 
 function AdminMobileAppsPage() {
@@ -107,6 +164,8 @@ function AdminMobileAppsPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"table" | "items">("table");
+  const [appstoreSearchQuery, setAppstoreSearchQuery] = useState("");
+  const [appstoreViewMode, setAppstoreViewMode] = useState<"table" | "items">("items");
   const [expandedAppId, setExpandedAppId] = useState<number | null>(null);
 
   const [selectedApp, setSelectedApp] = useState<ApiApp | null>(null);
@@ -123,16 +182,68 @@ function AdminMobileAppsPage() {
   const [appFormData, setAppFormData] = useState<AppFormData>(emptyAppForm);
   const [versionFormData, setVersionFormData] = useState<VersionFormData>(emptyVersionForm);
 
+  const [selectedAppStoreApp, setSelectedAppStoreApp] = useState<AppStoreApp | null>(null);
+  const [isAddAppStoreAppDialogOpen, setIsAddAppStoreAppDialogOpen] = useState(false);
+  const [isEditAppStoreAppDialogOpen, setIsEditAppStoreAppDialogOpen] = useState(false);
+  const [isDeleteAppStoreAppDialogOpen, setIsDeleteAppStoreAppDialogOpen] = useState(false);
+  const [isAppStoreVersionsDialogOpen, setIsAppStoreVersionsDialogOpen] = useState(false);
+  const [isAddAppStoreVersionDialogOpen, setIsAddAppStoreVersionDialogOpen] = useState(false);
+  const [isDeleteAppStoreVersionDialogOpen, setIsDeleteAppStoreVersionDialogOpen] = useState(false);
+  const [selectedAppStoreVersion, setSelectedAppStoreVersion] = useState<string | null>(null);
+
+  const [appStoreFormData, setAppStoreFormData] = useState<AppStoreAppFormData>(emptyAppStoreAppForm);
+  const [appStoreVersionFormData, setAppStoreVersionFormData] = useState<AppStoreVersionFormData>(emptyAppStoreVersionForm);
+  const [appStoreApkFile, setAppStoreApkFile] = useState<File | null>(null);
+  const [appStoreScreenshotFiles, setAppStoreScreenshotFiles] = useState<File[]>([]);
+  const [editAppStoreScreenshotFiles, setEditAppStoreScreenshotFiles] = useState<File[]>([]);
+  const [appStoreAppDetail, setAppStoreAppDetail] = useState<AppStoreAppDetail | null>(null);
+  const createScreenshotInputRef = useRef<HTMLInputElement>(null);
+  const editScreenshotInputRef = useRef<HTMLInputElement>(null);
+
   const { data: versions = [] } = useQuery({
     queryKey: ["admin-app-versions", selectedApp?.id],
     queryFn: () => fetchAppVersions(selectedApp!.id),
     enabled: !!selectedApp && isVersionsDialogOpen,
   });
 
+  const { data: appstoreApps = [], isLoading: appstoreLoading } = useQuery({
+    queryKey: ["admin-appstore-apps"],
+    queryFn: () => fetchAppStoreApps(),
+  });
+
+  const { data: appstoreVersions = [] } = useQuery({
+    queryKey: ["admin-appstore-versions", selectedAppStoreApp?.id],
+    queryFn: () => fetchAppStoreAppVersions(selectedAppStoreApp!.id),
+    enabled: !!selectedAppStoreApp && isAppStoreVersionsDialogOpen,
+  });
+
+  const { data: appstoreUsers = [] } = useQuery({
+    queryKey: ["admin-appstore-users"],
+    queryFn: () => fetchAppStoreUsers(),
+  });
+
+  const { data: appstoreCategories = [] } = useQuery({
+    queryKey: ["admin-appstore-categories"],
+    queryFn: () => fetchAppStoreCategories(),
+  });
+
   const filteredApps = apps.filter((app) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return app.name.toLowerCase().includes(q) || app.tag.toLowerCase().includes(q);
+  });
+
+  const filteredAppStoreApps = appstoreApps.filter((app) => {
+    if (!appstoreSearchQuery) return true;
+    const q = appstoreSearchQuery.toLowerCase();
+    const tags = (app.tags || []).join(" ").toLowerCase();
+    return (
+      app.name.toLowerCase().includes(q) ||
+      (app.shortDescription || "").toLowerCase().includes(q) ||
+      (app.developer || "").toLowerCase().includes(q) ||
+      app.category.toLowerCase().includes(q) ||
+      tags.includes(q)
+    );
   });
 
   const createAppMutation = useMutation({
@@ -199,6 +310,111 @@ function AdminMobileAppsPage() {
       toast.success("Versiya o'chirildi");
       setIsDeleteVersionDialogOpen(false);
       setSelectedVersion(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const createAppStoreAppMutation = useMutation({
+    mutationFn: (data: FormData) => createAppStoreApp(data),
+    onSuccess: async (result) => {
+      if (appStoreScreenshotFiles.length > 0) {
+        try {
+          await uploadAppStoreAppScreenshots(result.id, appStoreScreenshotFiles);
+        } catch {
+          toast.warning("Ilova yaratildi, ammo skrinshotlarni yuklashda xatolik");
+        }
+      }
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-apps"] });
+      toast.success("AppStore ilovasi muvaffaqiyatli yaratildi");
+      setIsAddAppStoreAppDialogOpen(false);
+      setAppStoreFormData(emptyAppStoreAppForm);
+      setAppStoreScreenshotFiles([]);
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const updateAppStoreAppMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string; data: FormData }) => updateAppStoreApp(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-apps"] });
+      toast.success("AppStore ilovasi muvaffaqiyatli yangilandi");
+      setIsEditAppStoreAppDialogOpen(false);
+      setSelectedAppStoreApp(null);
+      setAppStoreFormData(emptyAppStoreAppForm);
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const deleteAppStoreAppMutation = useMutation({
+    mutationFn: deleteAppStoreApp,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-apps"] });
+      toast.success("AppStore ilovasi o'chirildi");
+      setIsDeleteAppStoreAppDialogOpen(false);
+      setSelectedAppStoreApp(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const toggleAppStoreAppPublishMutation = useMutation({
+    mutationFn: toggleAppStoreAppPublish,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-apps"] });
+      toast.success("Holat muvaffaqiyatli o'zgartirildi");
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const editUploadScreenshotsMutation = useMutation({
+    mutationFn: ({ appId, files }: { appId: string; files: File[] }) =>
+      uploadAppStoreAppScreenshots(appId, files),
+    onSuccess: () => {
+      toast.success("Skrinshotlar yuklandi");
+      setEditAppStoreScreenshotFiles([]);
+      if (selectedAppStoreApp) {
+        fetchAppStoreApp(selectedAppStoreApp.id)
+          .then((d) => setAppStoreAppDetail(d))
+          .catch(() => {});
+      }
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const editDeleteScreenshotMutation = useMutation({
+    mutationFn: ({ appId, index }: { appId: string; index: number }) =>
+      deleteAppStoreAppScreenshot(appId, index),
+    onSuccess: () => {
+      toast.success("Skrinshot o'chirildi");
+      if (selectedAppStoreApp) {
+        fetchAppStoreApp(selectedAppStoreApp.id)
+          .then((d) => setAppStoreAppDetail(d))
+          .catch(() => {});
+      }
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const createAppStoreVersionMutation = useMutation({
+    mutationFn: ({ appId, data }: { appId: string; data: FormData }) =>
+      createAppStoreAppVersion(appId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-versions", selectedAppStoreApp?.id] });
+      toast.success("Versiya muvaffaqiyatli yaratildi");
+      setIsAddAppStoreVersionDialogOpen(false);
+      setAppStoreVersionFormData(emptyAppStoreVersionForm);
+      setAppStoreApkFile(null);
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const deleteAppStoreVersionMutation = useMutation({
+    mutationFn: ({ appId, version }: { appId: string; version: string }) =>
+      deleteAppStoreAppVersion(appId, version),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-appstore-versions", selectedAppStoreApp?.id] });
+      toast.success("Versiya o'chirildi");
+      setIsDeleteAppStoreVersionDialogOpen(false);
+      setSelectedAppStoreVersion(null);
     },
     onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
   });
@@ -299,6 +515,137 @@ function AdminMobileAppsPage() {
     if (selectedVersion) deleteVersionMutation.mutate(selectedVersion.id);
   };
 
+  const handleAddAppStoreApp = () => {
+    setAppStoreFormData(emptyAppStoreAppForm);
+    setAppStoreScreenshotFiles([]);
+    setIsAddAppStoreAppDialogOpen(true);
+  };
+
+  const handleAddCreateScreenshots = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setAppStoreScreenshotFiles((prev) => [...prev, ...files]);
+    if (createScreenshotInputRef.current) createScreenshotInputRef.current.value = "";
+  };
+
+  const handleRemoveCreateScreenshot = (idx: number) => {
+    setAppStoreScreenshotFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleAddEditScreenshots = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    setEditAppStoreScreenshotFiles((prev) => [...prev, ...files]);
+    if (editScreenshotInputRef.current) editScreenshotInputRef.current.value = "";
+  };
+
+  const handleRemoveEditScreenshot = (idx: number) => {
+    setEditAppStoreScreenshotFiles((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleSaveNewAppStoreApp = () => {
+    if (!appStoreFormData.name.trim() || !appStoreFormData.shortDescription.trim()) {
+      toast.error("Nomi va qisqa tavsif majburiy");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("name", appStoreFormData.name);
+    fd.append("shortDescription", appStoreFormData.shortDescription);
+    fd.append("category", appStoreFormData.category);
+    fd.append("developer", appStoreFormData.developer);
+    fd.append("description", appStoreFormData.description);
+    fd.append("tags", appStoreFormData.tags);
+    fd.append("published", String(appStoreFormData.published));
+    createAppStoreAppMutation.mutate(fd);
+  };
+
+  const handleEditAppStoreApp = (app: AppStoreApp) => {
+    setSelectedAppStoreApp(app);
+    setAppStoreFormData({
+      name: app.name,
+      shortDescription: app.shortDescription,
+      category: app.category,
+      developer: app.developer || "",
+      description: "",
+      tags: (app.tags || []).join(", "),
+      published: app.published,
+    });
+    setEditAppStoreScreenshotFiles([]);
+    setAppStoreAppDetail(null);
+    fetchAppStoreApp(app.id)
+      .then((d) => setAppStoreAppDetail(d))
+      .catch(() => {});
+    setIsEditAppStoreAppDialogOpen(true);
+  };
+
+  const handleDeleteAppStoreApp = (app: AppStoreApp) => {
+    setSelectedAppStoreApp(app);
+    setIsDeleteAppStoreAppDialogOpen(true);
+  };
+
+  const handleToggleAppStoreAppPublish = (app: AppStoreApp) => {
+    setSelectedAppStoreApp(app);
+    toggleAppStoreAppPublishMutation.mutate(app.id);
+  };
+
+  const handleAppStoreVersions = (app: AppStoreApp) => {
+    setSelectedAppStoreApp(app);
+    setIsAppStoreVersionsDialogOpen(true);
+  };
+
+  const handleSaveAppStoreApp = () => {
+    if (!selectedAppStoreApp) return;
+    const fd = new FormData();
+    fd.append("name", appStoreFormData.name);
+    fd.append("shortDescription", appStoreFormData.shortDescription);
+    fd.append("category", appStoreFormData.category);
+    fd.append("developer", appStoreFormData.developer);
+    fd.append("description", appStoreFormData.description);
+    fd.append("tags", appStoreFormData.tags);
+    fd.append("published", String(appStoreFormData.published));
+    updateAppStoreAppMutation.mutate({ id: selectedAppStoreApp.id, data: fd });
+  };
+
+  const handleConfirmDeleteAppStoreApp = () => {
+    if (selectedAppStoreApp) deleteAppStoreAppMutation.mutate(selectedAppStoreApp.id);
+  };
+
+  const handleAddAppStoreVersion = () => {
+    setAppStoreVersionFormData(emptyAppStoreVersionForm);
+    setAppStoreApkFile(null);
+    setIsAddAppStoreVersionDialogOpen(true);
+  };
+
+  const handleDeleteAppStoreVersion = (version: string) => {
+    setSelectedAppStoreVersion(version);
+    setIsDeleteAppStoreVersionDialogOpen(true);
+  };
+
+  const handleSaveAppStoreVersion = () => {
+    if (!appStoreVersionFormData.version.trim()) {
+      toast.error("Versiya raqami majburiy");
+      return;
+    }
+    if (!appStoreApkFile) {
+      toast.error("APK faylni tanlang");
+      return;
+    }
+    if (!selectedAppStoreApp) return;
+    const fd = new FormData();
+    fd.append("version", appStoreVersionFormData.version);
+    fd.append("file", appStoreApkFile);
+    fd.append("minAndroid", appStoreVersionFormData.minAndroid);
+    fd.append("changelog", appStoreVersionFormData.changelog);
+    createAppStoreVersionMutation.mutate({ appId: selectedAppStoreApp.id, data: fd });
+  };
+
+  const handleConfirmDeleteAppStoreVersion = () => {
+    if (selectedAppStoreApp && selectedAppStoreVersion) {
+      deleteAppStoreVersionMutation.mutate({
+        appId: selectedAppStoreApp.id,
+        version: selectedAppStoreVersion,
+      });
+    }
+  };
+
   return (
     <AdminGuard>
       <AdminLayout title={t("adminMobileApps")} subtitle={t("adminMobileAppsSubtitle")}>
@@ -308,18 +655,30 @@ function AdminMobileAppsPage() {
           </div>
         )}
 
-        <div className="space-y-4 mb-6">
+        <Tabs defaultValue="main" className="space-y-4 mb-6">
+          <TabsList>
+            <TabsTrigger value="main">Mobil ilovalar</TabsTrigger>
+            <TabsTrigger value="appstore">
+              <Store className="h-4 w-4 mr-1.5" />
+              AppStore
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="main" className="space-y-4 mt-0">
           <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Qidirish (nomi, tag)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Qidirish (nomi, tag)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">
+                Jami: {filteredApps.length} ta ilova
+              </div>
               <div className="inline-flex rounded-xl border bg-muted/40 p-1">
                 <Button
                   type="button"
@@ -340,17 +699,12 @@ function AdminMobileAppsPage() {
                   {t("cardsView")}
                 </Button>
               </div>
-              <Button onClick={handleAddApp}>
-                <Plus className="h-4 w-4 mr-2" />
-                {t("add")}
-              </Button>
             </div>
+            <Button onClick={handleAddApp}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t("add")}
+            </Button>
           </div>
-          <div className="text-sm text-muted-foreground">
-            Jami: {filteredApps.length} ta ilova
-          </div>
-        </div>
-
         <Card>
           <CardContent className="pt-6">
             {viewMode === "table" ? (
@@ -464,6 +818,698 @@ function AdminMobileAppsPage() {
             )}
           </CardContent>
         </Card>
+        </TabsContent>
+
+        <TabsContent value="appstore" className="space-y-4 mt-0">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex items-center gap-3 flex-1">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Qidirish (nomi, dasturchi, kategoriya)..."
+                  value={appstoreSearchQuery}
+                  onChange={(e) => setAppstoreSearchQuery(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground whitespace-nowrap">
+                Jami: {filteredAppStoreApps.length} ta ilova
+              </div>
+              <div className="inline-flex rounded-xl border bg-muted/40 p-1">
+                <Button
+                  type="button"
+                  variant={appstoreViewMode === "table" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-lg px-4"
+                  onClick={() => setAppstoreViewMode("table")}
+                >
+                  {t("tableView")}
+                </Button>
+                <Button
+                  type="button"
+                  variant={appstoreViewMode === "items" ? "default" : "ghost"}
+                  size="sm"
+                  className="rounded-lg px-4"
+                  onClick={() => setAppstoreViewMode("items")}
+                >
+                  {t("cardsView")}
+                </Button>
+              </div>
+            </div>
+            <Button onClick={handleAddAppStoreApp}>
+              <Plus className="h-4 w-4 mr-2" />
+              {t("add")}
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="pt-6">
+              {appstoreLoading ? (
+                <div className="flex items-center justify-center p-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                </div>
+              ) : filteredAppStoreApps.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Store className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                  <p>AppStore ilovalari topilmadi</p>
+                </div>
+              ) : appstoreViewMode === "table" ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("name")}</TableHead>
+                      <TableHead>Dasturchi</TableHead>
+                      <TableHead>Kategoriya</TableHead>
+                      <TableHead>Versiya</TableHead>
+                      <TableHead>Yuklamalar</TableHead>
+                      <TableHead>Holat</TableHead>
+                      <TableHead className="w-[80px]">Amallar</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAppStoreApps.map((app) => (
+                      <TableRow key={app.id} className="group">
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="h-9 w-9 rounded-lg border bg-muted/20 flex items-center justify-center overflow-hidden">
+                              {app.icon ? (
+                                <img src={getAppStoreAssetUrl(app.icon)} alt={app.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <Store className="h-5 w-5 text-muted-foreground" />
+                              )}
+                            </div>
+                            <div>
+                              <span className="font-medium">{app.name}</span>
+                              <p className="text-xs text-muted-foreground">{app.shortDescription}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{app.developer || "—"}</TableCell>
+                        <TableCell><Badge variant="outline">{app.category}</Badge></TableCell>
+                        <TableCell className="font-mono">{app.latestVersion || "—"}</TableCell>
+                        <TableCell>{app.totalDownloads.toLocaleString()}</TableCell>
+                        <TableCell>
+                          {app.published ? (
+                            <Badge variant="default" className="bg-green-600">Nashr qilingan</Badge>
+                          ) : (
+                            <Badge variant="secondary">Qoralama</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Amallar</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleAppStoreVersions(app)}>
+                                <Package className="h-4 w-4 mr-2" />
+                                Versiyalar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditAppStoreApp(app)}>
+                                <Edit className="h-4 w-4 mr-2" />
+                                Tahrirlash
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleAppStoreAppPublish(app)}>
+                                <Eye className="h-4 w-4 mr-2" />
+                                {app.published ? "Qoralama" : "Nashr qilish"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteAppStoreApp(app)}
+                                className="text-red-600 focus:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                O'chirish
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2">
+                  {appstoreApps.map((app) => (
+                    <div key={app.id} className="group rounded-xl border bg-card hover:shadow-md hover:border-primary/20 transition-all duration-200 overflow-hidden">
+                      <div className="p-5">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-4 min-w-0">
+                            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                              {app.icon ? (
+                                <img src={getAppStoreAssetUrl(app.icon)} alt={app.name} className="h-full w-full object-cover" />
+                              ) : (
+                                <Store className="h-7 w-7 text-primary/60" />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-base truncate">{app.name}</h3>
+                              <p className="text-sm text-muted-foreground line-clamp-2">{app.shortDescription}</p>
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuLabel>Amallar</DropdownMenuLabel>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleAppStoreVersions(app)}>
+                                <Package className="h-4 w-4 mr-2" />Versiyalar
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleEditAppStoreApp(app)}>
+                                <Edit className="h-4 w-4 mr-2" />Tahrirlash
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleToggleAppStoreAppPublish(app)}>
+                                <Eye className="h-4 w-4 mr-2" />{app.published ? "Qoralama" : "Nashr qilish"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleDeleteAppStoreApp(app)} className="text-red-600 focus:text-red-600">
+                                <Trash2 className="h-4 w-4 mr-2" />O'chirish
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <div className="flex items-center gap-3 mt-4 text-xs text-muted-foreground">
+                          <Badge variant="secondary" className="rounded-md px-2 py-0.5 text-xs font-normal">{app.developer || app.category}</Badge>
+                          <span className="flex items-center gap-1">
+                            <Package className="h-3.5 w-3.5" />
+                            {app.latestVersion || "—"}
+                          </span>
+                          <span className="flex items-center gap-1 ml-auto">
+                            <span className="font-medium tabular-nums">{app.totalDownloads.toLocaleString()}</span>
+                            <span>yuklama</span>
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex border-t bg-muted/20 divide-x">
+                        <button
+                          onClick={() => handleAppStoreVersions(app)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                        >
+                          <Package className="h-3.5 w-3.5" />
+                          Versiyalar
+                        </button>
+                        <button
+                          onClick={() => handleEditAppStoreApp(app)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors"
+                        >
+                          <Edit className="h-3.5 w-3.5" />
+                          Tahrirlash
+                        </button>
+                        <div className="relative">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="flex items-center justify-center gap-1.5 py-2.5 px-4 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors w-full h-full">
+                                <Eye className="h-3.5 w-3.5" />
+                                {app.published ? "Nashr" : "Qoralama"}
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={() => handleToggleAppStoreAppPublish(app)}>
+                                <Eye className="h-4 w-4 mr-2" />{app.published ? "Qoralama" : "Nashr qilish"}
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => handleDeleteAppStoreApp(app)} className="text-red-600 focus:text-red-600">
+                                <Trash2 className="h-4 w-4 mr-2" />O'chirish
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+        </Tabs>
+
+        <Dialog open={isEditAppStoreAppDialogOpen} onOpenChange={(open) => {
+          if (!open) { setIsEditAppStoreAppDialogOpen(false); setSelectedAppStoreApp(null); setAppStoreFormData(emptyAppStoreAppForm); }
+        }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>AppStore ilovasini tahrirlash</DialogTitle>
+              <DialogDescription>Ilova ma'lumotlarini tahrirlang</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="as-name">Nomi *</Label>
+                <Input
+                  id="as-name"
+                  value={appStoreFormData.name}
+                  onChange={(e) => setAppStoreFormData({ ...appStoreFormData, name: e.target.value })}
+                  placeholder="Ilova nomi"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-desc">Qisqa tavsif *</Label>
+                <Input
+                  id="as-desc"
+                  value={appStoreFormData.shortDescription}
+                  onChange={(e) => setAppStoreFormData({ ...appStoreFormData, shortDescription: e.target.value })}
+                  placeholder="Qisqa tavsif"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-category">Kategoriya</Label>
+                <Select
+                  key={appStoreFormData.category}
+                  value={appStoreFormData.category}
+                  onValueChange={(val) => setAppStoreFormData({ ...appStoreFormData, category: val })}
+                >
+                  <SelectTrigger id="as-category">
+                    <SelectValue placeholder="Kategoriyani tanlang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appstoreCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.labelUz || c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-developer">Dasturchi</Label>
+                <Select
+                  value={appStoreFormData.developer}
+                  onValueChange={(val) => setAppStoreFormData({ ...appStoreFormData, developer: val })}
+                >
+                  <SelectTrigger id="as-developer">
+                    <SelectValue placeholder="Dasturchini tanlang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appstoreUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.displayName || u.username}>
+                        {u.displayName || u.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-tags">Teglar</Label>
+                <Input
+                  id="as-tags"
+                  value={appStoreFormData.tags}
+                  onChange={(e) => setAppStoreFormData({ ...appStoreFormData, tags: e.target.value })}
+                  placeholder="vergul bilan ajrating"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Skrinshotlar</Label>
+                <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 max-w-full">
+                  {appStoreAppDetail?.screenshots?.map((url, idx) => (
+                    <div key={idx} className="relative group flex-none">
+                      <img
+                        src={getAppStoreAssetUrl(url)}
+                        alt={`Screenshot ${idx + 1}`}
+                        className="h-20 w-28 rounded-lg border object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (selectedAppStoreApp) {
+                            editDeleteScreenshotMutation.mutate({ appId: selectedAppStoreApp.id, index: idx });
+                          }
+                        }}
+                        className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {editAppStoreScreenshotFiles.map((file, idx) => (
+                    <div key={`new-${idx}`} className="relative group flex-none">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`New screenshot ${idx + 1}`}
+                        className="h-20 w-28 rounded-lg border object-cover opacity-70"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEditScreenshot(idx)}
+                        className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="flex flex-col gap-1 flex-none">
+                    <button
+                      type="button"
+                      onClick={() => editScreenshotInputRef.current?.click()}
+                      className="h-20 w-28 flex-none rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-muted-foreground/60 hover:text-muted-foreground/80 transition-colors"
+                    >
+                      <Plus className="h-5 w-5" />
+                      <span className="text-[10px]">Qo'shish</span>
+                    </button>
+                    <input
+                      ref={editScreenshotInputRef}
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleAddEditScreenshots}
+                    />
+                    {editAppStoreScreenshotFiles.length > 0 && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
+                        disabled={!selectedAppStoreApp}
+                        onClick={() => {
+                          if (selectedAppStoreApp && editAppStoreScreenshotFiles.length > 0) {
+                            editUploadScreenshotsMutation.mutate({
+                              appId: selectedAppStoreApp.id,
+                              files: editAppStoreScreenshotFiles,
+                            });
+                          }
+                        }}
+                      >
+                        <Upload className="h-3 w-3 mr-1" />
+                        Yuklash
+                      </Button>
+                    )}
+                  </div>
+                </div>
+                {!appStoreAppDetail?.screenshots?.length && editAppStoreScreenshotFiles.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Hali skrinshot yo'q</p>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="as-published"
+                  checked={appStoreFormData.published}
+                  onCheckedChange={(checked) => setAppStoreFormData({ ...appStoreFormData, published: checked as boolean })}
+                />
+                <Label htmlFor="as-published">Nashr qilingan</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsEditAppStoreAppDialogOpen(false); setSelectedAppStoreApp(null); setAppStoreFormData(emptyAppStoreAppForm); setEditAppStoreScreenshotFiles([]); setAppStoreAppDetail(null); }}>
+                Bekor qilish
+              </Button>
+              <Button onClick={handleSaveAppStoreApp}>{t("save")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAddAppStoreAppDialogOpen} onOpenChange={(open) => {
+          if (!open) { setIsAddAppStoreAppDialogOpen(false); setAppStoreFormData(emptyAppStoreAppForm); }
+        }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Yangi AppStore ilovasi</DialogTitle>
+              <DialogDescription>Yangi ilova yaratish uchun ma'lumotlarni kiriting</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="as-new-name">Nomi *</Label>
+                <Input
+                  id="as-new-name"
+                  value={appStoreFormData.name}
+                  onChange={(e) => setAppStoreFormData({ ...appStoreFormData, name: e.target.value })}
+                  placeholder="Ilova nomi"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-new-desc">Qisqa tavsif *</Label>
+                <Input
+                  id="as-new-desc"
+                  value={appStoreFormData.shortDescription}
+                  onChange={(e) => setAppStoreFormData({ ...appStoreFormData, shortDescription: e.target.value })}
+                  placeholder="Qisqa tavsif"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-new-category">Kategoriya</Label>
+                <Select
+                  value={appStoreFormData.category}
+                  onValueChange={(val) => setAppStoreFormData({ ...appStoreFormData, category: val })}
+                >
+                  <SelectTrigger id="as-new-category">
+                    <SelectValue placeholder="Kategoriyani tanlang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appstoreCategories.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.labelUz || c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-new-developer">Dasturchi</Label>
+                <Select
+                  value={appStoreFormData.developer}
+                  onValueChange={(val) => setAppStoreFormData({ ...appStoreFormData, developer: val })}
+                >
+                  <SelectTrigger id="as-new-developer">
+                    <SelectValue placeholder="Dasturchini tanlang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {appstoreUsers.map((u) => (
+                      <SelectItem key={u.id} value={u.displayName || u.username}>
+                        {u.displayName || u.username}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="as-new-tags">Teglar</Label>
+                <Input
+                  id="as-new-tags"
+                  value={appStoreFormData.tags}
+                  onChange={(e) => setAppStoreFormData({ ...appStoreFormData, tags: e.target.value })}
+                  placeholder="vergul bilan ajrating"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Skrinshotlar</Label>
+                <div className="flex flex-nowrap gap-2 overflow-x-auto pb-1 max-w-full">
+                  {appStoreScreenshotFiles.map((file, idx) => (
+                    <div key={idx} className="relative group flex-none">
+                      <img
+                        src={URL.createObjectURL(file)}
+                        alt={`Screenshot ${idx + 1}`}
+                        className="h-20 w-28 rounded-lg border object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCreateScreenshot(idx)}
+                        className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-red-600 text-white text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => createScreenshotInputRef.current?.click()}
+                    className="h-20 w-28 flex-none rounded-lg border-2 border-dashed border-muted-foreground/30 flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-muted-foreground/60 hover:text-muted-foreground/80 transition-colors"
+                  >
+                    <Plus className="h-5 w-5" />
+                    <span className="text-[10px]">Qo'shish</span>
+                  </button>
+                  <input
+                    ref={createScreenshotInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleAddCreateScreenshots}
+                  />
+                </div>
+                {appStoreScreenshotFiles.length === 0 && (
+                  <p className="text-xs text-muted-foreground">Hali skrinshot tanlanmadi</p>
+                )}
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="as-new-published"
+                  checked={appStoreFormData.published}
+                  onCheckedChange={(checked) => setAppStoreFormData({ ...appStoreFormData, published: checked as boolean })}
+                />
+                <Label htmlFor="as-new-published">Nashr qilingan</Label>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsAddAppStoreAppDialogOpen(false); setAppStoreFormData(emptyAppStoreAppForm); setAppStoreScreenshotFiles([]); }}>
+                Bekor qilish
+              </Button>
+              <Button onClick={handleSaveNewAppStoreApp}>{t("save")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={isDeleteAppStoreAppDialogOpen} onOpenChange={setIsDeleteAppStoreAppDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>AppStore ilovasini o'chirish</AlertDialogTitle>
+              <AlertDialogDescription>
+                Haqiqatan ham <strong>{selectedAppStoreApp?.name}</strong> ilovasini o'chirmoqchimisiz?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDeleteAppStoreApp} className="bg-red-600 hover:bg-red-700">
+                O'chirish
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog open={isAppStoreVersionsDialogOpen} onOpenChange={(open) => { setIsAppStoreVersionsDialogOpen(open); if (!open) setSelectedAppStoreApp(null); }}>
+          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Versiyalar — {selectedAppStoreApp?.name}</DialogTitle>
+              <DialogDescription>AppStore ilova versiyalarini boshqarish</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button size="sm" onClick={handleAddAppStoreVersion}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Yangi versiya
+                </Button>
+              </div>
+              {appstoreVersions.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Package className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                  <p>Versiyalar topilmadi</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Versiya</TableHead>
+                      <TableHead>Android</TableHead>
+                      <TableHead>Hajmi</TableHead>
+                      <TableHead>Yuklamalar</TableHead>
+                      <TableHead>Oxirgi</TableHead>
+                      <TableHead>Sana</TableHead>
+                      <TableHead>Amallar</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {appstoreVersions.map((v) => (
+                      <TableRow key={v.version}>
+                        <TableCell className="font-mono font-medium">{v.version}</TableCell>
+                        <TableCell>{v.minAndroid}</TableCell>
+                        <TableCell>{(v.fileSize / 1048576).toFixed(1)} MB</TableCell>
+                        <TableCell>{v.downloadCount}</TableCell>
+                        <TableCell>
+                          {v.isLatest ? (
+                            <Badge variant="default" className="bg-blue-600">So'nggi</Badge>
+                          ) : (
+                            <Badge variant="secondary">Eski</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>{new Date(v.releaseDate).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteAppStoreVersion(v.version)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsAppStoreVersionsDialogOpen(false)}>Yopish</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isAddAppStoreVersionDialogOpen} onOpenChange={(open) => {
+          if (!open) { setIsAddAppStoreVersionDialogOpen(false); setAppStoreVersionFormData(emptyAppStoreVersionForm); setAppStoreApkFile(null); }
+        }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Yangi versiya qo'shish</DialogTitle>
+              <DialogDescription>
+                {selectedAppStoreApp?.name} ilovasi uchun yangi versiya
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="asv-version">Versiya *</Label>
+                <Input
+                  id="asv-version"
+                  value={appStoreVersionFormData.version}
+                  onChange={(e) => setAppStoreVersionFormData({ ...appStoreVersionFormData, version: e.target.value })}
+                  placeholder="1.0.0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="asv-minandroid">Min Android</Label>
+                <Input
+                  id="asv-minandroid"
+                  value={appStoreVersionFormData.minAndroid}
+                  onChange={(e) => setAppStoreVersionFormData({ ...appStoreVersionFormData, minAndroid: e.target.value })}
+                  placeholder="8.0"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="asv-changelog">O'zgarishlar tarixi</Label>
+                <Textarea
+                  id="asv-changelog"
+                  value={appStoreVersionFormData.changelog}
+                  onChange={(e) => setAppStoreVersionFormData({ ...appStoreVersionFormData, changelog: e.target.value })}
+                  placeholder="Versiyadagi o'zgarishlar"
+                  rows={3}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="asv-apk">APK fayl *</Label>
+                <Input
+                  id="asv-apk"
+                  type="file"
+                  accept=".apk,application/vnd.android.package-archive"
+                  onChange={(e) => setAppStoreApkFile(e.target.files?.[0] || null)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsAddAppStoreVersionDialogOpen(false); setAppStoreVersionFormData(emptyAppStoreVersionForm); setAppStoreApkFile(null); }}>
+                Bekor qilish
+              </Button>
+              <Button onClick={handleSaveAppStoreVersion}>{t("save")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={isDeleteAppStoreVersionDialogOpen} onOpenChange={setIsDeleteAppStoreVersionDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Versiyani o'chirish</AlertDialogTitle>
+              <AlertDialogDescription>
+                Haqiqatan ham <strong>{selectedAppStoreVersion}</strong> versiyasini o'chirmoqchimisiz?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+              <AlertDialogAction onClick={handleConfirmDeleteAppStoreVersion} className="bg-red-600 hover:bg-red-700">
+                O'chirish
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={isAddAppDialogOpen || isEditAppDialogOpen} onOpenChange={(open) => {
           if (!open) { setIsAddAppDialogOpen(false); setIsEditAppDialogOpen(false); setAppFormData(emptyAppForm); }
