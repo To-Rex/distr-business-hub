@@ -21,7 +21,7 @@ export type ApiUserType =
   | "MARKETING"
   | "EXTERNAL_SELLER"
   | "MERCHANDISER";
-export type ApiUserStatus = "ACTIVE" | "BLOCKED";
+export type ApiUserStatus = "ACTIVE" | "INACTIVE" | "PENDING" | "BLOCKED";
 
 export type ApiCompany = {
   id: number;
@@ -187,7 +187,12 @@ export type CreateUserPayload = {
   phone_number?: string;
   photo?: string;
   user_type?: ApiUserType;
-}
+  company_id?: number;
+  manager_id?: number;
+  user_1c_id?: number;
+  user_1c_login?: string;
+  user_1c_password?: string;
+};
 
 export async function createUser(data: CreateUserPayload): Promise<ApiUser> {
   return adminFetch<ApiUser>(API.userManagerCreate, {
@@ -208,7 +213,7 @@ export type UpdateUserPayload = {
   user_status?: ApiUserStatus;
   company_id?: number;
   manager_id?: number;
-};;
+};
 
 export async function updateUser(userId: number, data: UpdateUserPayload): Promise<ApiUser> {
   return adminFetch<ApiUser>(API.userManagerById(userId), {
@@ -513,7 +518,9 @@ export const USER_TYPE_LABELS: Record<ApiUserType, string> = {
 
 export const USER_STATUS_LABELS: Record<ApiUserStatus, string> = {
   ACTIVE: "Faol",
-  BLOCKED: "Blokirovka",
+  INACTIVE: "Faol emas",
+  PENDING: "Kutilmoqda",
+  BLOCKED: "Block",
 };
 
 export function getUserTypeLabel(type: ApiUserType): string {
@@ -535,7 +542,9 @@ export async function fetchProfile(): Promise<ApiUser> {
 export async function logoutApi(): Promise<void> {
   try {
     await adminFetch<void>(API.logout, { method: "GET" });
-  } catch {}
+  } catch (error) {
+    console.error(error);
+  }
 }
 
 export type SystemMonitorData = {
@@ -598,4 +607,43 @@ export type SystemMonitorData = {
 
 export async function fetchSystemMonitor(): Promise<SystemMonitorData> {
   return adminFetch<SystemMonitorData>(API.systemMonitor);
+}
+
+export type ApiLocationHistory = {
+  id: number;
+  user_id: number;
+  latitude: number;
+  longitude: number;
+  accuracy: number | null;
+  bearing: number | null;
+  speed: number | null;
+  altitude: number | null;
+  created_at: string;
+};
+
+export type ApiAlembicVersion = {
+  version_num: string;
+};
+
+export async function fetchAlembicVersions(): Promise<ApiAlembicVersion[]> {
+  return adminFetch<ApiAlembicVersion[]>(API.alembicVersionList);
+}
+
+export async function deleteAlembicVersion(versionNum: string): Promise<void> {
+  return adminFetch<void>(API.alembicVersionDelete(versionNum), { method: "DELETE" });
+}
+
+export type CreateAlembicVersionPayload = {
+  version_num: string;
+};
+
+export async function createAlembicVersion(data: CreateAlembicVersionPayload): Promise<ApiAlembicVersion> {
+  return adminFetch<ApiAlembicVersion>(API.alembicVersionCreate, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function fetchUserLocationHistory(userId: number): Promise<ApiLocationHistory[]> {
+  return adminFetch<ApiLocationHistory[]>(API.userHistory(userId));
 }

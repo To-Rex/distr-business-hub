@@ -10,6 +10,10 @@ import {
   createSecurityKey,
   updateSecurityKey,
   deleteSecurityKey,
+  fetchAlembicVersions,
+  createAlembicVersion,
+  deleteAlembicVersion,
+  getAdminToken,
   type ApiSecurityKey,
 } from "@/lib/admin-api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -71,13 +75,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const alembicVersions = [
-  { version: "0042", name: "Add notification preferences", timestamp: "2026-05-01 14:30:00", status: "applied" },
-  { version: "0041", name: "Update user permissions schema", timestamp: "2026-04-28 09:15:00", status: "applied" },
-  { version: "0040", name: "Add warehouse zones", timestamp: "2026-04-15 11:45:00", status: "applied" },
-  { version: "0039", name: "Create analytics tables", timestamp: "2026-04-01 16:20:00", status: "applied" },
-  { version: "0038", name: "Add payment methods", timestamp: "2026-03-20 10:00:00", status: "applied" },
-];
+
 
 const initialWebhooks = [
   { id: 1, url: "https://api.example.com/webhooks/orders", events: ["order.created", "order.updated"], active: true },
@@ -105,6 +103,7 @@ function AdminSettingsPage() {
   const [newKeyCompanyId, setNewKeyCompanyId] = useState<string>("");
   const [newKeyValue, setNewKeyValue] = useState("");
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
+  const [showAdminToken, setShowAdminToken] = useState(false);
 
   const { data: companies = [] } = useQuery({
     queryKey: ["admin-companies"],
@@ -122,6 +121,36 @@ function AdminSettingsPage() {
       return allKeys;
     },
     enabled: companies.length > 0,
+  });
+
+  const { data: alembicVersions = [], isLoading: isLoadingAlembic } = useQuery({
+    queryKey: ["admin-alembic-versions"],
+    queryFn: () => fetchAlembicVersions(),
+  });
+
+  const currentAlembicVersion = alembicVersions.length > 0 ? alembicVersions[alembicVersions.length - 1].version_num : null;
+
+  const [isAddAlembicDialogOpen, setIsAddAlembicDialogOpen] = useState(false);
+  const [newAlembicVersionNum, setNewAlembicVersionNum] = useState("");
+
+  const createAlembicMutation = useMutation({
+    mutationFn: createAlembicVersion,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-alembic-versions"] });
+      toast.success("Alembic versiyasi qo'shildi");
+      setIsAddAlembicDialogOpen(false);
+      setNewAlembicVersionNum("");
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+  });
+
+  const deleteAlembicMutation = useMutation({
+    mutationFn: deleteAlembicVersion,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-alembic-versions"] });
+      toast.success("Alembic versiyasi o'chirildi");
+    },
+    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
   });
 
   const createKeyMutation = useMutation({
@@ -259,25 +288,21 @@ function AdminSettingsPage() {
             </Button>
           </div>
 
-          <Tabs defaultValue="general" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid lg:grid-cols-4">
-              <TabsTrigger value="general" className="gap-2">
-                <Shield className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("general")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="security" className="gap-2">
-                <Key className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("securityKeys")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="database" className="gap-2">
-                <Database className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("database")}</span>
-              </TabsTrigger>
-              <TabsTrigger value="integrations" className="gap-2">
-                <Webhook className="h-4 w-4" />
-                <span className="hidden sm:inline">{t("integrations")}</span>
-              </TabsTrigger>
-            </TabsList>
+           <Tabs defaultValue="general" className="space-y-6">
+             <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid lg:grid-cols-3">
+               <TabsTrigger value="general" className="gap-2">
+                 <Shield className="h-4 w-4" />
+                 <span className="hidden sm:inline">{t("general")}</span>
+               </TabsTrigger>
+               <TabsTrigger value="security" className="gap-2">
+                 <Key className="h-4 w-4" />
+                 <span className="hidden sm:inline">{t("securityKeys")}</span>
+               </TabsTrigger>
+               <TabsTrigger value="database" className="gap-2">
+                 <Database className="h-4 w-4" />
+                 <span className="hidden sm:inline">{t("database")}</span>
+               </TabsTrigger>
+             </TabsList>
 
             <TabsContent value="general" className="space-y-6">
               <Card>
@@ -566,70 +591,173 @@ function AdminSettingsPage() {
                       </TableBody>
                     </Table>
                   )}
-                  {allSecurityKeys.length === 0 && !isLoadingKeys && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Key className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                      <p>Xavfsizlik kalitlari topilmadi</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                   {allSecurityKeys.length === 0 && !isLoadingKeys && (
+                     <div className="text-center py-8 text-muted-foreground">
+                       <Key className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                       <p>Xavfsizlik kalitlari topilmadi</p>
+                     </div>
+                   )}
+                 </CardContent>
+               </Card>
 
-            <TabsContent value="database" className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Database className="h-5 w-5" />
-                    {t("alembicVersions")}
-                  </CardTitle>
-                  <CardDescription>{t("alembicVersionsDesc")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
-                      <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Database className="h-5 w-5 text-primary" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{t("currentVersion")}</p>
-                        <p className="text-xs text-muted-foreground">{t("headRevision")}</p>
-                      </div>
-                      <Badge variant="default" className="font-mono">
-                        0042 (head)
-                      </Badge>
-                    </div>
+               <Card>
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2">
+                     <Lock className="h-5 w-5" />
+                     Admin sessiya tokeni
+                   </CardTitle>
+                   <CardDescription>Joriy admin sessiyasi uchun autentifikatsiya tokeni</CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                   {(() => {
+                     const token = getAdminToken();
+                     return (
+                       <div className="flex items-center gap-3">
+                         <Input
+                           readOnly
+                           value={token || "Token topilmadi"}
+                           className="font-mono text-sm"
+                           type={showAdminToken ? "text" : "password"}
+                         />
+                         <Button
+                           variant="ghost"
+                           size="icon"
+                           className="h-10 w-10"
+                           onClick={() => setShowAdminToken(!showAdminToken)}
+                         >
+                           {showAdminToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                         </Button>
+                         {token && (
+                           <Button
+                             variant="ghost"
+                             size="icon"
+                             className="h-10 w-10"
+                             onClick={() => {
+                               navigator.clipboard.writeText(token);
+                               toast.success("Token nusxalandi");
+                             }}
+                           >
+                             <Copy className="h-4 w-4" />
+                           </Button>
+                         )}
+                       </div>
+                     );
+                   })()}
+                 </CardContent>
+               </Card>
+             </TabsContent>
 
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t("version")}</TableHead>
-                          <TableHead>{t("description")}</TableHead>
-                          <TableHead>{t("timestamp")}</TableHead>
-                          <TableHead>{t("status")}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {alembicVersions.map((version) => (
-                          <TableRow key={version.version}>
-                            <TableCell>
-                              <Badge variant="outline" className="font-mono">{version.version}</Badge>
-                            </TableCell>
-                            <TableCell className="font-medium">{version.name}</TableCell>
-                            <TableCell className="text-muted-foreground">{version.timestamp}</TableCell>
-                            <TableCell>
-                              <Badge variant={version.status === "applied" ? "default" : "secondary"} className="gap-1">
-                                <Check className="h-3 w-3" />
-                                {version.status === "applied" ? t("applied") : t("pending")}
-                              </Badge>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </CardContent>
-              </Card>
+               <TabsContent value="database" className="space-y-6">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Database className="h-5 w-5" />
+                        {t("alembicVersions")}
+                      </CardTitle>
+                      <CardDescription>{t("alembicVersionsDesc")}</CardDescription>
+                    </div>
+                    <Dialog open={isAddAlembicDialogOpen} onOpenChange={(open) => { setIsAddAlembicDialogOpen(open); if (!open) setNewAlembicVersionNum(""); }}>
+                      <DialogTrigger asChild>
+                          <Button size="sm">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Yangi versiya
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Yangi versiya</DialogTitle>
+                          <DialogDescription>Yangi alembic versiyasini qo'shish</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="versionNum">Version num</Label>
+                            <Input
+                              id="versionNum"
+                              placeholder="993860a7c014"
+                              value={newAlembicVersionNum}
+                              onChange={(e) => setNewAlembicVersionNum(e.target.value)}
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setIsAddAlembicDialogOpen(false)}>
+                            {t("cancel")}
+                          </Button>
+                          <Button
+                            onClick={() => {
+                              if (!newAlembicVersionNum.trim()) {
+                                toast.error("Version num ni kiriting");
+                                return;
+                              }
+                              createAlembicMutation.mutate({ version_num: newAlembicVersionNum });
+                            }}
+                            disabled={createAlembicMutation.isPending}
+                          >
+                            {t("create")}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </CardHeader>
+                 <CardContent>
+                   {isLoadingAlembic ? (
+                     <div className="flex items-center justify-center p-8">
+                       <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                     </div>
+                   ) : (
+                     <div className="space-y-4">
+                       <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/50">
+                         <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                           <Database className="h-5 w-5 text-primary" />
+                         </div>
+                         <div className="flex-1">
+                           <p className="text-sm font-medium">{t("currentVersion")}</p>
+                           <p className="text-xs text-muted-foreground">{t("headRevision")}</p>
+                         </div>
+                         <Badge variant="default" className="font-mono">
+                           {currentAlembicVersion ? `${currentAlembicVersion.slice(0, 8)} (head)` : "-"}
+                         </Badge>
+                       </div>
+
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>{t("version")}</TableHead>
+                              <TableHead className="w-[100px]">{t("actions")}</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {alembicVersions.map((version) => (
+                              <TableRow key={version.version_num}>
+                                <TableCell>
+                                  <Badge variant="outline" className="font-mono">{version.version_num}</Badge>
+                                </TableCell>
+                                <TableCell>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-destructive"
+                                    onClick={() => deleteAlembicMutation.mutate(version.version_num)}
+                                    disabled={deleteAlembicMutation.isPending}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                       {alembicVersions.length === 0 && (
+                         <div className="text-center py-8 text-muted-foreground">
+                           <Database className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                           <p>Alembic versiyalari topilmadi</p>
+                         </div>
+                       )}
+                     </div>
+                   )}
+                 </CardContent>
+               </Card>
 
               <Card>
                 <CardHeader>
@@ -659,174 +787,9 @@ function AdminSettingsPage() {
                     </div>
                   </div>
                 </CardContent>
-              </Card>
-            </TabsContent>
-
-            <TabsContent value="integrations" className="space-y-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Webhook className="h-5 w-5" />
-                      {t("webhooks")}
-                    </CardTitle>
-                    <CardDescription>{t("webhooksDesc")}</CardDescription>
-                  </div>
-                  <Dialog open={isAddWebhookDialogOpen} onOpenChange={setIsAddWebhookDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm">
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t("addWebhook")}
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>{t("addNewWebhook")}</DialogTitle>
-                        <DialogDescription>{t("addNewWebhookDesc")}</DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="webhookUrl">{t("webhookUrl")}</Label>
-                          <Input
-                            id="webhookUrl"
-                            placeholder="https://api.example.com/webhooks"
-                            value={newWebhookUrl}
-                            onChange={(e) => setNewWebhookUrl(e.target.value)}
-                          />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsAddWebhookDialogOpen(false)}>
-                          {t("cancel")}
-                        </Button>
-                        <Button onClick={handleAddWebhook}>{t("add")}</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("url")}</TableHead>
-                        <TableHead>{t("events")}</TableHead>
-                        <TableHead>{t("status")}</TableHead>
-                        <TableHead className="text-right">{t("actions")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {webhooks.map((webhook) => (
-                        <TableRow key={webhook.id}>
-                          <TableCell className="font-mono text-sm max-w-xs truncate">
-                            {webhook.url}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex flex-wrap gap-1">
-                              {webhook.events.map((event) => (
-                                <Badge key={event} variant="secondary" className="text-xs">{event}</Badge>
-                              ))}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Switch
-                              checked={webhook.active}
-                              onCheckedChange={() => handleToggleWebhook(webhook.id)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() => handleDeleteWebhook(webhook.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Mail className="h-5 w-5" />
-                    {t("emailTemplates")}
-                  </CardTitle>
-                  <CardDescription>{t("emailTemplatesDesc")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>{t("templateName")}</TableHead>
-                        <TableHead>{t("subject")}</TableHead>
-                        <TableHead>{t("status")}</TableHead>
-                        <TableHead className="text-right">{t("actions")}</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {emailTemplates.map((template) => (
-                        <TableRow key={template.id}>
-                          <TableCell className="font-medium">{template.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{template.subject}</TableCell>
-                          <TableCell>
-                            <Badge variant={template.status === "active" ? "default" : "secondary"}>
-                              {template.status === "active" ? t("active") : t("draft")}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="sm">
-                              <Edit3 className="h-4 w-4 mr-2" />
-                              {t("edit")}
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5" />
-                    {t("paymentMethods")}
-                  </CardTitle>
-                  <CardDescription>{t("paymentMethodsDesc")}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {[
-                      { name: "Click", status: "active", icon: "💳" },
-                      { name: "Payme", status: "active", icon: "💳" },
-                      { name: "Uzcard", status: "active", icon: "💳" },
-                      { name: "Humo", status: "active", icon: "💳" },
-                      { name: "Visa", status: "pending", icon: "💳" },
-                      { name: "Mastercard", status: "pending", icon: "💳" },
-                    ].map((method) => (
-                      <div key={method.name} className="flex items-center gap-3 p-4 rounded-lg border bg-card">
-                        <span className="text-2xl">{method.icon}</span>
-                        <div className="flex-1">
-                          <p className="font-medium">{method.name}</p>
-                          <Badge variant={method.status === "active" ? "default" : "secondary"} className="mt-1">
-                            {method.status === "active" ? t("connected") : t("pending")}
-                          </Badge>
-                        </div>
-                        <Button variant="ghost" size="sm">
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          </Tabs>
+               </Card>
+             </TabsContent>
+           </Tabs>
         </div>
       </AdminLayout>
     </AdminGuard>
