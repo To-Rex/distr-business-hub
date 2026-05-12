@@ -296,29 +296,19 @@ function AdminWorkingSessionsPage() {
         <Card>
           <CardContent className="pt-6">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[60px]">ID</TableHead>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort("user_name")}
-                      className="p-0 h-auto font-medium"
-                    >
-                      {t("user")} <SortIcon field="user_name" />
-                    </Button>
-                  </TableHead>
-                  <TableHead>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleSort("session")}
-                      className="p-0 h-auto font-medium"
-                    >
-                      {t("sessionTime")} <SortIcon field="session" />
-                    </Button>
-                  </TableHead>
+               <TableHeader>
+                 <TableRow>
+                   <TableHead className="w-[60px]">ID</TableHead>
+                   <TableHead>
+                     <Button
+                       variant="ghost"
+                       size="sm"
+                       onClick={() => handleSort("session")}
+                       className="p-0 h-auto font-medium"
+                     >
+                       {t("sessionTime")} <SortIcon field="session" />
+                     </Button>
+                   </TableHead>
                   <TableHead>
                     <Button
                       variant="ghost"
@@ -354,21 +344,15 @@ function AdminWorkingSessionsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSorted.map((session) => (
-                  <TableRow key={session.id} className="group">
-                    <TableCell className="font-mono text-sm">{session.id}</TableCell>
-                    <TableCell>
-                      <div className="font-medium">{session.user_name}</div>
-                      {session.user_email && (
-                        <div className="text-xs text-muted-foreground">{session.user_email}</div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5 text-sm">
-                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                        {formatDate(session.session)}
-                      </div>
-                    </TableCell>
+                 {filteredAndSorted.map((session) => (
+                   <TableRow key={session.id} className="group">
+                     <TableCell className="font-mono text-sm">{session.id}</TableCell>
+                     <TableCell>
+                       <div className="flex items-center gap-1.5 text-sm">
+                         <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                         {formatDate(session.session)}
+                       </div>
+                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1.5 text-sm">
                         <Smartphone className="h-3.5 w-3.5 text-muted-foreground" />
