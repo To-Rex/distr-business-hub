@@ -1,0 +1,19 @@
+{
+	"geolocation": {
+		"data": {
+			"city": "Tashkent",
+			"country": {
+				"code": "UZ",
+				"name": "Uzbekistan"
+			},
+			"subdivision": {
+				"code": "TK",
+				"name": "Tashkent"
+			},
+			"timezone": "Asia/Tashkent",
+			"latitude": 41.2615,
+			"longitude": 69.2177
+		},
+		"timestamp": 1777994496212
+	}
+}
