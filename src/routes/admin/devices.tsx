@@ -58,12 +58,12 @@ function AdminDevicesPage() {
 
   const handleApprove = (id: number) => {
     setDevices((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" as const } : d)));
-    toast.success("Qurilma tasdiqlandi");
+    toast.success(t("deviceApproved"));
   };
 
   const handleReject = (id: number) => {
     setDevices((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" as const } : d)));
-    toast.success("Qurilma rad etildi");
+    toast.success(t("deviceRejected"));
   };
 
   const pendingCount = devices.filter((d) => d.status === "pending").length;
@@ -74,19 +74,19 @@ function AdminDevicesPage() {
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <Button variant={filter === "all" ? "default" : "outline"} size="sm" onClick={() => setFilter("all")}>
-              Barchasi <span className="ml-1.5 text-xs opacity-70">({devices.length})</span>
+              {t("adminDevicesAll")} <span className="ml-1.5 text-xs opacity-70">({devices.length})</span>
             </Button>
             <Button variant={filter === "pending" ? "default" : "outline"} size="sm" onClick={() => setFilter("pending")}>
               <Clock className="h-3.5 w-3.5 mr-1.5" />
-              Kutilmoqda <span className="ml-1.5 text-xs opacity-70">({pendingCount})</span>
+              {t("adminDevicesPending")} <span className="ml-1.5 text-xs opacity-70">({pendingCount})</span>
             </Button>
             <Button variant={filter === "approved" ? "default" : "outline"} size="sm" onClick={() => setFilter("approved")}>
               <Check className="h-3.5 w-3.5 mr-1.5" />
-              Tasdiqlangan
+              {t("adminDevicesApproved")}
             </Button>
             <Button variant={filter === "rejected" ? "default" : "outline"} size="sm" onClick={() => setFilter("rejected")}>
               <X className="h-3.5 w-3.5 mr-1.5" />
-              Rad etilgan
+              {t("adminDevicesRejected")}
             </Button>
           </div>
 
@@ -114,7 +114,7 @@ function AdminDevicesPage() {
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
                         <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${STATUS_STYLES[device.status]}`}>
-                          {device.status === "pending" ? "Kutilmoqda" : device.status === "approved" ? "Tasdiqlangan" : "Rad etilgan"}
+                          {device.status === "pending" ? t("adminDevicesPending") : device.status === "approved" ? t("adminDevicesApproved") : t("adminDevicesRejected")}
                         </span>
                         {device.status === "pending" && (
                           <div className="flex gap-1">
@@ -135,7 +135,7 @@ function AdminDevicesPage() {
             {filtered.length === 0 && (
               <div className="text-center py-16 text-muted-foreground">
                 <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-30" />
-                <p>Qurilmalar topilmadi</p>
+                <p>{t("adminDevicesNotFound")}</p>
               </div>
             )}
           </div>
