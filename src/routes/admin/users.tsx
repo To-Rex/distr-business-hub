@@ -318,23 +318,37 @@ function AdminUsersPage() {
   const handleEdit = (user: AdminUser) => {
     setSelectedUser(user);
     const apiUser = (user as any)._apiUser as ApiUser | undefined;
+
+    const apiStatusToForm: Record<string, string> = {
+      ACTIVE: "Faol",
+      INACTIVE: "Faol emas",
+      PENDING: "Kutilmoqda",
+      BLOCKED: "Blokirovka",
+    };
+
     setFormData({
-      fullName: user.fullName,
-      email: user.email,
-      phone: user.phone,
+      fullName: apiUser
+        ? `${apiUser.first_name || ""} ${apiUser.last_name || ""}`.trim() || apiUser.username
+        : user.fullName,
+      email: apiUser?.email || user.email,
+      phone: apiUser?.phone_number || user.phone || "",
       password: "",
-      role: user.role,
-      status: user.status,
-      companyId: user.companyId,
-      companyName: user.companyName,
+      role: apiUser?.user_type || user.role,
+      status: apiStatusToForm[apiUser?.user_status || ""] || user.status,
+      companyId: apiUser?.company_id ?? user.companyId,
+      companyName: apiUser?.company_rel?.name ?? user.companyName,
       department: user.department || "",
       address: user.address || "",
       twoFactorEnabled: user.twoFactorEnabled,
       permissions: user.permissions,
+      photoUrl: apiUser?.photo || "",
       managerId: apiUser?.manager_id ?? undefined,
       managerName: apiUser?.manager
         ? `${apiUser.manager.first_name} ${apiUser.manager.last_name}`
         : "",
+      user1cId: apiUser?.user_1c_id ?? undefined,
+      user1cLogin: apiUser?.user_1c_login || "",
+      user1cPassword: apiUser?.user_1c_password || "",
     });
     setShowPassword(false);
     setIsEditDialogOpen(true);
@@ -495,6 +509,11 @@ function AdminUsersPage() {
       };
       if (formData.managerId) editData.manager_id = Number(formData.managerId);
       if (formData.password) editData.password = formData.password;
+      if (formData.user1cId !== undefined && formData.user1cId !== "")
+        editData.user_1c_id = Number(formData.user1cId);
+      if (formData.user1cLogin) editData.user_1c_login = formData.user1cLogin;
+      if (formData.user1cPassword) editData.user_1c_password = formData.user1cPassword;
+      if (formData.photoUrl) editData.photo = formData.photoUrl;
       updateMutation.mutate({ id: selectedUser.id, data: editData });
     } else {
       // Create
