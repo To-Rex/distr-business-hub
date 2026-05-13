@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
@@ -7,34 +7,17 @@ import { useSettings } from "@/lib/settings";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, Users, Building, ArrowUpRight, Activity, Package, DollarSign, Clock } from "lucide-react";
+import { TrendingUp, Users, Building, ArrowUpRight, Activity, Package, DollarSign, Clock, Server, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchUsers, fetchCompanies, fetchApps, fetchActivity, type ActivityItem } from "@/lib/admin-api";
+import { fetchUsers, fetchCompanies, fetchApps, fetchActivity, fetchSystemMonitor, type ActivityItem } from "@/lib/admin-api";
 import { SystemMonitor } from "@/components/SystemMonitor";
 
 export const Route = createFileRoute("/admin/dashboard")({
   component: AdminDashboard,
 });
 
-// Mock data for admin dashboard statistics
-const mockPlatformStats = {
-  totalCompanies: 156,
-  activeCompanies: 142,
-  totalUsers: 1247,
-  activeUsers: 892,
-  monthlyRevenue: 45800000,
-  newCompaniesThisMonth: 12,
-  newUsersThisMonth: 47,
-};
-
-const MONTHS_UZ = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"];
-
-const mockPlanDistribution = [
-  { name: "Starter", value: 45, color: "var(--chart-1)" },
-  { name: "Standard", value: 58, color: "var(--chart-2)" },
-  { name: "Business", value: 38, color: "var(--chart-3)" },
-  { name: "Enterprise", value: 15, color: "var(--chart-4)" },
-];
+const MONTHS_UZ = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"]; 
+const PRICE_PER_USER = 50000;
 
 const fmt = (n: number) => `${n.toLocaleString()} UZS`;
 const fmtShort = (n: number) => {
@@ -89,26 +72,47 @@ function AdminDashboard() {
     refetchInterval: 60_000,
   });
 
+  const [apiResponseTime, setApiResponseTime] = useState(45);
+
+  const { data: systemData, dataUpdatedAt: systemUpdatedAt } = useQuery({
+    queryKey: ["system-monitor"],
+    queryFn: async () => {
+      const start = performance.now();
+      const result = await fetchSystemMonitor();
+      setApiResponseTime(Math.round(performance.now() - start));
+      return result;
+    },
+    refetchInterval: 30000,
+  });
+
   const loading = isLoadingCompanies || isLoadingUsers || isLoadingApps;
 
   const stats = useMemo(() => {
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
-    
+
     const newUsersCount = users.filter(u => {
       const d = new Date(u.created_at);
       return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
     }).length;
 
+    const newCompaniesCount = companies.filter(c => {
+      if (!c.created_at) return false;
+      const d = new Date(c.created_at);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    }).length;
+
+    const activeUsersCount = users.filter(u => u.user_status === 'ACTIVE').length;
+
     return {
-      companies: companies.length || mockPlatformStats.totalCompanies,
-      activeCompanies: companies.length || mockPlatformStats.activeCompanies,
-      users: users.length || mockPlatformStats.totalUsers,
-      activeUsers: users.filter(u => u.user_status === 'ACTIVE').length || mockPlatformStats.activeUsers,
-      revenue: mockPlatformStats.monthlyRevenue,
-      newCompanies: 0 || mockPlatformStats.newCompaniesThisMonth,
-      newUsers: newUsersCount || mockPlatformStats.newUsersThisMonth,
+      companies: companies.length,
+      activeCompanies: companies.length,
+      users: users.length,
+      activeUsers: activeUsersCount,
+      revenue: activeUsersCount * PRICE_PER_USER,
+      newCompanies: newCompaniesCount,
+      newUsers: newUsersCount,
     };
   }, [companies, users]);
 
@@ -119,15 +123,44 @@ function AdminDashboard() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const month = MONTHS_UZ[d.getMonth()];
       const cutoff = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      const usersBeforeCutoff = users.filter((u) => new Date(u.created_at) < cutoff);
       months.push({
         month,
         companies: companies.filter((c) => !c.created_at || new Date(c.created_at) < cutoff).length,
-        users: users.filter((u) => new Date(u.created_at) < cutoff).length,
-        revenue: 0,
+        users: usersBeforeCutoff.length,
+        revenue: usersBeforeCutoff.filter(u => u.user_status === 'ACTIVE').length * PRICE_PER_USER,
       });
     }
     return months;
   }, [companies, users]);
+
+  const planDistribution = useMemo(() => {
+    const counts = new Map<number, number>();
+    users.forEach(u => {
+      if (u.company_id) counts.set(u.company_id, (counts.get(u.company_id) || 0) + 1);
+    });
+    let starter = 0, standard = 0, business = 0, enterprise = 0;
+    counts.forEach(c => {
+      if (c <= 5) starter++;
+      else if (c <= 20) standard++;
+      else if (c <= 50) business++;
+      else enterprise++;
+    });
+    return [
+      { name: "Starter", value: starter || 1, color: "var(--chart-1)" },
+      { name: "Standard", value: standard || 1, color: "var(--chart-2)" },
+      { name: "Business", value: business || 1, color: "var(--chart-3)" },
+      { name: "Enterprise", value: enterprise || 1, color: "var(--chart-4)" },
+    ];
+  }, [users]);
+
+  const revenueChange = useMemo(() => {
+    if (monthlyGrowth.length < 2 || monthlyGrowth[monthlyGrowth.length - 2].revenue === 0) return "+0%";
+    const current = monthlyGrowth[monthlyGrowth.length - 1].revenue;
+    const prev = monthlyGrowth[monthlyGrowth.length - 2].revenue;
+    const pct = Math.round(((current - prev) / prev) * 100);
+    return `${pct >= 0 ? "+" : ""}${pct}%`;
+  }, [monthlyGrowth]);
 
   if (loading) {
     return (
@@ -178,7 +211,7 @@ function AdminDashboard() {
           icon={DollarSign}
           label="Oylik daromad"
           value={fmt(stats.revenue)}
-          change="+12%"
+          change={revenueChange}
           changeLabel="O'tgan oyga nisbatan"
         />
       </div>
@@ -217,8 +250,8 @@ function AdminDashboard() {
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={mockPlanDistribution} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
-                    {mockPlanDistribution.map((item, i) => (
+                  <Pie data={planDistribution} dataKey="value" nameKey="name" innerRadius={50} outerRadius={85} paddingAngle={2}>
+                    {planDistribution.map((item, i) => (
                       <Cell key={i} fill={item.color} />
                     ))}
                   </Pie>
@@ -340,22 +373,35 @@ function AdminDashboard() {
         <Card>
           <CardHeader>
             <CardTitle className="text-base text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-primary" />
+              <Server className="h-4 w-4 text-primary" />
               Tizim holati
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Server holati</span>
-              <span className="font-medium text-success">● Ishlamoqda</span>
+              <span className={`font-medium ${systemData ? "text-success" : "text-muted-foreground"}`}>
+                {systemData ? `● Ishlamoqda` : "● Tekshirilmoqda"}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">API javob vaqti</span>
-              <span className="font-medium">~45ms</span>
+              <span className="font-medium">{systemData ? `~${apiResponseTime}ms` : "—"}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Oxirgi zaxira nusxa</span>
-              <span className="font-medium">Bugun, 03:00</span>
+              <span className="text-muted-foreground">Oxirgi tekshiruv</span>
+              <span className="font-medium">
+                {systemUpdatedAt ? (() => {
+                  const diff = Date.now() - systemUpdatedAt;
+                  const mins = Math.floor(diff / 60000);
+                  if (mins < 1) return "Hozir";
+                  if (mins < 60) return `${mins} daqiqa oldin`;
+                  const hours = Math.floor(mins / 60);
+                  if (hours < 24) return `${hours} soat oldin`;
+                  const days = Math.floor(hours / 24);
+                  return `${days} kun oldin`;
+                })() : "—"}
+              </span>
             </div>
           </CardContent>
         </Card>

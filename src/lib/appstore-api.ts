@@ -70,6 +70,41 @@ type AppStoreResponse<T> = {
   };
 };
 
+async function appstoreUploadWithProgress<T>(
+  url: string,
+  data: FormData,
+  method: string,
+  onProgress?: (percent: number) => void,
+): Promise<T> {
+  const token = getAdminToken();
+
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.setRequestHeader("Accept", "application/json");
+
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    };
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        if (xhr.status === 204) resolve(null as unknown as T);
+        else resolve(JSON.parse(xhr.responseText));
+      } else {
+        reject(new Error(xhr.responseText || `Upload failed: ${xhr.status}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error("Network error"));
+    xhr.send(data);
+  });
+}
+
 async function appstoreFetch<T>(url: string, options?: RequestInit): Promise<T> {
   const token = getAdminToken();
   const headers: Record<string, string> = {
@@ -132,6 +167,47 @@ export async function createAppStoreApp(data: FormData): Promise<AppStoreApp> {
     { method: "POST", body: data },
   );
   return res.data;
+}
+
+export async function createAppStoreAppWithProgress(
+  data: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<AppStoreApp> {
+  const res = await appstoreUploadWithProgress<AppStoreResponse<AppStoreApp>>(
+    `${APPSTORE_BASE}/admin/apps`,
+    data,
+    "POST",
+    onProgress,
+  );
+  return res.data;
+}
+
+export async function uploadAppStoreAppScreenshotsWithProgress(
+  appId: string,
+  files: File[],
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  const fd = new FormData();
+  for (const f of files) fd.append("screenshots", f);
+  await appstoreUploadWithProgress<void>(
+    `${APPSTORE_BASE}/admin/apps/${appId}/screenshots`,
+    fd,
+    "POST",
+    onProgress,
+  );
+}
+
+export async function createAppStoreAppVersionWithProgress(
+  appId: string,
+  data: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<void> {
+  await appstoreUploadWithProgress<void>(
+    `${APPSTORE_BASE}/admin/apps/${appId}/versions`,
+    data,
+    "POST",
+    onProgress,
+  );
 }
 
 export async function updateAppStoreApp(id: string, data: FormData): Promise<AppStoreApp> {

@@ -24,13 +24,16 @@ import {
   fetchAppStoreUsers,
   fetchAppStoreCategories,
   createAppStoreApp,
+  createAppStoreAppWithProgress,
   updateAppStoreApp,
   deleteAppStoreApp,
   toggleAppStoreAppPublish,
   fetchAppStoreAppVersions,
   createAppStoreAppVersion,
+  createAppStoreAppVersionWithProgress,
   deleteAppStoreAppVersion,
   uploadAppStoreAppScreenshots,
+  uploadAppStoreAppScreenshotsWithProgress,
   deleteAppStoreAppScreenshot,
   clearAppStoreData,
   exportAppStoreData,
@@ -109,6 +112,7 @@ import {
   Eye,
   Store,
   Image,
+  RefreshCw,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/mobile-apps")({
@@ -237,9 +241,10 @@ function AdminMobileAppsPage() {
     enabled: !!selectedApp && isVersionsDialogOpen,
   });
 
-  const { data: appstoreApps = [], isLoading: appstoreLoading } = useQuery({
+  const { data: appstoreApps = [], isLoading: appstoreLoading, refetch: refetchAppStoreApps, isFetching: isAppStoreFetching } = useQuery({
     queryKey: ["admin-appstore-apps"],
     queryFn: () => fetchAppStoreApps(),
+    refetchOnWindowFocus: true,
   });
 
   const { data: appstoreAppVersionsDetail } = useQuery({
@@ -352,28 +357,50 @@ function AdminMobileAppsPage() {
     onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
   });
 
+  const [createProgress, setCreateProgress] = useState(0);
+  const [createPhase, setCreatePhase] = useState<"" | "ilova" | "skrinshot" | "apk">("");
+
   const createAppStoreAppMutation = useMutation({
-    mutationFn: (data: FormData) => createAppStoreApp(data),
-    onSuccess: async (result) => {
+    mutationFn: async (data: FormData) => {
+      setCreatePhase("ilova");
+      setCreateProgress(0);
+      const result = await createAppStoreAppWithProgress(data, (p) => {
+        setCreateProgress(Math.round(p * 0.5));
+      });
+
       if (appStoreScreenshotFiles.length > 0) {
+        setCreatePhase("skrinshot");
+        setCreateProgress(50);
         try {
-          await uploadAppStoreAppScreenshots(result.id, appStoreScreenshotFiles);
+          await uploadAppStoreAppScreenshotsWithProgress(result.id, appStoreScreenshotFiles, (p) => {
+            setCreateProgress(50 + Math.round(p * 0.25));
+          });
         } catch {
           toast.warning("Ilova yaratildi, ammo skrinshotlarni yuklashda xatolik");
         }
       }
+
       if (createAppApkFile) {
+        setCreatePhase("apk");
+        setCreateProgress(75);
+        const vfd = new FormData();
+        vfd.append("version", createAppInitialVersion.trim() || "1.0.0");
+        vfd.append("file", createAppApkFile);
+        vfd.append("minAndroid", "8.0");
+        vfd.append("changelog", "");
         try {
-          const vfd = new FormData();
-          vfd.append("version", createAppInitialVersion.trim() || "1.0.0");
-          vfd.append("file", createAppApkFile);
-          vfd.append("minAndroid", "8.0");
-          vfd.append("changelog", "");
-          await createAppStoreAppVersion(result.id, vfd);
+          await createAppStoreAppVersionWithProgress(result.id, vfd, (p) => {
+            setCreateProgress(75 + Math.round(p * 0.25));
+          });
         } catch {
           toast.warning("Ilova yaratildi, ammo APK yuklashda xatolik yuz berdi");
         }
       }
+
+      setCreateProgress(100);
+      return result;
+    },
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-appstore-apps"] });
       toast.success("AppStore ilovasi muvaffaqiyatli yaratildi");
       setIsAddAppStoreAppDialogOpen(false);
@@ -382,8 +409,14 @@ function AdminMobileAppsPage() {
       setCreateAppApkFile(null);
       setCreateAppInitialVersion("1.0.0");
       setCreateAppIconFile(null);
+      setCreateProgress(0);
+      setCreatePhase("");
     },
-    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+    onError: (err: any) => {
+      toast.error(err.message || "Xatolik yuz berdi");
+      setCreateProgress(0);
+      setCreatePhase("");
+    },
   });
 
   const updateAppStoreAppMutation = useMutation({
@@ -1008,6 +1041,15 @@ function AdminMobileAppsPage() {
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => { refetchAppStoreApps(); }}
+                  disabled={isAppStoreFetching}
+                  title="Yangilash"
+                >
+                  <RefreshCw className={`h-4 w-4 ${isAppStoreFetching ? "animate-spin" : ""}`} />
                 </Button>
                 <Button
                   variant="outline"
@@ -1894,7 +1936,28 @@ function AdminMobileAppsPage() {
               >
                 Bekor qilish
               </Button>
-              <Button onClick={handleSaveNewAppStoreApp}>{t("save")}</Button>
+              <Button onClick={handleSaveNewAppStoreApp} disabled={createAppStoreAppMutation.isPending} className="min-w-[140px]">
+                {createAppStoreAppMutation.isPending ? (
+                  <div className="flex flex-col items-center gap-1 w-full">
+                    <div className="flex items-center gap-2 w-full">
+                      <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full bg-primary rounded-full transition-all duration-300"
+                          style={{ width: `${createProgress}%` }}
+                        />
+                      </div>
+                      <span className="text-xs font-medium tabular-nums">{createProgress}%</span>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {createPhase === "ilova" ? "Ma'lumotlar yuklanmoqda..." :
+                       createPhase === "skrinshot" ? "Skrinshotlar yuklanmoqda..." :
+                       createPhase === "apk" ? "APK yuklanmoqda..." : ""}
+                    </span>
+                  </div>
+                ) : (
+                  t("save")
+                )}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
