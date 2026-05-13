@@ -196,6 +196,10 @@ export function OrdersPage() {
   const [paymentFilter, setPaymentFilter] = useState<string>("all");
   const [sortMode, setSortMode] = useState<string>("none");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [minSumma, setMinSumma] = useState<string>("");
+  const [maxSumma, setMaxSumma] = useState<string>("");
+  const [minQty, setMinQty] = useState<string>("");
+  const [maxQty, setMaxQty] = useState<string>("");
 
   // data
   const [orders, setOrders] = useState<ApiOrder[]>([]);
@@ -299,6 +303,18 @@ export function OrdersPage() {
     if (paymentFilter !== "all") {
       list = list.filter((o) => o.type_payment === paymentFilter);
     }
+    if (minSumma !== "") {
+      list = list.filter((o) => (o.summa ?? 0) >= Number(minSumma));
+    }
+    if (maxSumma !== "") {
+      list = list.filter((o) => (o.summa ?? 0) <= Number(maxSumma));
+    }
+    if (minQty !== "") {
+      list = list.filter((o) => (o.qty ?? 0) >= Number(minQty));
+    }
+    if (maxQty !== "") {
+      list = list.filter((o) => (o.qty ?? 0) <= Number(maxQty));
+    }
 
     if (sortMode !== "none") {
       list.sort((a, b) => {
@@ -333,6 +349,10 @@ export function OrdersPage() {
     agentFilter,
     skladFilter,
     paymentFilter,
+    minSumma,
+    maxSumma,
+    minQty,
+    maxQty,
     sortMode,
     sortKey,
     sortDir,
@@ -360,6 +380,10 @@ export function OrdersPage() {
     agentFilter !== "all",
     skladFilter !== "all",
     paymentFilter !== "all",
+    minSumma !== "",
+    maxSumma !== "",
+    minQty !== "",
+    maxQty !== "",
   ].filter(Boolean).length;
 
   const clearFilters = () => {
@@ -368,6 +392,10 @@ export function OrdersPage() {
     setAgentFilter("all");
     setSkladFilter("all");
     setPaymentFilter("all");
+    setMinSumma("");
+    setMaxSumma("");
+    setMinQty("");
+    setMaxQty("");
     setSortMode("none");
   };
 
@@ -707,6 +735,78 @@ export function OrdersPage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  </div>
+                </div>
+
+                {/* Summa range */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("orderTotal")} — min
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="0"
+                        value={minSumma}
+                        onChange={(e) => setMinSumma(e.target.value)}
+                        className="h-9 pr-12"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                        so'm
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("orderTotal")} — max
+                    </label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="∞"
+                        value={maxSumma}
+                        onChange={(e) => setMaxSumma(e.target.value)}
+                        className="h-9 pr-12"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                        so'm
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Qty range */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("qty")} — min
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="0"
+                      value={minQty}
+                      onChange={(e) => setMinQty(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("qty")} — max
+                    </label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      placeholder="∞"
+                      value={maxQty}
+                      onChange={(e) => setMaxQty(e.target.value)}
+                      className="h-9"
+                    />
                   </div>
                 </div>
 
