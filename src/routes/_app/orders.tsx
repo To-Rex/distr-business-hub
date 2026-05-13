@@ -519,9 +519,7 @@ export function OrdersPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">{t("orderTotal")}</p>
-                  <p className="text-2xl font-bold mt-1">
-                    {(stats.totalAmount / 1_000_000).toFixed(1)}M
-                  </p>
+                  <p className="text-2xl font-bold mt-1">{fmt(stats.totalAmount)}</p>
                 </div>
                 <div className="h-10 w-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                   <TrendingUp className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
