@@ -24,9 +24,15 @@ type ApiEndpoints = {
   employees: (baseUrl: string) => string;
   userManager: string;
   userManagerStatus: (userId: number) => string;
-  salesByCategory: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
+  salesByCategory: (
+    baseUrl: string,
+    branchId: number,
+    dateBegin: string,
+    dateEnd: string,
+  ) => string;
   reportByClient: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
   financeOrders: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
+  ordersAll: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
   companyById: (id: number) => string;
   companies: string;
   companySecurityKeys: (id: number) => string;
@@ -61,19 +67,20 @@ export const API: ApiEndpoints = {
   wsLocations: (token: string) => `${WS_BASE}/v1/locations/ws/admvs?token=${token}`,
   userHistory: (userId: number) => `${BASE_URL}/v1/locations/user-history/${userId}`,
   workingSession: (userId: number, role?: string) => {
-    const appRole = role ? (role.toLowerCase() === "deliverer" ? "delivery" : role.toLowerCase()) : "agent";
+    const appRole = role
+      ? role.toLowerCase() === "deliverer"
+        ? "delivery"
+        : role.toLowerCase()
+      : "agent";
     return `${BASE_URL}/v1/working-sessions/user/${userId}?app=mx-${appRole}&is_testing=false`;
   },
-  clientLocations: (baseUrl: string) =>
-    proxied1C(baseUrl, "/hs/manager/api/get_location_all"),
+  clientLocations: (baseUrl: string) => proxied1C(baseUrl, "/hs/manager/api/get_location_all"),
   clientInfo: (baseUrl: string, clientId: number) =>
     proxied1C(baseUrl, `/hs/manager/api/get_client_info?client_id=${clientId}`),
   clientVisitData: (baseUrl: string, clientId: number) =>
     proxied1C(baseUrl, `/hs/manager/api/get_visit_data_by_client?client_id=${clientId}`),
-  clientsByGroup: (baseUrl: string) =>
-    proxied1C(baseUrl, "/hs/manager/api/GetClientsbyGroup"),
-  productsByGroup: (baseUrl: string) =>
-    proxied1C(baseUrl, "/hs/manager/api/Getproductsbygroup"),
+  clientsByGroup: (baseUrl: string) => proxied1C(baseUrl, "/hs/manager/api/GetClientsbyGroup"),
+  productsByGroup: (baseUrl: string) => proxied1C(baseUrl, "/hs/manager/api/Getproductsbygroup"),
   employees: (baseUrl: string) => proxied1C(baseUrl, "/hs/manager/api/get_employees"),
   userManager: `${BASE_URL}/v1/user-manager`,
   userManagerStatus: (userId: number) => `${BASE_URL}/v1/user-manager/${userId}`,
@@ -88,6 +95,11 @@ export const API: ApiEndpoints = {
       `/hs/manager/api/get_report_by_client?branch_id=${branchId}&date_begin=${dateBegin}&date_end=${dateEnd}`,
     ),
   financeOrders: (baseUrl: string, dateBegin: string, dateEnd: string) =>
+    proxied1C(
+      baseUrl,
+      `/hs/manager/api/GetlistordersAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
+    ),
+  ordersAll: (baseUrl: string, dateBegin: string, dateEnd: string) =>
     proxied1C(
       baseUrl,
       `/hs/manager/api/GetlistordersAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
@@ -116,5 +128,6 @@ export const API: ApiEndpoints = {
   systemMonitor: `${BASE_URL}/v1/system-monitor/`,
   alembicVersionList: `${BASE_URL}/v1/admin/alembic-version/list`,
   alembicVersionCreate: `${BASE_URL}/v1/admin/alembic-version/create`,
-  alembicVersionDelete: (versionNum: string) => `${BASE_URL}/v1/admin/alembic-version/${versionNum}`,
+  alembicVersionDelete: (versionNum: string) =>
+    `${BASE_URL}/v1/admin/alembic-version/${versionNum}`,
 };

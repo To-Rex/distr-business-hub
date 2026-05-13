@@ -1,9 +1,29 @@
 import { Link, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Users, ShoppingCart, UserCog, Warehouse,
-  Wallet, Factory, MapPin, LogOut, Bell, Search, Menu, X,
-  BarChart3, Calendar, Settings as SettingsIcon, User as UserIcon,
-  Sun, Moon, Globe, Check, ChevronsLeft, ChevronsRight,
+  LayoutDashboard,
+  Users,
+  ShoppingCart,
+  UserCog,
+  Warehouse,
+  Wallet,
+  Factory,
+  MapPin,
+  LogOut,
+  Bell,
+  Search,
+  Menu,
+  X,
+  BarChart3,
+  Calendar,
+  Settings as SettingsIcon,
+  User as UserIcon,
+  Sun,
+  Moon,
+  Globe,
+  Check,
+  ChevronsLeft,
+  ChevronsRight,
+  ClipboardList,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
@@ -11,12 +31,14 @@ import { useSettings, LANGS } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
-  DropdownMenuLabel, DropdownMenuSeparator,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
@@ -93,6 +115,7 @@ export function AppShell() {
         { to: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
         { to: "/clients", label: t("clients"), icon: Users },
         { to: "/sales", label: t("sales"), icon: ShoppingCart },
+        { to: "/orders", label: t("ordersPage"), icon: ClipboardList },
         { to: "/staff", label: t("staff"), icon: UserCog },
       ],
     },
@@ -122,16 +145,27 @@ export function AppShell() {
     },
   ] as const;
 
-  const handleLogout = () => { logout(); navigate({ to: "/login" }); };
+  const handleLogout = () => {
+    logout();
+    navigate({ to: "/login" });
+  };
 
   const SidebarContent = ({ isCompact = false }: { isCompact?: boolean }) => (
     <>
-      <div className={`flex items-center border-b ${isCompact ? "h-16 justify-center px-2" : "h-16 gap-2.5 px-6"}`}>
-        <img src="/logo.png" alt="Distr" className="h-9 w-9 rounded-xl object-contain flex-shrink-0" />
+      <div
+        className={`flex items-center border-b ${isCompact ? "h-16 justify-center px-2" : "h-16 gap-2.5 px-6"}`}
+      >
+        <img
+          src="/logo.png"
+          alt="Distr"
+          className="h-9 w-9 rounded-xl object-contain flex-shrink-0"
+        />
         {!isCompact && (
           <div className="flex flex-col overflow-hidden">
             <span className="text-base font-semibold tracking-tight leading-none">Distr</span>
-            <span className="text-[10px] text-muted-foreground mt-0.5 truncate">{user?.company_rel?.name ?? "Business OS"}</span>
+            <span className="text-[10px] text-muted-foreground mt-0.5 truncate">
+              {user?.company_rel?.name ?? "Business OS"}
+            </span>
           </div>
         )}
       </div>
@@ -139,7 +173,9 @@ export function AppShell() {
         {navGroups.map((g) => (
           <div key={g.label} className="mb-4">
             {!isCompact && (
-              <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</div>
+              <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {g.label}
+              </div>
             )}
             <div className={isCompact ? "space-y-1" : "space-y-0.5"}>
               {g.items.map((item) => {
@@ -151,9 +187,7 @@ export function AppShell() {
                     to={item.to}
                     onClick={() => setMobileOpen(false)}
                     className={`flex items-center rounded-lg text-sm font-medium transition-all ${
-                      isCompact
-                        ? "justify-center h-10 w-10 mx-auto"
-                        : "gap-3 px-3 py-2"
+                      isCompact ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2"
                     } ${
                       active
                         ? "bg-primary text-primary-foreground shadow-sm"
@@ -191,10 +225,18 @@ export function AppShell() {
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
                 <div className="text-sm font-medium capitalize">{user?.name}</div>
-                <div className="text-xs text-muted-foreground">{user?.user_type ?? user?.email}</div>
+                <div className="text-xs text-muted-foreground">
+                  {user?.user_type ?? user?.email}
+                </div>
               </TooltipContent>
             </Tooltip>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t("logout")} className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              aria-label={t("logout")}
+              className="h-8 w-8"
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -205,9 +247,17 @@ export function AppShell() {
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium truncate capitalize">{user?.name}</div>
-              <div className="text-xs text-muted-foreground truncate">{user?.user_type ?? user?.email}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {user?.user_type ?? user?.email}
+              </div>
             </div>
-            <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t("logout")} className="h-8 w-8">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleLogout}
+              aria-label={t("logout")}
+              className="h-8 w-8"
+            >
               <LogOut className="h-4 w-4" />
             </Button>
           </div>
@@ -219,29 +269,48 @@ export function AppShell() {
   return (
     <TooltipProvider>
       <div className="min-h-screen flex bg-background">
-        <aside className={`hidden lg:flex ${sidebarWidth} flex-col border-r bg-sidebar fixed inset-y-0 left-0 transition-all duration-300`}>
+        <aside
+          className={`hidden lg:flex ${sidebarWidth} flex-col border-r bg-sidebar fixed inset-y-0 left-0 transition-all duration-300`}
+        >
           <SidebarContent isCompact={collapsed} />
           <button
             onClick={() => setCollapsed((v) => !v)}
             className="absolute -right-3 top-20 z-50 h-6 w-6 rounded-full border bg-card shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-md transition-colors"
             aria-label={collapsed ? t("expandSidebar") : t("collapseSidebar")}
           >
-            {collapsed ? <ChevronsRight className="h-3 w-3" /> : <ChevronsLeft className="h-3 w-3" />}
+            {collapsed ? (
+              <ChevronsRight className="h-3 w-3" />
+            ) : (
+              <ChevronsLeft className="h-3 w-3" />
+            )}
           </button>
         </aside>
 
         {mobileOpen && (
           <div className="lg:hidden fixed inset-0 z-50">
-            <div className="absolute inset-0 bg-black/40 animate-fade-in" onClick={() => setMobileOpen(false)} />
-            <aside className="absolute inset-y-0 left-0 w-64 flex flex-col bg-sidebar shadow-xl animate-slide-in-right" style={{ animationName: "slide-in-right", transform: "none" }}>
+            <div
+              className="absolute inset-0 bg-black/40 animate-fade-in"
+              onClick={() => setMobileOpen(false)}
+            />
+            <aside
+              className="absolute inset-y-0 left-0 w-64 flex flex-col bg-sidebar shadow-xl animate-slide-in-right"
+              style={{ animationName: "slide-in-right", transform: "none" }}
+            >
               <SidebarContent />
             </aside>
           </div>
         )}
 
-        <div className={`flex-1 ${contentMargin} flex flex-col min-w-0 transition-all duration-300`}>
+        <div
+          className={`flex-1 ${contentMargin} flex flex-col min-w-0 transition-all duration-300`}
+        >
           <header className="sticky top-0 z-40 h-16 border-b bg-background/85 backdrop-blur flex items-center gap-2 px-4 lg:px-8">
-            <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setMobileOpen((v) => !v)}>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setMobileOpen((v) => !v)}
+            >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
             </Button>
             <div className="relative flex-1 max-w-md">
@@ -309,11 +378,18 @@ export function AppShell() {
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="ghost" size="icon" onClick={() => setTheme(theme === "light" ? "dark" : "light")} aria-label={t("theme")}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                aria-label={t("theme")}
+              >
                 {theme === "light" ? <Moon className="h-5 w-5" /> : <Sun className="h-5 w-5" />}
               </Button>
               <Link to="/notifications" className="relative">
-                <Button variant="ghost" size="icon"><Bell className="h-5 w-5" /></Button>
+                <Button variant="ghost" size="icon">
+                  <Bell className="h-5 w-5" />
+                </Button>
                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
               </Link>
             </div>
