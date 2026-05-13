@@ -44,6 +44,8 @@ import {
   Wallet,
   Users,
   RefreshCw,
+  LayoutGrid,
+  Rows3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/orders")({
@@ -177,6 +179,7 @@ export function OrdersPage() {
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
 
   // data
   const [orders, setOrders] = useState<ApiOrder[]>([]);
@@ -427,12 +430,12 @@ export function OrdersPage() {
         </Card>
       )}
 
-      {/* Search + Status filter */}
+      {/* Search + Status filter + View toggle */}
       {!error && (
         <Card className="mb-4">
           <CardContent className="pt-4 pb-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder={`${t("search")}...`}
@@ -456,27 +459,68 @@ export function OrdersPage() {
                   <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
                 </SelectContent>
               </Select>
+              <div className="flex items-center gap-1 shrink-0 ml-auto">
+                <Button
+                  type="button"
+                  variant={viewMode === "cards" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("cards")}
+                  className="gap-1.5"
+                >
+                  <LayoutGrid className="h-4 w-4" />
+                  {t("cardsView")}
+                </Button>
+                <Button
+                  type="button"
+                  variant={viewMode === "table" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setViewMode("table")}
+                  className="gap-1.5"
+                >
+                  <Rows3 className="h-4 w-4" />
+                  {t("tableView")}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Table */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Package className="h-4 w-4 text-muted-foreground" />
-            {loading ? (
-              <Skeleton className="h-4 w-28" />
-            ) : (
-              <span>
-                {filtered.length} {t("ordersLower")}
-              </span>
-            )}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
+      {/* Result count label */}
+      {!loading && !error && (
+        <div className="flex items-center gap-2 mb-3 px-0.5">
+          <Package className="h-4 w-4 text-muted-foreground" />
+          <span className="text-sm text-muted-foreground">
+            {filtered.length} {t("ordersLower")}
+          </span>
+        </div>
+      )}
+
+      {/* Loading skeletons */}
+      {loading && viewMode === "cards" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i}>
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Skeleton className="h-4 w-20" />
+                  <Skeleton className="h-5 w-20 rounded-full" />
+                </div>
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-3 w-28" />
+                <div className="flex items-center justify-between pt-1">
+                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-5 w-28" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {loading && viewMode === "table" && (
+        <Card>
+          <CardContent className="p-0">
             <div className="divide-y">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="flex items-center gap-4 px-6 py-4">
@@ -490,12 +534,163 @@ export function OrdersPage() {
                 </div>
               ))}
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-3">
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Empty state */}
+      {!loading && filtered.length === 0 && (
+        <Card>
+          <CardContent className="py-16">
+            <div className="flex flex-col items-center justify-center text-muted-foreground gap-3">
               <ClipboardList className="h-10 w-10 opacity-30" />
               <p className="text-sm">{t("noOrders")}</p>
             </div>
-          ) : (
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── CARDS (LIST) VIEW ── */}
+      {!loading && filtered.length > 0 && viewMode === "cards" && (
+        <div className="flex flex-col gap-2">
+          {filtered.map((order) => {
+            const norm = normalizeStatus(order.status);
+            const cfg = STATUS_CONFIG[norm];
+            const StatusIcon = cfg.icon;
+            const isExpanded = expandedId === order.id_doc;
+            return (
+              <Card key={order.id_doc} className="overflow-hidden">
+                {/* ── Clickable header ── */}
+                <div
+                  className="flex items-start gap-4 px-4 py-4 cursor-pointer hover:bg-muted/30 transition-colors"
+                  onClick={() => setExpandedId(isExpanded ? null : order.id_doc)}
+                >
+                  {/* left: id + date */}
+                  <div className="shrink-0 text-center w-12">
+                    <div className="font-mono text-xs font-bold text-primary">#{order.id_doc}</div>
+                    <div className="text-[10px] text-muted-foreground mt-0.5">{order.date_doc}</div>
+                  </div>
+
+                  {/* center: client + meta */}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-sm leading-snug">{order.client_name}</div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1">
+                      {order.agent?.agent_name && (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Users className="h-3 w-3" />
+                          {order.agent.agent_name}
+                        </span>
+                      )}
+                      {order.sklad && (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Package className="h-3 w-3" />
+                          {order.sklad}
+                        </span>
+                      )}
+                      {order.type_payment && (
+                        <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <Wallet className="h-3 w-3" />
+                          {order.type_payment}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* right: amount + status + chevron */}
+                  <div className="shrink-0 flex flex-col items-end gap-1.5">
+                    <span
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${cfg.color}`}
+                    >
+                      <StatusIcon className="h-3 w-3" />
+                      {order.status}
+                    </span>
+                    <div className="font-bold text-sm tabular-nums">
+                      {fmt(order.summa)}
+                      <span className="text-[10px] font-normal text-muted-foreground ml-1">
+                        {order.cry}
+                      </span>
+                    </div>
+                    <ChevronDownIcon
+                      className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                    />
+                  </div>
+                </div>
+
+                {/* ── Expanded panel ── */}
+                {isExpanded && (
+                  <div className="border-t bg-muted/20 px-4 py-4 space-y-3">
+                    {/* meta chips */}
+                    {(order.tip_sena ||
+                      (order.date_delivery && order.date_delivery !== order.date_doc) ||
+                      order.comment) && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {order.tip_sena && (
+                          <span className="inline-flex items-center gap-1 text-[11px] bg-background border rounded-full px-2.5 py-0.5 text-muted-foreground">
+                            <TrendingUp className="h-3 w-3 text-blue-500" />
+                            {order.tip_sena}
+                          </span>
+                        )}
+                        {order.date_delivery && order.date_delivery !== order.date_doc && (
+                          <span className="inline-flex items-center gap-1 text-[11px] bg-background border rounded-full px-2.5 py-0.5 text-muted-foreground">
+                            <Truck className="h-3 w-3 text-orange-500" />→ {order.date_delivery}
+                          </span>
+                        )}
+                        {order.comment && (
+                          <span className="inline-flex items-center gap-1 text-[11px] bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-full px-2.5 py-0.5 text-amber-700 dark:text-amber-400">
+                            💬 {order.comment}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* products */}
+                    <div className="rounded-lg border overflow-hidden">
+                      <div className="grid grid-cols-[2rem_1fr_repeat(3,6rem)] text-[10px] font-medium text-muted-foreground uppercase tracking-wide bg-muted/60 px-3 py-1.5">
+                        <span>#</span>
+                        <span>{t("product")}</span>
+                        <span className="text-right">{t("amount")}</span>
+                        <span className="text-right">{t("qty")}</span>
+                        <span className="text-right">{t("totalAmount")}</span>
+                      </div>
+                      {(order.products ?? []).map((p) => (
+                        <div
+                          key={p.product_id}
+                          className="grid grid-cols-[2rem_1fr_repeat(3,6rem)] items-center px-3 py-2 border-t text-xs hover:bg-background/60 transition-colors"
+                        >
+                          <span className="text-muted-foreground tabular-nums">{p.product_id}</span>
+                          <span className="font-medium truncate pr-2">{p.product_name}</span>
+                          <span className="text-right tabular-nums text-muted-foreground">
+                            {fmt(p.price)}
+                          </span>
+                          <span className="text-right tabular-nums text-muted-foreground">
+                            {formatWithSpaces(p.qty, 2)}
+                          </span>
+                          <span className="text-right tabular-nums font-semibold">
+                            {fmt(p.sum)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* total */}
+                    <div className="flex items-center justify-between rounded-lg bg-primary/5 border border-primary/10 px-3 py-2">
+                      <span className="text-xs text-muted-foreground">{t("total")}</span>
+                      <span className="text-sm font-bold text-primary">
+                        {fmt(order.summa)} {order.cry}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ── TABLE VIEW ── */}
+      {!loading && filtered.length > 0 && viewMode === "table" && (
+        <Card>
+          <CardContent className="p-0">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -747,9 +942,9 @@ export function OrdersPage() {
                 </TableBody>
               </Table>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }
