@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,7 +38,8 @@ import {
   ChevronUp,
   ChevronDown,
   AlertCircle,
-  CalendarRange,
+  Calendar as CalendarIcon,
+  ArrowRight,
   ChevronDown as ChevronDownIcon,
   Package,
   Wallet,
@@ -46,6 +47,8 @@ import {
   RefreshCw,
   LayoutGrid,
   Rows3,
+  SlidersHorizontal,
+  X,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/orders")({
@@ -162,6 +165,12 @@ function dateScore(docDate: string): number {
 
 const fmt = (n: number) => formatWithSpaces(n, 0);
 
+function formatDisplayDate(iso: string): string {
+  if (!iso) return "—";
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
 type SortKey = "date" | "amount" | "client" | "id";
 type SortDir = "asc" | "desc";
 
@@ -170,6 +179,8 @@ type SortDir = "asc" | "desc";
 export function OrdersPage() {
   const { t } = useSettings();
   const { user } = useAuth();
+  const dateBeginRef = useRef<HTMLInputElement>(null);
+  const dateEndRef = useRef<HTMLInputElement>(null);
 
   // filters
   const [dateBegin, setDateBegin] = useState(monthStartIso());
@@ -180,6 +191,11 @@ export function OrdersPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const [agentFilter, setAgentFilter] = useState<string>("all");
+  const [skladFilter, setSkladFilter] = useState<string>("all");
+  const [paymentFilter, setPaymentFilter] = useState<string>("all");
+  const [sortMode, setSortMode] = useState<string>("none");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // data
   const [orders, setOrders] = useState<ApiOrder[]>([]);
@@ -235,6 +251,24 @@ export function OrdersPage() {
     return { total, totalAmount, totalQty, delivered, pending, uniqueClients };
   }, [orders]);
 
+  const uniqueAgents = useMemo(
+    () =>
+      Array.from(
+        new Set(orders.map((o) => o.agent?.agent_name).filter(Boolean)),
+      ).sort() as string[],
+    [orders],
+  );
+
+  const uniqueSklads = useMemo(
+    () => Array.from(new Set(orders.map((o) => o.sklad).filter(Boolean))).sort() as string[],
+    [orders],
+  );
+
+  const uniquePayments = useMemo(
+    () => Array.from(new Set(orders.map((o) => o.type_payment).filter(Boolean))).sort() as string[],
+    [orders],
+  );
+
   // filtered + sorted
   const filtered = useMemo(() => {
     let list = [...orders];
@@ -256,17 +290,53 @@ export function OrdersPage() {
       );
     }
 
-    list.sort((a, b) => {
-      let cmp = 0;
-      if (sortKey === "date") cmp = dateScore(a.date_doc) - dateScore(b.date_doc);
-      else if (sortKey === "amount") cmp = (a.summa ?? 0) - (b.summa ?? 0);
-      else if (sortKey === "client") cmp = (a.client_name ?? "").localeCompare(b.client_name ?? "");
-      else if (sortKey === "id") cmp = (a.id_doc ?? 0) - (b.id_doc ?? 0);
-      return sortDir === "asc" ? cmp : -cmp;
-    });
+    if (agentFilter !== "all") {
+      list = list.filter((o) => o.agent?.agent_name === agentFilter);
+    }
+    if (skladFilter !== "all") {
+      list = list.filter((o) => o.sklad === skladFilter);
+    }
+    if (paymentFilter !== "all") {
+      list = list.filter((o) => o.type_payment === paymentFilter);
+    }
+
+    if (sortMode !== "none") {
+      list.sort((a, b) => {
+        switch (sortMode) {
+          case "date-desc":
+            return dateScore(b.date_doc) - dateScore(a.date_doc);
+          case "date-asc":
+            return dateScore(a.date_doc) - dateScore(b.date_doc);
+          case "amount-desc":
+            return (b.summa ?? 0) - (a.summa ?? 0);
+          case "amount-asc":
+            return (a.summa ?? 0) - (b.summa ?? 0);
+          case "id-desc":
+            return (b.id_doc ?? 0) - (a.id_doc ?? 0);
+          case "id-asc":
+            return (a.id_doc ?? 0) - (b.id_doc ?? 0);
+          case "client-asc":
+            return (a.client_name ?? "").localeCompare(b.client_name ?? "");
+          case "client-desc":
+            return (b.client_name ?? "").localeCompare(a.client_name ?? "");
+          default:
+            return 0;
+        }
+      });
+    }
 
     return list;
-  }, [orders, search, statusFilter, sortKey, sortDir]);
+  }, [
+    orders,
+    search,
+    statusFilter,
+    agentFilter,
+    skladFilter,
+    paymentFilter,
+    sortMode,
+    sortKey,
+    sortDir,
+  ]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -283,6 +353,22 @@ export function OrdersPage() {
     ) : (
       <ChevronDown className="ml-1 h-3 w-3" />
     );
+  };
+
+  const activeFiltersCount = [
+    statusFilter !== "all",
+    agentFilter !== "all",
+    skladFilter !== "all",
+    paymentFilter !== "all",
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatusFilter("all");
+    setAgentFilter("all");
+    setSkladFilter("all");
+    setPaymentFilter("all");
+    setSortMode("none");
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
@@ -316,27 +402,58 @@ export function OrdersPage() {
       {/* Date filter */}
       <Card className="mb-4">
         <CardContent className="pt-4 pb-4">
-          <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
-              <CalendarRange className="h-4 w-4" />
-              <span>{t("dateBegin")}</span>
-            </div>
+          <div className="flex items-center gap-3">
+            {/* hidden inputs */}
             <input
+              ref={dateBeginRef}
               type="date"
               value={dateBegin}
               onChange={(e) => setDateBegin(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              className="sr-only"
             />
-            <span className="text-muted-foreground text-sm hidden sm:block">—</span>
-            <div className="flex items-center gap-1.5 text-sm text-muted-foreground shrink-0">
-              <span>{t("dateEnd")}</span>
-            </div>
             <input
+              ref={dateEndRef}
               type="date"
               value={dateEnd}
               onChange={(e) => setDateEnd(e.target.value)}
-              className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              className="sr-only"
             />
+
+            {/* Dan */}
+            <button
+              type="button"
+              onClick={() => dateBeginRef.current?.showPicker()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-muted rounded-xl cursor-pointer flex-1 max-w-[200px] border border-transparent hover:border-primary/20 transition-colors"
+            >
+              <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
+              <div className="flex flex-col items-start min-w-0">
+                <span className="text-[10px] text-muted-foreground leading-none">
+                  {t("dateBegin")}
+                </span>
+                <span className="text-sm font-medium leading-tight">
+                  {formatDisplayDate(dateBegin)}
+                </span>
+              </div>
+            </button>
+
+            <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
+
+            {/* Gacha */}
+            <button
+              type="button"
+              onClick={() => dateEndRef.current?.showPicker()}
+              className="flex items-center gap-2 px-4 py-2.5 bg-muted rounded-xl cursor-pointer flex-1 max-w-[200px] border border-transparent hover:border-primary/20 transition-colors"
+            >
+              <CalendarIcon className="w-4 h-4 text-primary shrink-0" />
+              <div className="flex flex-col items-start min-w-0">
+                <span className="text-[10px] text-muted-foreground leading-none">
+                  {t("dateEnd")}
+                </span>
+                <span className="text-sm font-medium leading-tight">
+                  {formatDisplayDate(dateEnd)}
+                </span>
+              </div>
+            </button>
           </div>
         </CardContent>
       </Card>
@@ -430,11 +547,13 @@ export function OrdersPage() {
         </Card>
       )}
 
-      {/* Search + Status filter + View toggle */}
+      {/* Search + Filters + View toggle */}
       {!error && (
         <Card className="mb-4">
-          <CardContent className="pt-4 pb-4">
+          <CardContent className="pt-4 pb-4 space-y-3">
+            {/* Top row: search + sort + view toggle */}
             <div className="flex flex-col sm:flex-row gap-3 flex-wrap">
+              {/* Search */}
               <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -444,22 +563,43 @@ export function OrdersPage() {
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </div>
-              <Select
-                value={statusFilter}
-                onValueChange={(v) => setStatusFilter(v as NormalStatus | "all")}
+
+              {/* Sort dropdown */}
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value)}
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm shrink-0"
               >
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder={t("orderStatus")} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">{t("all")}</SelectItem>
-                  <SelectItem value="pending">{t("pending")}</SelectItem>
-                  <SelectItem value="inProgress">{t("inProgress")}</SelectItem>
-                  <SelectItem value="delivered">{t("delivered")}</SelectItem>
-                  <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
-                </SelectContent>
-              </Select>
-              <div className="flex items-center gap-1 shrink-0 ml-auto">
+                <option value="none">{t("all")} (default)</option>
+                <option value="date-desc">{t("sortDateNewOld")}</option>
+                <option value="date-asc">{t("sortDateOldNew")}</option>
+                <option value="amount-desc">{t("sortAmountHighLow")}</option>
+                <option value="amount-asc">{t("sortAmountLowHigh")}</option>
+                <option value="id-desc">ID ↓</option>
+                <option value="id-asc">ID ↑</option>
+                <option value="client-asc">{t("sortClientAZ")}</option>
+                <option value="client-desc">{t("sortClientZA")}</option>
+              </select>
+
+              {/* Advanced filter toggle button */}
+              <Button
+                type="button"
+                variant={filtersOpen || activeFiltersCount > 0 ? "default" : "outline"}
+                size="sm"
+                onClick={() => setFiltersOpen((v) => !v)}
+                className="gap-1.5 shrink-0"
+              >
+                <SlidersHorizontal className="h-4 w-4" />
+                {t("filter")}
+                {activeFiltersCount > 0 && (
+                  <span className="ml-0.5 h-4 w-4 rounded-full bg-white/20 text-[10px] font-bold flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </Button>
+
+              {/* View toggle */}
+              <div className="flex items-center gap-1 shrink-0">
                 <Button
                   type="button"
                   variant={viewMode === "cards" ? "default" : "outline"}
@@ -482,6 +622,111 @@ export function OrdersPage() {
                 </Button>
               </div>
             </div>
+
+            {/* Advanced filters panel (collapsible) */}
+            {filtersOpen && (
+              <div className="pt-2 border-t space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Status */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("orderStatus")}
+                    </label>
+                    <Select
+                      value={statusFilter}
+                      onValueChange={(v) => setStatusFilter(v as NormalStatus | "all")}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("all")}</SelectItem>
+                        <SelectItem value="pending">{t("pending")}</SelectItem>
+                        <SelectItem value="inProgress">{t("inProgress")}</SelectItem>
+                        <SelectItem value="delivered">{t("delivered")}</SelectItem>
+                        <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Agent */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("orderAgent")}
+                    </label>
+                    <Select value={agentFilter} onValueChange={setAgentFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("all")}</SelectItem>
+                        {uniqueAgents.map((a) => (
+                          <SelectItem key={a} value={a}>
+                            {a}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Sklad */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("orderWarehouse")}
+                    </label>
+                    <Select value={skladFilter} onValueChange={setSkladFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("all")}</SelectItem>
+                        {uniqueSklads.map((s) => (
+                          <SelectItem key={s} value={s}>
+                            {s}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Payment type */}
+                  <div className="space-y-1">
+                    <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      {t("payment")}
+                    </label>
+                    <Select value={paymentFilter} onValueChange={setPaymentFilter}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t("all")}</SelectItem>
+                        {uniquePayments.map((p) => (
+                          <SelectItem key={p} value={p}>
+                            {p}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Clear filters button */}
+                {(activeFiltersCount > 0 || search.trim()) && (
+                  <div className="flex justify-end">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      Filtrlarni tozalash
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
