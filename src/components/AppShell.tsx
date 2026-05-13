@@ -24,6 +24,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   ClipboardList,
+  Smartphone,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
@@ -125,6 +126,7 @@ export function AppShell() {
         { to: "/warehouse", label: t("warehouse"), icon: Warehouse },
         { to: "/finance", label: t("finance"), icon: Wallet },
         { to: "/production", label: t("production"), icon: Factory },
+        { to: "/devices", label: t("devices"), icon: Smartphone },
         { to: "/live-map", label: t("liveMap"), icon: MapPin },
       ],
     },
