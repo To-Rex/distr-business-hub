@@ -33,6 +33,7 @@ import { Route as AppOrdersRouteImport } from './routes/_app/orders'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
 import { Route as AppFinanceRouteImport } from './routes/_app/finance'
+import { Route as AppDevicesRouteImport } from './routes/_app/devices'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppClientsRouteImport } from './routes/_app/clients'
 import { Route as AppCalendarRouteImport } from './routes/_app/calendar'
@@ -156,6 +157,11 @@ const AppFinanceRoute = AppFinanceRouteImport.update({
   path: '/finance',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDevicesRoute = AppDevicesRouteImport.update({
+  id: '/devices',
+  path: '/devices',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppDashboardRoute = AppDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -178,6 +184,7 @@ export interface FileRoutesByFullPath {
   '/calendar': typeof AppCalendarRoute
   '/clients': typeof AppClientsRoute
   '/dashboard': typeof AppDashboardRoute
+  '/devices': typeof AppDevicesRoute
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
   '/notifications': typeof AppNotificationsRoute
@@ -206,6 +213,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AppCalendarRoute
   '/clients': typeof AppClientsRoute
   '/dashboard': typeof AppDashboardRoute
+  '/devices': typeof AppDevicesRoute
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
   '/notifications': typeof AppNotificationsRoute
@@ -236,6 +244,7 @@ export interface FileRoutesById {
   '/_app/calendar': typeof AppCalendarRoute
   '/_app/clients': typeof AppClientsRoute
   '/_app/dashboard': typeof AppDashboardRoute
+  '/_app/devices': typeof AppDevicesRoute
   '/_app/finance': typeof AppFinanceRoute
   '/_app/live-map': typeof AppLiveMapRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -266,6 +275,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/clients'
     | '/dashboard'
+    | '/devices'
     | '/finance'
     | '/live-map'
     | '/notifications'
@@ -294,6 +304,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/clients'
     | '/dashboard'
+    | '/devices'
     | '/finance'
     | '/live-map'
     | '/notifications'
@@ -323,6 +334,7 @@ export interface FileRouteTypes {
     | '/_app/calendar'
     | '/_app/clients'
     | '/_app/dashboard'
+    | '/_app/devices'
     | '/_app/finance'
     | '/_app/live-map'
     | '/_app/notifications'
@@ -532,6 +544,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFinanceRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/devices': {
+      id: '/_app/devices'
+      path: '/devices'
+      fullPath: '/devices'
+      preLoaderRoute: typeof AppDevicesRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/dashboard': {
       id: '/_app/dashboard'
       path: '/dashboard'
@@ -560,6 +579,7 @@ interface AppRouteChildren {
   AppCalendarRoute: typeof AppCalendarRoute
   AppClientsRoute: typeof AppClientsRoute
   AppDashboardRoute: typeof AppDashboardRoute
+  AppDevicesRoute: typeof AppDevicesRoute
   AppFinanceRoute: typeof AppFinanceRoute
   AppLiveMapRoute: typeof AppLiveMapRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -577,6 +597,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppCalendarRoute: AppCalendarRoute,
   AppClientsRoute: AppClientsRoute,
   AppDashboardRoute: AppDashboardRoute,
+  AppDevicesRoute: AppDevicesRoute,
   AppFinanceRoute: AppFinanceRoute,
   AppLiveMapRoute: AppLiveMapRoute,
   AppNotificationsRoute: AppNotificationsRoute,
