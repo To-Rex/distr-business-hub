@@ -7,9 +7,9 @@ import { useSettings } from "@/lib/settings";
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis, PieChart, Pie, Cell, Legend,
 } from "recharts";
-import { TrendingUp, Users, Building, ArrowUpRight, Activity, Package, DollarSign } from "lucide-react";
+import { TrendingUp, Users, Building, ArrowUpRight, Activity, Package, DollarSign, Clock } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchUsers, fetchCompanies, fetchApps } from "@/lib/admin-api";
+import { fetchUsers, fetchCompanies, fetchApps, fetchActivity, type ActivityItem } from "@/lib/admin-api";
 import { SystemMonitor } from "@/components/SystemMonitor";
 
 export const Route = createFileRoute("/admin/dashboard")({
@@ -43,15 +43,6 @@ const mockPlanDistribution = [
   { name: "Enterprise", value: 15, color: "var(--chart-4)" },
 ];
 
-const mockRecentActivity = [
-  { id: 1, action: "Yangi kompaniya ro'yxatdan o'tdi", target: "Smart Retail Group", time: "5 daqiqa oldin", type: "company" },
-  { id: 2, action: "Foydalanuvchi ro'yxatdan o'tdi", target: "Azizbek Karimov", time: "1 soat oldin", type: "user" },
-  { id: 3, action: "Tarif yangilandi", target: "Hub Logistics → Business", time: "2 soat oldin", type: "upgrade" },
-  { id: 4, action: "Yangi ilova yuklandi", target: "Distr Warehouse v1.4.0", time: "3 soat oldin", type: "app" },
-  { id: 5, action: "Kompaniya faollashdi", target: "Distr Savdo", time: "5 soat oldin", type: "company" },
-  { id: 6, action: "Foydalanuvchi parolni tikladi", target: "manager@distr.uz", time: "1 kun oldin", type: "user" },
-];
-
 const fmt = (n: number) => `${n.toLocaleString()} UZS`;
 const fmtShort = (n: number) => {
   if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
@@ -82,7 +73,7 @@ function KpiCard({ icon: Icon, label, value, change, changeLabel }: { icon: any;
 }
 
 function AdminDashboard() {
-  const { t } = useSettings();
+  const { t, lang } = useSettings();
 
   const { data: companies = [], isLoading: isLoadingCompanies } = useQuery({
     queryKey: ["admin-companies"],
@@ -97,6 +88,12 @@ function AdminDashboard() {
   const { data: apps = [], isLoading: isLoadingApps } = useQuery({
     queryKey: ["admin-apps"],
     queryFn: () => fetchApps(),
+  });
+
+  const { data: activities = [] } = useQuery({
+    queryKey: ["admin-activity", lang],
+    queryFn: () => fetchActivity(lang === "uz" ? "uz" : lang === "ru" ? "ru" : "eng"),
+    refetchInterval: 60_000,
   });
 
   const loading = isLoadingCompanies || isLoadingUsers || isLoadingApps;
@@ -250,28 +247,47 @@ function AdminDashboard() {
             <CardTitle className="text-base">So'nggi faollik</CardTitle>
           </CardHeader>
           <CardContent>
+            {activities.length > 0 ? (
             <ul className="divide-y">
-              {mockRecentActivity.map((a) => (
+              {activities.map((a) => {
+                const type: string = a.action.includes("company") ? "company" : a.action.includes("user") || a.action.includes("login") ? "user" : a.action.includes("upgrade") || a.action.includes("plan") ? "upgrade" : "app";
+                const timeAgo = (() => {
+                  const diff = Date.now() - new Date(a.created_at).getTime();
+                  const mins = Math.floor(diff / 60000);
+                  if (mins < 1) return "Hozir";
+                  if (mins < 60) return `${mins} daqiqa oldin`;
+                  const hours = Math.floor(mins / 60);
+                  if (hours < 24) return `${hours} soat oldin`;
+                  const days = Math.floor(hours / 24);
+                  return `${days} kun oldin`;
+                })();
+                return (
                 <li key={a.id} className="py-3 flex items-center gap-3">
                   <div className={`h-9 w-9 rounded-full flex items-center justify-center text-sm font-semibold ${
-                    a.type === "company" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
-                    a.type === "user" ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
-                    a.type === "upgrade" ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" :
+                    type === "company" ? "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" :
+                    type === "user" ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400" :
+                    type === "upgrade" ? "bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400" :
                     "bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400"
                   }`}>
-                    {a.type === "company" ? <Building className="h-4 w-4" /> :
-                     a.type === "user" ? <Users className="h-4 w-4" /> :
-                     a.type === "upgrade" ? <TrendingUp className="h-4 w-4" /> :
+                    {type === "company" ? <Building className="h-4 w-4" /> :
+                     type === "user" ? <Users className="h-4 w-4" /> :
+                     type === "upgrade" ? <TrendingUp className="h-4 w-4" /> :
                      <Package className="h-4 w-4" />}
                   </div>
                   <div className="flex-1 min-w-0 text-sm">
-                    <span className="font-medium">{a.action}</span>{" "}
-                    <span className="text-muted-foreground truncate">{a.target}</span>
+                    <span className="font-medium">{a.message}</span>
                   </div>
-                  <span className="text-xs text-muted-foreground whitespace-nowrap">{a.time}</span>
+                  <span className="text-xs text-muted-foreground whitespace-nowrap">{timeAgo}</span>
                 </li>
-              ))}
+                );
+              })}
             </ul>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                <Clock className="h-8 w-8 mb-2 opacity-50" />
+                <span className="text-sm">Faollik mavjud emas</span>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
