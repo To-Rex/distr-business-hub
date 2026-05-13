@@ -195,6 +195,8 @@ function AdminUsersPage() {
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -287,6 +289,14 @@ function AdminUsersPage() {
       result = result.filter((user) => user.status === statusFilter);
     }
 
+    // Date range filter
+    if (dateFrom) {
+      result = result.filter((user) => user.createdAt >= dateFrom);
+    }
+    if (dateTo) {
+      result = result.filter((user) => user.createdAt <= dateTo);
+    }
+
     // Sort
     result.sort((a, b) => {
       let aVal = a[sortField];
@@ -304,7 +314,7 @@ function AdminUsersPage() {
     });
 
     return result;
-  }, [users, searchQuery, sortField, sortOrder, companyFilter, roleFilter, statusFilter]);
+  }, [users, searchQuery, sortField, sortOrder, companyFilter, roleFilter, statusFilter, dateFrom, dateTo]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -497,16 +507,20 @@ function AdminUsersPage() {
 
     if (selectedUser) {
       // Edit
-      const editData: Record<string, any> = {
-        username: formData.email!.split("@")[0],
-        email: formData.email,
-        first_name: formData.fullName!.split(" ")[0] || "",
-        last_name: formData.fullName!.split(" ").slice(1).join(" ") || "",
-        phone_number: formData.phone,
-        user_type: userType,
-        user_status: userStatus,
-        company_id: formData.companyId || undefined,
-      };
+      const editData: Record<string, any> = {};
+      if (formData.email) {
+        editData.username = formData.email.split("@")[0];
+        editData.email = formData.email;
+      }
+      if (formData.fullName) {
+        const parts = formData.fullName.split(" ");
+        if (parts[0]) editData.first_name = parts[0];
+        if (parts.slice(1).join(" ")) editData.last_name = parts.slice(1).join(" ");
+      }
+      if (formData.phone) editData.phone_number = formData.phone;
+      if (userType) editData.user_type = userType;
+      if (userStatus) editData.user_status = userStatus;
+      if (formData.companyId) editData.company_id = formData.companyId;
       if (formData.managerId) editData.manager_id = Number(formData.managerId);
       if (formData.password) editData.password = formData.password;
       if (formData.user1cId !== undefined && formData.user1cId !== "")
@@ -857,6 +871,25 @@ function AdminUsersPage() {
                 <SelectItem value="Blokirovka">Blokirovka</SelectItem>
               </SelectContent>
             </Select>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground whitespace-nowrap">Sana:</span>
+              <Input
+                type="date"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+                className="h-9 w-[140px]"
+                placeholder="Dan"
+              />
+              <span className="text-xs text-muted-foreground">—</span>
+              <Input
+                type="date"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+                className="h-9 w-[140px]"
+                placeholder="Gacha"
+              />
+            </div>
 
             <div className="ml-auto">
               <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as ViewMode)}>
