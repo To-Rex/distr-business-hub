@@ -28,6 +28,7 @@ import { Route as AppSalesRouteImport } from './routes/_app/sales'
 import { Route as AppReportsRouteImport } from './routes/_app/reports'
 import { Route as AppProfileRouteImport } from './routes/_app/profile'
 import { Route as AppProductionRouteImport } from './routes/_app/production'
+import { Route as AppOrdersRouteImport } from './routes/_app/orders'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
 import { Route as AppFinanceRouteImport } from './routes/_app/finance'
@@ -129,6 +130,11 @@ const AppProductionRoute = AppProductionRouteImport.update({
   path: '/production',
   getParentRoute: () => AppRoute,
 } as any)
+const AppOrdersRoute = AppOrdersRouteImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
@@ -169,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
   '/notifications': typeof AppNotificationsRoute
+  '/orders': typeof AppOrdersRoute
   '/production': typeof AppProductionRoute
   '/profile': typeof AppProfileRoute
   '/reports': typeof AppReportsRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
   '/notifications': typeof AppNotificationsRoute
+  '/orders': typeof AppOrdersRoute
   '/production': typeof AppProductionRoute
   '/profile': typeof AppProfileRoute
   '/reports': typeof AppReportsRoute
@@ -223,6 +231,7 @@ export interface FileRoutesById {
   '/_app/finance': typeof AppFinanceRoute
   '/_app/live-map': typeof AppLiveMapRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/orders': typeof AppOrdersRoute
   '/_app/production': typeof AppProductionRoute
   '/_app/profile': typeof AppProfileRoute
   '/_app/reports': typeof AppReportsRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/live-map'
     | '/notifications'
+    | '/orders'
     | '/production'
     | '/profile'
     | '/reports'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/finance'
     | '/live-map'
     | '/notifications'
+    | '/orders'
     | '/production'
     | '/profile'
     | '/reports'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/_app/finance'
     | '/_app/live-map'
     | '/_app/notifications'
+    | '/_app/orders'
     | '/_app/production'
     | '/_app/profile'
     | '/_app/reports'
@@ -472,6 +484,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProductionRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/orders': {
+      id: '/_app/orders'
+      path: '/orders'
+      fullPath: '/orders'
+      preLoaderRoute: typeof AppOrdersRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/notifications': {
       id: '/_app/notifications'
       path: '/notifications'
@@ -524,6 +543,7 @@ interface AppRouteChildren {
   AppFinanceRoute: typeof AppFinanceRoute
   AppLiveMapRoute: typeof AppLiveMapRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppOrdersRoute: typeof AppOrdersRoute
   AppProductionRoute: typeof AppProductionRoute
   AppProfileRoute: typeof AppProfileRoute
   AppReportsRoute: typeof AppReportsRoute
@@ -540,6 +560,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppFinanceRoute: AppFinanceRoute,
   AppLiveMapRoute: AppLiveMapRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppOrdersRoute: AppOrdersRoute,
   AppProductionRoute: AppProductionRoute,
   AppProfileRoute: AppProfileRoute,
   AppReportsRoute: AppReportsRoute,
