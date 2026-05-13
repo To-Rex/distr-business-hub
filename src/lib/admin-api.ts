@@ -29,6 +29,7 @@ export type ApiCompany = {
   inn: string;
   base_url: string;
   asl_belgi_token: string;
+  created_at?: string;
 };
 
 export type ApiSecurityKey = {
