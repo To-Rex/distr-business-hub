@@ -19,6 +19,7 @@ import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminNotificationsRouteImport } from './routes/admin/notifications'
 import { Route as AdminMobileAppsRouteImport } from './routes/admin/mobile-apps'
 import { Route as AdminLoginRouteImport } from './routes/admin/login'
+import { Route as AdminDevicesRouteImport } from './routes/admin/devices'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
 import { Route as AppWarehouseRouteImport } from './routes/_app/warehouse'
@@ -83,6 +84,11 @@ const AdminMobileAppsRoute = AdminMobileAppsRouteImport.update({
 const AdminLoginRoute = AdminLoginRouteImport.update({
   id: '/admin/login',
   path: '/admin/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDevicesRoute = AdminDevicesRouteImport.update({
+  id: '/admin/devices',
+  path: '/admin/devices',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminDashboardRoute = AdminDashboardRouteImport.update({
@@ -185,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/warehouse': typeof AppWarehouseRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/mobile-apps': typeof AdminMobileAppsRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -212,6 +219,7 @@ export interface FileRoutesByTo {
   '/warehouse': typeof AppWarehouseRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/mobile-apps': typeof AdminMobileAppsRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -241,6 +249,7 @@ export interface FileRoutesById {
   '/_app/warehouse': typeof AppWarehouseRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
+  '/admin/devices': typeof AdminDevicesRoute
   '/admin/login': typeof AdminLoginRoute
   '/admin/mobile-apps': typeof AdminMobileAppsRoute
   '/admin/notifications': typeof AdminNotificationsRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/warehouse'
     | '/admin/companies'
     | '/admin/dashboard'
+    | '/admin/devices'
     | '/admin/login'
     | '/admin/mobile-apps'
     | '/admin/notifications'
@@ -297,6 +307,7 @@ export interface FileRouteTypes {
     | '/warehouse'
     | '/admin/companies'
     | '/admin/dashboard'
+    | '/admin/devices'
     | '/admin/login'
     | '/admin/mobile-apps'
     | '/admin/notifications'
@@ -325,6 +336,7 @@ export interface FileRouteTypes {
     | '/_app/warehouse'
     | '/admin/companies'
     | '/admin/dashboard'
+    | '/admin/devices'
     | '/admin/login'
     | '/admin/mobile-apps'
     | '/admin/notifications'
@@ -340,6 +352,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   AdminCompaniesRoute: typeof AdminCompaniesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
+  AdminDevicesRoute: typeof AdminDevicesRoute
   AdminLoginRoute: typeof AdminLoginRoute
   AdminMobileAppsRoute: typeof AdminMobileAppsRoute
   AdminNotificationsRoute: typeof AdminNotificationsRoute
@@ -419,6 +432,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/login'
       fullPath: '/admin/login'
       preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/devices': {
+      id: '/admin/devices'
+      path: '/admin/devices'
+      fullPath: '/admin/devices'
+      preLoaderRoute: typeof AdminDevicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/dashboard': {
@@ -578,6 +598,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   AdminCompaniesRoute: AdminCompaniesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
+  AdminDevicesRoute: AdminDevicesRoute,
   AdminLoginRoute: AdminLoginRoute,
   AdminMobileAppsRoute: AdminMobileAppsRoute,
   AdminNotificationsRoute: AdminNotificationsRoute,
