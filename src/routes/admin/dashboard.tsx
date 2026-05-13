@@ -27,14 +27,7 @@ const mockPlatformStats = {
   newUsersThisMonth: 47,
 };
 
-const mockMonthlyGrowth = [
-  { month: "Yan", companies: 120, users: 950, revenue: 38000000 },
-  { month: "Fev", companies: 128, users: 1020, revenue: 40000000 },
-  { month: "Mar", companies: 132, users: 1080, revenue: 41500000 },
-  { month: "Apr", companies: 138, users: 1150, revenue: 43000000 },
-  { month: "May", companies: 145, users: 1200, revenue: 44500000 },
-  { month: "Iyun", companies: 156, users: 1247, revenue: 45800000 },
-];
+const MONTHS_UZ = ["Yan", "Fev", "Mar", "Apr", "May", "Iyun", "Iyul", "Avg", "Sen", "Okt", "Noy", "Dek"];
 
 const mockPlanDistribution = [
   { name: "Starter", value: 45, color: "var(--chart-1)" },
@@ -119,6 +112,23 @@ function AdminDashboard() {
     };
   }, [companies, users]);
 
+  const monthlyGrowth = useMemo(() => {
+    const now = new Date();
+    const months: { month: string; companies: number; users: number; revenue: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const month = MONTHS_UZ[d.getMonth()];
+      const cutoff = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+      months.push({
+        month,
+        companies: companies.filter((c) => !c.created_at || new Date(c.created_at) < cutoff).length,
+        users: users.filter((u) => new Date(u.created_at) < cutoff).length,
+        revenue: 0,
+      });
+    }
+    return months;
+  }, [companies, users]);
+
   if (loading) {
     return (
       <AdminGuard>
@@ -181,7 +191,7 @@ function AdminDashboard() {
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={mockMonthlyGrowth}>
+                <AreaChart data={monthlyGrowth}>
                   <defs>
                     <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.25} />
@@ -229,7 +239,7 @@ function AdminDashboard() {
           <CardContent>
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockMonthlyGrowth}>
+                <BarChart data={monthlyGrowth}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                   <XAxis dataKey="month" stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
                   <YAxis stroke="var(--muted-foreground)" fontSize={11} tickLine={false} axisLine={false} />
