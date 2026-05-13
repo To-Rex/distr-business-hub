@@ -58,6 +58,7 @@ type ApiEndpoints = {
   alembicVersionList: string;
   alembicVersionCreate: string;
   alembicVersionDelete: (versionNum: string) => string;
+  activity: (lang: string) => string;
 };
 
 export const API: ApiEndpoints = {
@@ -130,4 +131,5 @@ export const API: ApiEndpoints = {
   alembicVersionCreate: `${BASE_URL}/v1/admin/alembic-version/create`,
   alembicVersionDelete: (versionNum: string) =>
     `${BASE_URL}/v1/admin/alembic-version/${versionNum}`,
+  activity: (lang: string) => `${BASE_URL}/v1/activity?lang=${lang}`,
 };

@@ -238,6 +238,23 @@ export async function fetchCompany(companyId: number): Promise<ApiCompany> {
   return adminFetch<ApiCompany>(API.companyById(companyId));
 }
 
+export type ActivityItem = {
+  id: number;
+  action: string;
+  message: string;
+  created_at: string;
+};
+
+export type ActivityResponse = {
+  success: boolean;
+  data: ActivityItem[];
+};
+
+export async function fetchActivity(lang: string): Promise<ActivityItem[]> {
+  const res = await adminFetch<ActivityResponse>(API.activity(lang));
+  return res.data;
+}
+
 export type CreateCompanyPayload = {
   name: string;
   inn?: string;
