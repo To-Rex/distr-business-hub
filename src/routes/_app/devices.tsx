@@ -1,22 +1,35 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useAuth } from "@/lib/auth";
+import { API } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, X, Smartphone, Monitor, Tablet, Clock } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Check, Smartphone, Monitor, Tablet, Clock } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_app/devices")({
   component: DevicesPage,
 });
 
-type DeviceStatus = "pending" | "approved" | "rejected";
+type DeviceStatus = "pending" | "approved";
 type DeviceType = "smartphone" | "tablet" | "desktop";
 
+type ApiActivation = {
+  date: string;
+  branch_name: string;
+  user_name: string;
+  id: string;
+  DeviceID: string;
+  registered: boolean;
+  system: string;
+};
+
 type Device = {
-  id: number;
+  id: string;
   name: string;
   model: string;
   type: DeviceType;
@@ -27,14 +40,29 @@ type Device = {
   status: DeviceStatus;
 };
 
-const MOCK_DEVICES: Device[] = [
-  { id: 1, name: "Samsung Galaxy S24", model: "SM-S921B", type: "smartphone", agentName: "Azizbek Karimov", agentCompany: "Smart Retail Group", imei: "352147896541238", registeredAt: "2026-05-10", status: "pending" },
-  { id: 2, name: "iPhone 15 Pro", model: "A3101", type: "smartphone", agentName: "Jamshid Toshmatov", agentCompany: "Hub Logistics", imei: "358214796325147", registeredAt: "2026-05-09", status: "pending" },
-  { id: 3, name: "iPad Air M2", model: "A2904", type: "tablet", agentName: "Dilshod Rahimov", agentCompany: "Distr Savdo", imei: "359871423658214", registeredAt: "2026-05-08", status: "approved" },
-  { id: 4, name: "Xiaomi Redmi Note 13", model: "23021RAAEG", type: "smartphone", agentName: "Bobur Abdullayev", agentCompany: "Tech Distribution", imei: "356987412365874", registeredAt: "2026-05-07", status: "rejected" },
-  { id: 5, name: "HP EliteBook 840", model: "G11", type: "desktop", agentName: "Shahzod Ergashev", agentCompany: "Smart Retail Group", imei: "N/A", registeredAt: "2026-05-06", status: "pending" },
-  { id: 6, name: "Samsung Galaxy Tab S9", model: "SM-X710", type: "tablet", agentName: "Rustam Aliyev", agentCompany: "Hub Logistics", imei: "354712369854712", registeredAt: "2026-05-05", status: "pending" },
-];
+function inferDeviceType(system: string): DeviceType {
+  const s = system.toLowerCase();
+  if (s.includes("ipad")) return "tablet";
+  if (s.includes("ios") || s.includes("iphone")) return "smartphone";
+  if (s.includes("android")) return "smartphone";
+  if (s.includes("windows") || s.includes("mac")) return "desktop";
+  return "smartphone";
+}
+
+function mapApiToDevice(item: ApiActivation): Device {
+  const systemName = item.system || "Noma'lum qurilma";
+  return {
+    id: item.id,
+    name: systemName,
+    model: item.DeviceID ? item.DeviceID.substring(0, 8).toUpperCase() : "—",
+    type: inferDeviceType(item.system),
+    agentName: item.user_name,
+    agentCompany: item.branch_name,
+    imei: item.DeviceID || "—",
+    registeredAt: item.date,
+    status: item.registered ? "approved" : "pending",
+  };
+}
 
 const TYPE_ICONS: Record<DeviceType, typeof Smartphone> = {
   smartphone: Smartphone,
@@ -45,100 +73,146 @@ const TYPE_ICONS: Record<DeviceType, typeof Smartphone> = {
 const STATUS_STYLES: Record<DeviceStatus, string> = {
   pending: "bg-warning/10 text-warning border-warning/20",
   approved: "bg-success/10 text-success border-success/20",
-  rejected: "bg-destructive/10 text-destructive border-destructive/20",
 };
 
 function DevicesPage() {
+  const { user } = useAuth();
   const { t } = useSettings();
-  const [devices, setDevices] = useState<Device[]>(MOCK_DEVICES);
+  const [devices, setDevices] = useState<Device[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [filter, setFilter] = useState<DeviceStatus | "all">("all");
 
-  const filtered = filter === "all" ? devices : devices.filter((d) => d.status === filter);
+  useEffect(() => {
+    const baseUrl = user?.company_rel?.base_url;
+    const login = user?.user_1c_login;
+    const password = user?.user_1c_password;
+    if (!baseUrl || !login || !password) {
+      setLoading(false);
+      setError(true);
+      return;
+    }
 
-  const handleApprove = (id: number) => {
-    setDevices((prev) => prev.map((d) => (d.id === id ? { ...d, status: "approved" as const } : d)));
+    const basic = btoa(`${login}:${password}`);
+
+    fetch(API.activationRequests(baseUrl), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Basic ${basic}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch");
+        return res.json();
+      })
+      .then((json: { data: ApiActivation[] }) => {
+        setDevices((json.data || []).map(mapApiToDevice));
+        setLoading(false);
+      })
+      .catch(() => {
+        setError(true);
+        setLoading(false);
+      });
+  }, [user]);
+
+  const filtered = filter === "all" ? devices : devices.filter((d) => d.status === filter);
+  const pendingCount = devices.filter((d) => d.status === "pending").length;
+
+  const handleApprove = (id: string) => {
+    setDevices((prev) => prev.map((d) => (d.id === id && d.status === "pending" ? { ...d, status: "approved" as const } : d)));
     toast.success(t("deviceApproved"));
   };
-
-  const handleReject = (id: number) => {
-    setDevices((prev) => prev.map((d) => (d.id === id ? { ...d, status: "rejected" as const } : d)));
-    toast.success(t("deviceRejected"));
-  };
-
-  const pendingCount = devices.filter((d) => d.status === "pending").length;
 
   return (
     <>
       <PageHeader title={t("devices")} description={t("devicesDesc")} />
-      <div className="space-y-4">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant={filter === "all" ? "default" : "outline"} size="sm" onClick={() => setFilter("all")}>
-            {t("adminDevicesAll")} <span className="ml-1.5 text-xs opacity-70">({devices.length})</span>
-          </Button>
-          <Button variant={filter === "pending" ? "default" : "outline"} size="sm" onClick={() => setFilter("pending")}>
-            <Clock className="h-3.5 w-3.5 mr-1.5" />
-            {t("adminDevicesPending")} <span className="ml-1.5 text-xs opacity-70">({pendingCount})</span>
-          </Button>
-          <Button variant={filter === "approved" ? "default" : "outline"} size="sm" onClick={() => setFilter("approved")}>
-            <Check className="h-3.5 w-3.5 mr-1.5" />
-            {t("adminDevicesApproved")}
-          </Button>
-          <Button variant={filter === "rejected" ? "default" : "outline"} size="sm" onClick={() => setFilter("rejected")}>
-            <X className="h-3.5 w-3.5 mr-1.5" />
-            {t("adminDevicesRejected")}
-          </Button>
-        </div>
 
-        <div className="grid gap-3">
-          {filtered.map((device) => {
-            const Icon = TYPE_ICONS[device.type];
-            return (
-              <Card key={device.id} className="hover:shadow-sm transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <Icon className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm">{device.name}</span>
-                        <Badge variant="outline" className="text-[10px] font-mono">{device.model}</Badge>
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
-                        <span>{device.agentName}</span>
-                        {device.agentCompany && <span>· {device.agentCompany}</span>}
-                        <span>· IMEI: {device.imei}</span>
-                        <span>· {device.registeredAt}</span>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${STATUS_STYLES[device.status]}`}>
-                        {device.status === "pending" ? t("adminDevicesPending") : device.status === "approved" ? t("adminDevicesApproved") : t("adminDevicesRejected")}
-                      </span>
-                      {device.status === "pending" && (
-                        <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={() => handleApprove(device.id)}>
-                            <Check className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => handleReject(device.id)}>
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
+      {loading ? (
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-10 w-10 rounded-lg" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-3 w-72" />
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div className="text-center py-16 text-muted-foreground">
-              <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-30" />
-              <p>{t("adminDevicesNotFound")}</p>
-            </div>
-          )}
+                  <Skeleton className="h-6 w-20 rounded-md" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
-      </div>
+      ) : error ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-30" />
+          <p>{t("errorTitle")}</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant={filter === "all" ? "default" : "outline"} size="sm" onClick={() => setFilter("all")}>
+              {t("adminDevicesAll")} <span className="ml-1.5 text-xs opacity-70">({devices.length})</span>
+            </Button>
+            <Button variant={filter === "pending" ? "default" : "outline"} size="sm" onClick={() => setFilter("pending")}>
+              <Clock className="h-3.5 w-3.5 mr-1.5" />
+              {t("adminDevicesPending")} <span className="ml-1.5 text-xs opacity-70">({pendingCount})</span>
+            </Button>
+            <Button variant={filter === "approved" ? "default" : "outline"} size="sm" onClick={() => setFilter("approved")}>
+              <Check className="h-3.5 w-3.5 mr-1.5" />
+              {t("adminDevicesApproved")}
+            </Button>
+          </div>
+
+          <div className="grid gap-3">
+            {filtered.map((device) => {
+              const Icon = TYPE_ICONS[device.type];
+              return (
+                <Card key={device.id} className="hover:shadow-sm transition-shadow">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm">{device.name}</span>
+                          <Badge variant="outline" className="text-[10px] font-mono">{device.model}</Badge>
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 text-xs text-muted-foreground flex-wrap">
+                          <span>{device.agentName}</span>
+                          {device.agentCompany && <span>· {device.agentCompany}</span>}
+                          <span>· IMEI: {device.imei}</span>
+                          <span>· {device.registeredAt}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${STATUS_STYLES[device.status]}`}>
+                          {device.status === "pending" ? t("adminDevicesPending") : t("adminDevicesApproved")}
+                        </span>
+                        {device.status === "pending" && (
+                          <div className="flex gap-1">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-success hover:text-success hover:bg-success/10" onClick={() => handleApprove(device.id)}>
+                              <Check className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+            {filtered.length === 0 && (
+              <div className="text-center py-16 text-muted-foreground">
+                <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-30" />
+                <p>{t("adminDevicesNotFound")}</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
