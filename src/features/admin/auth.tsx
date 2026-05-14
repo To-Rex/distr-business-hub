@@ -79,9 +79,11 @@ export function useAdminAuth() {
   }, []);
 
   const logout = useCallback(async () => {
-    await logoutApi();
     window.localStorage.removeItem(ADMIN_AUTH_KEY);
     setSession(null);
+    try {
+      await logoutApi();
+    } catch {}
   }, []);
 
   return {

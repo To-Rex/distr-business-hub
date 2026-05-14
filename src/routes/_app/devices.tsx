@@ -127,7 +127,13 @@ function DevicesPage() {
     return cancel;
   }, [fetchDevices]);
 
-  const filtered = filter === "all" ? devices : devices.filter((d) => d.status === filter);
+  const sorted = filter === "all"
+    ? devices
+    : [...devices].sort((a, b) => {
+        if (filter === "pending") return a.status === "pending" ? -1 : 1;
+        if (filter === "approved") return a.status === "approved" ? -1 : 1;
+        return 0;
+      });
   const pendingCount = devices.filter((d) => d.status === "pending").length;
 
   const handleApprove = (id: string) => {
@@ -214,7 +220,7 @@ function DevicesPage() {
           </div>
 
           <div className="grid gap-3">
-            {filtered.map((device) => {
+            {sorted.map((device) => {
               const Icon = TYPE_ICONS[device.type] || Smartphone;
               return (
                 <Card key={device.id} className="hover:shadow-sm transition-shadow">
@@ -252,7 +258,7 @@ function DevicesPage() {
                 </Card>
               );
             })}
-            {filtered.length === 0 && (
+            {sorted.length === 0 && (
               <div className="text-center py-16 text-muted-foreground">
                 <Smartphone className="h-12 w-12 mx-auto mb-4 opacity-30" />
                 <p>{t("adminDevicesNotFound")}</p>
