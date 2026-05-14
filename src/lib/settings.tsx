@@ -93,6 +93,7 @@ const dict = {
     inProgress: "Jarayonda",
     completed: "Tugallandi",
     delayed: "Kechikkan",
+    shipped: "Yuborilgan",
     // pages
     ordersDesc: "Barcha buyurtmalarni kuzating va boshqaring.",
     ordersPage: "Buyurtmalar",
@@ -560,6 +561,7 @@ const dict = {
     inProgress: "В процессе",
     completed: "Завершено",
     delayed: "Задержано",
+    shipped: "Отправлено",
     ordersDesc: "Отслеживайте и управляйте всеми заказами.",
     ordersPage: "Заказы",
     orderNumber: "Номер заказа",
@@ -1025,6 +1027,7 @@ const dict = {
     inProgress: "In progress",
     completed: "Completed",
     delayed: "Delayed",
+    shipped: "Shipped",
     ordersDesc: "Track and manage all orders.",
     ordersPage: "Orders",
     orderNumber: "Order number",

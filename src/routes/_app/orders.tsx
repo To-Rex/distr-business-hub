@@ -98,10 +98,11 @@ type ApiResponse = {
 
 // ── Normalized status ────────────────────────────────────────────────────────
 
-type NormalStatus = "new" | "pending" | "inProgress" | "delivered" | "cancelled";
+type NormalStatus = "new" | "pending" | "inProgress" | "shipped" | "delivered" | "cancelled" | "unknown";
 
 function normalizeStatus(raw: string): NormalStatus {
   const s = (raw ?? "").toLowerCase();
+  if (s.includes("ship")) return "shipped";
   if (
     s.includes("deliver") ||
     s.includes("yetkazil") ||
@@ -112,7 +113,7 @@ function normalizeStatus(raw: string): NormalStatus {
   if (s.includes("cancel") || s.includes("cencel") || s.includes("bekor") || s.includes("reject")) return "cancelled";
   if (s.includes("new") || s.includes("yangi")) return "new";
   if (s.includes("progress") || s.includes("process") || s.includes("jarayon")) return "inProgress";
-  return "pending";
+  return "unknown";
 }
 
 const STATUS_CONFIG: Record<
@@ -134,6 +135,11 @@ const STATUS_CONFIG: Record<
     icon: Truck,
     labelKey: "inProgress",
   },
+  shipped: {
+    color: "bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-400",
+    icon: Truck,
+    labelKey: "shipped",
+  },
   delivered: {
     color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
     icon: CheckCircle2,
@@ -143,6 +149,11 @@ const STATUS_CONFIG: Record<
     color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
     icon: XCircle,
     labelKey: "cancelled",
+  },
+  unknown: {
+    color: "bg-gray-100 text-gray-800 dark:bg-gray-800/30 dark:text-gray-400",
+    icon: AlertCircle,
+    labelKey: "unknown",
   },
 };
 
@@ -676,8 +687,10 @@ export function OrdersPage() {
                         <SelectItem value="new">{t("new")}</SelectItem>
                         <SelectItem value="pending">{t("pending")}</SelectItem>
                         <SelectItem value="inProgress">{t("inProgress")}</SelectItem>
+                        <SelectItem value="shipped">{t("shipped")}</SelectItem>
                         <SelectItem value="delivered">{t("delivered")}</SelectItem>
                         <SelectItem value="cancelled">{t("cancelled")}</SelectItem>
+                        <SelectItem value="unknown">{t("unknown")}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -952,7 +965,7 @@ export function OrdersPage() {
                       className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium ${cfg.color}`}
                     >
                       <StatusIcon className="h-3 w-3" />
-                      {order.status}
+                      {t(cfg.labelKey as never)}
                     </span>
                     <div className="font-bold text-sm tabular-nums">
                       {fmt(order.summa)}
@@ -1159,7 +1172,7 @@ export function OrdersPage() {
                               className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${cfg.color}`}
                             >
                               <StatusIcon className="h-3 w-3" />
-                              {order.status}
+                              {t(cfg.labelKey as never)}
                             </span>
                           </TableCell>
                         </TableRow>
