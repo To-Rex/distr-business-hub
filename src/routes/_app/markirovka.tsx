@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
 import { useSettings } from "@/lib/settings";
@@ -7,8 +7,16 @@ import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tag, Package, RefreshCw, AlertCircle, Layers, ChevronDown, QrCode, ArrowUpDown, Download } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tag, Package, RefreshCw, AlertCircle, Layers, ChevronDown, QrCode, ArrowUpDown, Download, Search, SlidersHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -55,6 +63,10 @@ function MarkirovkaPage() {
   const [error, setError] = useState(false);
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
   const [selectedProduct, setSelectedProduct] = useState<{ product: ApiProduct; groupName: string } | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [groupFilter, setGroupFilter] = useState<string>("all");
 
   useEffect(() => {
     if (groups.length > 0) {
@@ -144,6 +156,42 @@ function MarkirovkaPage() {
   const totalKirim = groups.reduce((s, g) => s + g.products.reduce((ps, p) => ps + p.kirim, 0), 0);
   const totalChiqim = groups.reduce((s, g) => s + g.products.reduce((ps, p) => ps + p.chiqim, 0), 0);
   const totalQoldiq = groups.reduce((s, g) => s + g.products.reduce((ps, p) => ps + p.OhirgiQoldiq, 0), 0);
+
+  const filteredGroups = useMemo(() => {
+    let filtered = groups;
+    if (groupFilter !== "all") {
+      filtered = filtered.filter((g) => String(g.group_id) === groupFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      filtered = filtered
+        .map((g) => ({
+          ...g,
+          products: g.products.filter(
+            (p) =>
+              String(p.id).includes(q) ||
+              p.name.toLowerCase().includes(q) ||
+              p.mark.toLowerCase().includes(q) ||
+              g.group_name.toLowerCase().includes(q),
+          ),
+        }))
+        .filter((g) => g.products.length > 0);
+    }
+    const dir = sortDir === "asc" ? 1 : -1;
+    return filtered.map((g) => ({
+      ...g,
+      products: [...g.products].sort((a, b) => {
+        switch (sortBy) {
+          case "name": return a.name.localeCompare(b.name) * dir;
+          case "id": return (a.id - b.id) * dir;
+          case "kirim": return (a.kirim - b.kirim) * dir;
+          case "chiqim": return (a.chiqim - b.chiqim) * dir;
+          case "qoldiq": return (a.OhirgiQoldiq - b.OhirgiQoldiq) * dir;
+          default: return 0;
+        }
+      }),
+    }));
+  }, [groups, searchQuery, sortBy, sortDir, groupFilter]);
 
   return (
     <div className="space-y-6">
@@ -254,7 +302,68 @@ function MarkirovkaPage() {
             </Card>
           </div>
 
-          {groups.map((group) => {
+          {/* Search + Sort + Filter */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder={`${t("search")}...`}
+                    className="pl-9"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                  {searchQuery && (
+                    <button onClick={() => setSearchQuery("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+                <Select value={groupFilter} onValueChange={setGroupFilter}>
+                  <SelectTrigger className="w-full sm:w-[180px] h-9">
+                    <SelectValue placeholder={t("markingBatch")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">{t("all")}</SelectItem>
+                    {groups.map((g) => (
+                      <SelectItem key={g.group_id} value={String(g.group_id)}>{g.group_name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-full sm:w-[140px] h-9">
+                    <SelectValue placeholder="Sort" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="name">{t("name")}</SelectItem>
+                    <SelectItem value="id">ID</SelectItem>
+                    <SelectItem value="kirim">Kirim</SelectItem>
+                    <SelectItem value="chiqim">Chiqim</SelectItem>
+                    <SelectItem value="qoldiq">Qoldiq</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                  className="shrink-0 gap-1.5 h-9"
+                >
+                  <ArrowUpDown className="h-3.5 w-3.5" />
+                  {sortDir === "asc" ? "ASC" : "DESC"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {filteredGroups.length === 0 && !loading && (
+            <div className="text-center py-12 text-muted-foreground">
+              <Search className="h-8 w-8 mx-auto mb-3 opacity-30" />
+              <p className="text-sm">{t("noDataFound")}</p>
+            </div>
+          )}
+
+          {filteredGroups.map((group) => {
             const isOpen = expandedGroups.has(group.group_id);
             return (
               <Card key={group.group_id}>
