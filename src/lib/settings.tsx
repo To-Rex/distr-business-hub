@@ -77,6 +77,8 @@ const dict = {
     edit: "Tahrirlash",
     save: "Saqlash",
     cancel: "Bekor qilish",
+    create: "Yaratish",
+    filter: "Filter",
     name: "Ism",
     phone: "Telefon",
     location: "Manzil",
@@ -532,6 +534,8 @@ const dict = {
     edit: "Изменить",
     save: "Сохранить",
     cancel: "Отмена",
+    create: "Создать",
+    filter: "Фильтр",
     name: "Имя",
     phone: "Телефон",
     location: "Локация",
@@ -985,6 +989,8 @@ const dict = {
     edit: "Edit",
     save: "Save",
     cancel: "Cancel",
+    create: "Create",
+    filter: "Filter",
     name: "Name",
     phone: "Phone",
     location: "Location",
@@ -1367,6 +1373,15 @@ const dict = {
     returnLabel: "Returned",
     territoriesLabel: "Territories",
   },
+};
+
+type Key = keyof typeof dict.uz;
+type Ctx = {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  t: (k: Key) => string;
+  theme: "light" | "dark";
+  setTheme: (t: "light" | "dark") => void;
 };
 
 const C = createContext<Ctx | null>(null);
