@@ -98,7 +98,7 @@ type ApiResponse = {
 
 // ── Normalized status ────────────────────────────────────────────────────────
 
-type NormalStatus = "pending" | "inProgress" | "delivered" | "cancelled";
+type NormalStatus = "new" | "pending" | "inProgress" | "delivered" | "cancelled";
 
 function normalizeStatus(raw: string): NormalStatus {
   const s = (raw ?? "").toLowerCase();
@@ -109,7 +109,8 @@ function normalizeStatus(raw: string): NormalStatus {
     s.includes("success")
   )
     return "delivered";
-  if (s.includes("cancel") || s.includes("bekor") || s.includes("reject")) return "cancelled";
+  if (s.includes("cancel") || s.includes("cencel") || s.includes("bekor") || s.includes("reject")) return "cancelled";
+  if (s.includes("new") || s.includes("yangi")) return "new";
   if (s.includes("progress") || s.includes("process") || s.includes("jarayon")) return "inProgress";
   return "pending";
 }
@@ -118,6 +119,11 @@ const STATUS_CONFIG: Record<
   NormalStatus,
   { color: string; icon: React.ElementType; labelKey: string }
 > = {
+  new: {
+    color: "bg-primary/10 text-primary dark:text-primary",
+    icon: AlertCircle,
+    labelKey: "new",
+  },
   pending: {
     color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400",
     icon: Clock,
@@ -667,6 +673,7 @@ export function OrdersPage() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">{t("all")}</SelectItem>
+                        <SelectItem value="new">{t("new")}</SelectItem>
                         <SelectItem value="pending">{t("pending")}</SelectItem>
                         <SelectItem value="inProgress">{t("inProgress")}</SelectItem>
                         <SelectItem value="delivered">{t("delivered")}</SelectItem>
