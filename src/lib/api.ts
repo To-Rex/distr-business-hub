@@ -1,5 +1,5 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
-//const BASE_URL = "https://distr.mxsoft.uz/api";
+//const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const BASE_URL = "https://distr.mxsoft.uz/api";
 
 if (!BASE_URL) {
   throw new Error("VITE_API_BASE_URL is not defined");
