@@ -25,6 +25,7 @@ import {
   ChevronsRight,
   ClipboardList,
   Smartphone,
+  Tag,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
@@ -127,6 +128,7 @@ export function AppShell() {
         { to: "/finance", label: t("finance"), icon: Wallet },
         { to: "/production", label: t("production"), icon: Factory },
         { to: "/devices", label: t("devices"), icon: Smartphone },
+        { to: "/markirovka", label: t("markirovka"), icon: Tag },
         { to: "/live-map", label: t("liveMap"), icon: MapPin },
       ],
     },
