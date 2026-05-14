@@ -182,6 +182,7 @@ function AdminMobileAppsPage() {
   const { data: apps = [], isLoading } = useQuery({
     queryKey: ["admin-apps"],
     queryFn: () => fetchApps(),
+    refetchOnMount: "always",
   });
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -244,6 +245,7 @@ function AdminMobileAppsPage() {
   const { data: appstoreApps = [], isLoading: appstoreLoading, refetch: refetchAppStoreApps, isFetching: isAppStoreFetching } = useQuery({
     queryKey: ["admin-appstore-apps"],
     queryFn: () => fetchAppStoreApps(),
+    refetchOnMount: "always",
     refetchOnWindowFocus: true,
   });
 
