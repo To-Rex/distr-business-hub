@@ -50,6 +50,7 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/_app/orders")({
   component: OrdersPage,
@@ -208,6 +209,12 @@ export function OrdersPage() {
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setViewMode(isMobile ? "cards" : "table");
+  }, [isMobile]);
+
   const [agentFilter, setAgentFilter] = useState<string>("all");
   const [skladFilter, setSkladFilter] = useState<string>("all");
   const [paymentFilter, setPaymentFilter] = useState<string>("all");

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
@@ -74,6 +74,7 @@ import {
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export const Route = createFileRoute("/admin/companies")({
   component: AdminCompaniesPage,
@@ -237,6 +238,12 @@ function AdminCompaniesPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setViewMode(isMobile ? "grid" : "table");
+  }, [isMobile]);
+
   const [sortField, setSortField] = useState<SortField>("id");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [selectedCompany, setSelectedCompany] = useState<ApiCompany | null>(null);

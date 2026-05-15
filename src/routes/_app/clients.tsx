@@ -12,6 +12,7 @@ import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
 import { formatWithSpaces } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   Search,
   ChevronDown,
@@ -124,6 +125,12 @@ function ClientsPage() {
   const [error, setError] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setViewMode(isMobile ? "cards" : "table");
+  }, [isMobile]);
+
   const [sortMode, setSortMode] = useState<SortMode>("name-asc");
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
 
