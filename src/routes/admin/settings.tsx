@@ -13,8 +13,10 @@ import {
   fetchAlembicVersions,
   createAlembicVersion,
   deleteAlembicVersion,
+  fetchDatabaseInfo,
   getAdminToken,
   type ApiSecurityKey,
+  type DatabaseInfoData,
 } from "@/lib/admin-api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,14 +64,12 @@ import {
   Copy,
   Trash2,
   Edit3,
-  Check,
   Clock,
   Server,
   Webhook,
   Mail,
   CreditCard,
-  Download,
-  Upload,
+
   Eye,
   EyeOff,
 } from "lucide-react";
@@ -104,6 +104,11 @@ function AdminSettingsPage() {
   const [newKeyValue, setNewKeyValue] = useState("");
   const [newWebhookUrl, setNewWebhookUrl] = useState("");
   const [showAdminToken, setShowAdminToken] = useState(false);
+
+  const { data: dbInfo, isLoading: isLoadingDbInfo } = useQuery({
+    queryKey: ["admin-database-info"],
+    queryFn: () => fetchDatabaseInfo(),
+  });
 
   const { data: companies = [] } = useQuery({
     queryKey: ["admin-companies"],
@@ -191,9 +196,17 @@ function AdminSettingsPage() {
     dateFormat: "DD.MM.YYYY",
     pushNotifications: true,
     emailNotifications: true,
-    sessionTimeout: "8",
-    maxLoginAttempts: "5",
   });
+
+  const [securitySettings, setSecuritySettings] = useState(() => ({
+    sessionTimeout: localStorage.getItem("admin_session_timeout") || "8",
+    maxLoginAttempts: localStorage.getItem("admin_max_login_attempts") || "5",
+  }));
+
+  const updateSecuritySetting = (key: string, value: string) => {
+    setSecuritySettings((prev) => ({ ...prev, [key]: value }));
+    localStorage.setItem(`admin_${key}`, value);
+  };
 
   const handleCopyKey = (key: string) => {
     navigator.clipboard.writeText(key);
@@ -251,42 +264,10 @@ function AdminSettingsPage() {
     toast.success("Webhook o'chirildi");
   };
 
-  const handleSaveGeneralSettings = () => {
-    toast.success("Sozlamalar saqlandi");
-  };
-
-  const handleExportSettings = () => {
-    const data = JSON.stringify({ generalSettings, webhooks }, null, 2);
-    const blob = new Blob([data], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "admin-settings-export.json";
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Sozlamalar eksport qilindi");
-  };
-
   return (
     <AdminGuard>
       <AdminLayout title={t("adminSettings")} subtitle={t("adminSettingsSubtitle")}>
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={handleExportSettings}>
-                <Download className="h-4 w-4 mr-2" />
-                {t("export")}
-              </Button>
-              <Button variant="outline" size="sm">
-                <Upload className="h-4 w-4 mr-2" />
-                {t("import")}
-              </Button>
-            </div>
-            <Button size="sm" onClick={handleSaveGeneralSettings}>
-              <Check className="h-4 w-4 mr-2" />
-              {t("saveAll")}
-            </Button>
-          </div>
 
            <Tabs defaultValue="general" className="space-y-6">
              <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid lg:grid-cols-3">
@@ -437,10 +418,8 @@ function AdminSettingsPage() {
                     <div className="space-y-2">
                       <Label htmlFor="sessionTimeout">{t("sessionTimeout")}</Label>
                       <Select
-                        value={generalSettings.sessionTimeout}
-                        onValueChange={(value) =>
-                          setGeneralSettings({ ...generalSettings, sessionTimeout: value })
-                        }
+                        value={securitySettings.sessionTimeout}
+                        onValueChange={(value) => updateSecuritySetting("sessionTimeout", value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -456,10 +435,8 @@ function AdminSettingsPage() {
                     <div className="space-y-2">
                       <Label htmlFor="maxLoginAttempts">{t("maxLoginAttempts")}</Label>
                       <Select
-                        value={generalSettings.maxLoginAttempts}
-                        onValueChange={(value) =>
-                          setGeneralSettings({ ...generalSettings, maxLoginAttempts: value })
-                        }
+                        value={securitySettings.maxLoginAttempts}
+                        onValueChange={(value) => updateSecuritySetting("maxLoginAttempts", value)}
                       >
                         <SelectTrigger>
                           <SelectValue />
@@ -759,7 +736,7 @@ function AdminSettingsPage() {
                  </CardContent>
                </Card>
 
-              <Card>
+               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Server className="h-5 w-5" />
@@ -768,24 +745,114 @@ function AdminSettingsPage() {
                   <CardDescription>{t("databaseInfoDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-lg border bg-card">
-                      <p className="text-sm text-muted-foreground">{t("dbSize")}</p>
-                      <p className="text-2xl font-bold mt-1">2.4 GB</p>
+                  {isLoadingDbInfo ? (
+                    <div className="flex items-center justify-center p-8">
+                      <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <p className="text-sm text-muted-foreground">{t("tables")}</p>
-                      <p className="text-2xl font-bold mt-1">42</p>
+                  ) : dbInfo ? (
+                    <div className="space-y-6">
+                      {/* Summary cards */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className="p-4 rounded-lg border bg-card">
+                          <p className="text-sm text-muted-foreground">{t("dbSize")}</p>
+                          <p className="text-2xl font-bold mt-1">{dbInfo.database_size}</p>
+                        </div>
+                        <div className="p-4 rounded-lg border bg-card">
+                          <p className="text-sm text-muted-foreground">{t("tables")}</p>
+                          <p className="text-2xl font-bold mt-1">{dbInfo.total_tables}</p>
+                        </div>
+                        <div className="p-4 rounded-lg border bg-card">
+                          <p className="text-sm text-muted-foreground">{t("connections")}</p>
+                          <p className="text-2xl font-bold mt-1">{dbInfo.active_connections} / {dbInfo.max_connections}</p>
+                        </div>
+                        <div className="p-4 rounded-lg border bg-card">
+                          <p className="text-sm text-muted-foreground">{t("uptime")}</p>
+                          <p className="text-2xl font-bold mt-1">{dbInfo.server_uptime}</p>
+                        </div>
+                      </div>
+
+                      {/* Server details */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-3 rounded-lg border bg-card">
+                          <p className="text-xs text-muted-foreground">Database nomi</p>
+                          <p className="text-sm font-medium">{dbInfo.database_name}</p>
+                        </div>
+                        <div className="p-3 rounded-lg border bg-card">
+                          <p className="text-xs text-muted-foreground">Server versiyasi</p>
+                          <p className="text-sm font-medium">{dbInfo.server_version}</p>
+                        </div>
+                        <div className="p-3 rounded-lg border bg-card">
+                          <p className="text-xs text-muted-foreground">Cache hit ratio</p>
+                          <p className="text-sm font-medium">{dbInfo.cache_hit_ratio}%</p>
+                        </div>
+                      </div>
+
+                      {/* Connections table */}
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2">Ulanishlar ({dbInfo.connections.length})</h4>
+                        <div className="max-h-48 overflow-y-auto border rounded-lg">
+                          <table className="w-full text-xs">
+                            <thead className="bg-muted/50 sticky top-0">
+                              <tr>
+                                <th className="text-left p-2 font-medium">PID</th>
+                                <th className="text-left p-2 font-medium">Username</th>
+                                <th className="text-left p-2 font-medium">Application</th>
+                                <th className="text-left p-2 font-medium">State</th>
+                                <th className="text-left p-2 font-medium">Query</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dbInfo.connections.map((conn) => (
+                                <tr key={conn.pid} className="border-t">
+                                  <td className="p-2 font-mono">{conn.pid}</td>
+                                  <td className="p-2">{conn.username || "—"}</td>
+                                  <td className="p-2">{conn.application_name || "—"}</td>
+                                  <td className="p-2">{conn.state || "—"}</td>
+                                  <td className="p-2 max-w-[200px] truncate">{conn.query || "—"}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      {/* Tables list */}
+                      <div>
+                        <h4 className="text-sm font-semibold mb-2">Jadvallar ({dbInfo.tables.length})</h4>
+                        <div className="max-h-64 overflow-y-auto border rounded-lg">
+                          <table className="w-full text-xs">
+                            <thead className="bg-muted/50 sticky top-0">
+                              <tr>
+                                <th className="text-left p-2 font-medium">#</th>
+                                <th className="text-left p-2 font-medium">Table nomi</th>
+                                <th className="text-right p-2 font-medium">Qatorlar</th>
+                                <th className="text-right p-2 font-medium">Umumiy</th>
+                                <th className="text-right p-2 font-medium">Table</th>
+                                <th className="text-right p-2 font-medium">Index</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {dbInfo.tables.map((tbl, i) => (
+                                <tr key={tbl.table_name} className="border-t">
+                                  <td className="p-2 text-muted-foreground">{i + 1}</td>
+                                  <td className="p-2 font-medium">{tbl.table_name}</td>
+                                  <td className="p-2 text-right">{tbl.row_count.toLocaleString()}</td>
+                                  <td className="p-2 text-right">{tbl.total_size}</td>
+                                  <td className="p-2 text-right">{tbl.table_size}</td>
+                                  <td className="p-2 text-right">{tbl.index_size}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <p className="text-sm text-muted-foreground">{t("connections")}</p>
-                      <p className="text-2xl font-bold mt-1">12 / 100</p>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Server className="h-10 w-10 mx-auto mb-2 opacity-50" />
+                      <p>Ma'lumotlar bazasi ma'lumotlari yuklanmadi</p>
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <p className="text-sm text-muted-foreground">{t("uptime")}</p>
-                      <p className="text-2xl font-bold mt-1">99.9%</p>
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
                </Card>
              </TabsContent>

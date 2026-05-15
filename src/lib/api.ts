@@ -58,6 +58,7 @@ type ApiEndpoints = {
   userManagerCreate: string;
   userManagerById: (id: number) => string;
   systemMonitor: string;
+  databaseInfo: string;
   alembicVersionList: string;
   alembicVersionCreate: string;
   alembicVersionDelete: (versionNum: string) => string;
@@ -136,6 +137,7 @@ export const API: ApiEndpoints = {
   userManagerCreate: `${BASE_URL}/v1/user-manager/create`,
   userManagerById: (id: number) => `${BASE_URL}/v1/user-manager/${id}`,
   systemMonitor: `${BASE_URL}/v1/system-monitor/`,
+  databaseInfo: `${BASE_URL}/v1/system-monitor/database`,
   alembicVersionList: `${BASE_URL}/v1/admin/alembic-version/list`,
   alembicVersionCreate: `${BASE_URL}/v1/admin/alembic-version/create`,
   alembicVersionDelete: (versionNum: string) =>
