@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { createFileRoute } from "@tanstack/react-router";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
@@ -123,6 +124,7 @@ import {
   Trash2,
   Edit,
   Eye,
+  EyeOff,
   Shield,
   Building,
   Calendar,
@@ -198,6 +200,12 @@ function AdminUsersPage() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setViewMode(isMobile ? "card" : "table");
+  }, [isMobile]);
+
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -222,6 +230,8 @@ function AdminUsersPage() {
     permissions: [],
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [show1cPassword, setShow1cPassword] = useState(false);
+  const [showView1cPassword, setShowView1cPassword] = useState(false);
 
   const managers = useMemo(() => {
     return apiUsers.filter((u) => u.user_type === "MANAGER" || u.user_type === "SUPERVISOR");
@@ -542,6 +552,11 @@ function AdminUsersPage() {
         ...(formData.companyId ? { company_id: Number(formData.companyId) } : {}),
         ...(formData.photoUrl ? { photo: formData.photoUrl } : {}),
         ...(formData.managerId ? { manager_id: Number(formData.managerId) } : {}),
+        ...(formData.user1cId !== undefined && formData.user1cId !== ""
+          ? { user_1c_id: Number(formData.user1cId) }
+          : {}),
+        ...(formData.user1cLogin ? { user_1c_login: formData.user1cLogin } : {}),
+        ...(formData.user1cPassword ? { user_1c_password: formData.user1cPassword } : {}),
       };
       createMutation.mutate(payload);
     }
@@ -1112,7 +1127,7 @@ function AdminUsersPage() {
 
         {/* View User Dialog */}
         <Dialog open={isViewDialogOpen} onOpenChange={setIsViewDialogOpen}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto sm:max-w-[95vw] md:max-w-3xl">
             <DialogHeader className="pb-2">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -1156,179 +1171,97 @@ function AdminUsersPage() {
                       </div>
                     </div>
 
-                    {/* Personal info */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-primary" />
-                          <CardTitle className="text-sm font-semibold">
-                            Shaxsiy ma'lumotlar
-                          </CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Username</p>
-                            <p className="text-sm font-medium">{apiUser?.username || "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Email</p>
-                            <p className="text-sm font-medium">{selectedUser.email}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Telefon</p>
-                            <p className="text-sm font-medium">{selectedUser.phone || "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Manzil</p>
-                            <p className="text-sm font-medium">{selectedUser.address || "—"}</p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Account info */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-primary" />
-                          <CardTitle className="text-sm font-semibold">
-                            Hisob ma'lumotlari
-                          </CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Rol</p>
-                            <p className="text-sm font-medium">{selectedUser.role}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Holat</p>
-                            <p className="text-sm font-medium">{selectedUser.status}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Kompaniya</p>
-                            <p className="text-sm font-medium">{selectedUser.companyName || "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Bo'lim</p>
-                            <p className="text-sm font-medium">{selectedUser.department || "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Ro'yxatdan o'tgan</p>
-                            <p className="text-sm font-medium">{selectedUser.createdAt}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">2FA</p>
-                            <div className="flex items-center gap-2">
-                              {selectedUser.twoFactorEnabled ? (
-                                <>
-                                  <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                  <span className="text-sm font-medium">Yoqilgan</span>
-                                </>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Username</p>
+                        <p className="font-medium">{apiUser?.username || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="font-medium">{selectedUser.email}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Telefon</p>
+                        <p className="font-medium">{selectedUser.phone || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Manzil</p>
+                        <p className="font-medium">{selectedUser.address || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Rol</p>
+                        <p className="font-medium">{selectedUser.role}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Holat</p>
+                        <p className="font-medium">{selectedUser.status}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Kompaniya</p>
+                        <p className="font-medium">{selectedUser.companyName || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Bo'lim</p>
+                        <p className="font-medium">{selectedUser.department || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Ro'yxatdan o'tgan</p>
+                        <p className="font-medium">{selectedUser.createdAt}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Manager ID</p>
+                        <p className="font-medium">{apiUser?.manager_id ?? "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Manager</p>
+                        <p className="font-medium">
+                          {apiUser?.manager
+                            ? `${apiUser.manager.first_name} ${apiUser.manager.last_name}`
+                            : "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Manager kompaniyasi</p>
+                        <p className="font-medium">
+                          {apiUser?.manager?.company_rel?.name || "—"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">1C ID</p>
+                        <p className="font-medium">{apiUser?.user_1c_id ?? "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">1C Login</p>
+                        <p className="font-medium">{apiUser?.user_1c_login || "—"}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">1C Password</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-medium">
+                            {apiUser?.user_1c_password
+                              ? showView1cPassword
+                                ? apiUser.user_1c_password
+                                : "••••••••"
+                              : "—"}
+                          </p>
+                          {apiUser?.user_1c_password && (
+                            <button
+                              type="button"
+                              onClick={() => setShowView1cPassword(!showView1cPassword)}
+                              className="text-muted-foreground hover:text-foreground transition-colors"
+                              tabIndex={-1}
+                            >
+                              {showView1cPassword ? (
+                                <EyeOff className="h-3.5 w-3.5" />
                               ) : (
-                                <>
-                                  <XCircle className="h-4 w-4 text-red-600" />
-                                  <span className="text-sm font-medium">O'chirilgan</span>
-                                </>
+                                <Eye className="h-3.5 w-3.5" />
                               )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Manager info */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-primary" />
-                          <CardTitle className="text-sm font-semibold">Manager</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Manager ID</p>
-                            <p className="text-sm font-medium">{apiUser?.manager_id ?? "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Manager nomi</p>
-                            <p className="text-sm font-medium">
-                              {apiUser?.manager
-                                ? `${apiUser.manager.first_name} ${apiUser.manager.last_name}`
-                                : "—"}
-                            </p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">Manager kompaniyasi</p>
-                            <p className="text-sm font-medium">
-                              {apiUser?.manager?.company_rel?.name || "—"}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* 1C Integration */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Database className="h-4 w-4 text-primary" />
-                          <CardTitle className="text-sm font-semibold">1C integratsiyasi</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-3 gap-x-8 gap-y-4">
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">1C ID</p>
-                            <p className="text-sm font-medium">{apiUser?.user_1c_id ?? "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">1C Login</p>
-                            <p className="text-sm font-medium">{apiUser?.user_1c_login || "—"}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <p className="text-xs text-muted-foreground">1C Password</p>
-                            <p className="text-sm font-medium">
-                              {apiUser?.user_1c_password ? "••••••••" : "—"}
-                            </p>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-
-                    {/* Permissions */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center gap-2">
-                          <Shield className="h-4 w-4 text-primary" />
-                          <CardTitle className="text-sm font-semibold">Ruxsatnomalar</CardTitle>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedUser.permissions.length === 0 ? (
-                            <span className="text-sm text-muted-foreground">
-                              Ruxsatnomalar mavjud emas
-                            </span>
-                          ) : selectedUser.permissions.includes("all") ? (
-                            <Badge variant="destructive">Barcha ruxsatnomalar</Badge>
-                          ) : (
-                            selectedUser.permissions.map((perm) => {
-                              const label = availablePermissions.find((p) => p.id === perm);
-                              return label ? (
-                                <Badge key={perm} variant="outline">
-                                  {label.label}
-                                </Badge>
-                              ) : null;
-                            })
+                            </button>
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
+
                   </div>
                 );
               })()}
@@ -1722,16 +1655,26 @@ function AdminUsersPage() {
                         <Label htmlFor="user1cPassword" className="text-xs font-medium">
                           1C Password
                         </Label>
-                        <Input
-                          id="user1cPassword"
-                          type="password"
-                          value={formData.user1cPassword || ""}
-                          onChange={(e) =>
-                            setFormData({ ...formData, user1cPassword: e.target.value })
-                          }
-                          placeholder="1C parol"
-                          className="h-9"
-                        />
+                        <div className="relative">
+                          <Input
+                            id="user1cPassword"
+                            type={show1cPassword ? "text" : "password"}
+                            value={formData.user1cPassword || ""}
+                            onChange={(e) =>
+                              setFormData({ ...formData, user1cPassword: e.target.value })
+                            }
+                            placeholder="1C parol"
+                            className="h-9 pr-10"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShow1cPassword(!show1cPassword)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            tabIndex={-1}
+                          >
+                            {show1cPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
