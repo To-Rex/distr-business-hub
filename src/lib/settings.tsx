@@ -320,7 +320,7 @@ const dict = {
     adminUsers: "Foydalanuvchilar",
     adminUsersSubtitle: "Tizimga kirgan foydalanuvchilar ro'yxati",
     adminCompanies: "Companiyalar",
-    adminCompaniesSubtitle: "Platformadagi kompaniyalar ro'yxati (mock)",
+    adminCompaniesSubtitle: "Platformadagi kompaniyalar ro'yxati",
     adminMobileApps: "Mobil ilovalar",
     adminMobileAppsSubtitle: "Admin nazorati ostidagi ilovalar",
     adminDevices: "Qurilmalar",
