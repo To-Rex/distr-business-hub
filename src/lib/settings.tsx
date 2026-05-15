@@ -318,7 +318,7 @@ const dict = {
     adminDashboard: "Boshqaruv paneli",
     adminDashboardSubtitle: "Platforma statistikasi va tahlillar",
     adminUsers: "Foydalanuvchilar",
-    adminUsersSubtitle: "Tizimga kirgan foydalanuvchilar ro'yxati (mock)",
+    adminUsersSubtitle: "Tizimga kirgan foydalanuvchilar ro'yxati",
     adminCompanies: "Companiyalar",
     adminCompaniesSubtitle: "Platformadagi kompaniyalar ro'yxati (mock)",
     adminMobileApps: "Mobil ilovalar",
