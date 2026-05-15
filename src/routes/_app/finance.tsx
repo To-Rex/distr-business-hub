@@ -209,7 +209,7 @@ function FinancePage() {
   const pieColors = ["#2563eb", "#16a34a", "#f59e0b", "#db2777", "#06b6d4", "#7c3aed", "#ef4444"];
 
   return (
-    <div>
+    <div className="relative">
       <PageHeader title={t("finance")} description={t("financeDesc")} />
       <Card className="p-4 mb-6">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -483,6 +483,11 @@ function FinancePage() {
       )}
         </>
       )}
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[2px]">
+        <div className="rounded-2xl border border-white/30 bg-white/15 px-8 py-5 shadow-lg">
+          <span className="text-3xl font-semibold tracking-wide text-foreground">{t("comingSoon")}</span>
+        </div>
+      </div>
     </div>
   );
 }
