@@ -665,3 +665,37 @@ export async function createAlembicVersion(data: CreateAlembicVersionPayload): P
 export async function fetchUserLocationHistory(userId: number): Promise<ApiLocationHistory[]> {
   return adminFetch<ApiLocationHistory[]>(API.userHistory(userId));
 }
+
+export type DatabaseInfoData = {
+  database_name: string;
+  database_size: string;
+  database_size_bytes: number;
+  server_version: string;
+  server_uptime: string;
+  server_uptime_seconds: number;
+  active_connections: number;
+  max_connections: number;
+  current_transactions: number;
+  cache_hit_ratio: number;
+  total_tables: number;
+  connections: {
+    pid: number;
+    username: string | null;
+    application_name: string;
+    client_address: string | null;
+    state: string | null;
+    query: string;
+    connected_seconds: number | null;
+  }[];
+  tables: {
+    table_name: string;
+    row_count: number;
+    total_size: string;
+    table_size: string;
+    index_size: string;
+  }[];
+};
+
+export async function fetchDatabaseInfo(): Promise<DatabaseInfoData> {
+  return adminFetch<DatabaseInfoData>(API.databaseInfo);
+}
