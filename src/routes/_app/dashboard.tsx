@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSettings } from "@/lib/settings";
-import { formatWithSpaces } from "@/lib/utils";
+import { formatWithSpaces, getProxiedImageUrl } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
 import {
@@ -309,7 +309,7 @@ function ProductRow({ product, colorIndex }: { product: SaleProduct; colorIndex:
       <div className="flex items-center gap-3 min-w-0 flex-1">
         <div className="h-8 w-8 rounded-lg bg-muted flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0 overflow-hidden">
           {product.product_photo_url ? (
-            <img src={product.product_photo_url} alt="" className="w-full h-full object-cover rounded-lg" />
+            <img src={getProxiedImageUrl(product.product_photo_url)} alt="" className="w-full h-full object-cover rounded-lg" />
           ) : (
             product.product_name?.[0] || "?"
           )}
