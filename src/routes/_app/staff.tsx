@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { API } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -78,6 +79,12 @@ function StaffPage() {
   const [selectedEmployee, setSelectedEmployee] = useState<StaffMember | null>(null);
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setViewMode(isMobile ? "cards" : "table");
+  }, [isMobile]);
+
   const [sortMode, setSortMode] = useState<SortMode>("name-asc");
 
   const toggleStatus = (employee: StaffMember, e: React.MouseEvent) => {

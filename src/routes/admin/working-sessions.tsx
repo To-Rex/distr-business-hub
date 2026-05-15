@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
@@ -38,6 +38,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSettings } from "@/lib/settings";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   Clock,
   Smartphone,
@@ -45,10 +47,13 @@ import {
   ChevronDown,
   ChevronUp,
   Eye,
+  EyeOff,
   Monitor,
   TestTube,
   Calendar,
   X,
+  LayoutGrid,
+  Rows3,
 } from "lucide-react";
 
 export const Route = createFileRoute("/admin/working-sessions")({
@@ -76,6 +81,13 @@ function AdminWorkingSessionsPage() {
     queryKey: ["admin-working-sessions"],
     queryFn: () => fetchWorkingSessions(),
   });
+
+  const [viewMode, setViewMode] = useState<"table" | "cards">("table");
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setViewMode(isMobile ? "cards" : "table");
+  }, [isMobile]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [userFilter, setUserFilter] = useState<string>("all");
@@ -290,11 +302,65 @@ function AdminWorkingSessionsPage() {
             <div className="text-sm text-muted-foreground flex items-center gap-2">
               {t("total")}: {filteredAndSorted.length} {t("sessions")}
             </div>
+            <ToggleGroup type="single" value={viewMode} onValueChange={(v) => { if (v) setViewMode(v as "table" | "cards"); }} className="hidden sm:flex">
+              <ToggleGroupItem value="table" aria-label="Table view">
+                <Rows3 className="h-4 w-4" />
+              </ToggleGroupItem>
+              <ToggleGroupItem value="cards" aria-label="Cards view">
+                <LayoutGrid className="h-4 w-4" />
+              </ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </div>
 
         <Card>
           <CardContent className="pt-6">
+            {viewMode === "cards" ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filteredAndSorted.map((session) => (
+                  <div key={session.id} className="rounded-xl border bg-card p-4 space-y-3 transition-all hover:shadow-md">
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-xs text-muted-foreground">#{session.id}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleView(session)}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("sessionTime")}</p>
+                      <div className="flex items-center gap-1.5 text-sm font-medium">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        {formatDate(session.session)}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("device")}</p>
+                      <div className="flex items-center gap-1.5 text-sm">
+                        <Smartphone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        {session.device_name || "—"}
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <Badge variant="outline" className="text-xs">{session.app}</Badge>
+                      {session.is_testing ? (
+                        <Badge variant="secondary" className="text-xs">
+                          <TestTube className="h-3 w-3 mr-1" />
+                          Test
+                        </Badge>
+                      ) : (
+                        <Badge variant="default" className="text-xs">{t("active")}</Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t("created")}: {formatDate(session.created_at)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <Table>
                <TableHeader>
                  <TableRow>
@@ -384,7 +450,7 @@ function AdminWorkingSessionsPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleView(session)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 max-sm:opacity-100 transition-opacity"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -393,9 +459,10 @@ function AdminWorkingSessionsPage() {
                 ))}
               </TableBody>
             </Table>
+            )}
             {filteredAndSorted.length === 0 && (
               <div className="text-center py-12 text-muted-foreground">
-                <Monitor className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <Monitor className="h-12 w-12 mx-auto mb-2 opacity-50" />
                 <p>{t("noSessionsFound")}</p>
               </div>
             )}

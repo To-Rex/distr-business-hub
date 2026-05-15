@@ -272,7 +272,7 @@ export function AppShell() {
 
   return (
     <TooltipProvider>
-      <div className="min-h-screen flex bg-background">
+      <div className="h-screen flex overflow-hidden bg-background">
         <aside
           className={`hidden lg:flex ${sidebarWidth} flex-col border-r bg-sidebar fixed inset-y-0 left-0 transition-all duration-300`}
         >
@@ -398,7 +398,7 @@ export function AppShell() {
               </Link>
             </div>
           </header>
-          <main className="flex-1 p-4 lg:p-8 animate-fade-in" key={path}>
+          <main className="flex-1 p-4 lg:p-8 overflow-y-auto min-h-0 animate-fade-in" key={path}>
             <Outlet />
           </main>
         </div>

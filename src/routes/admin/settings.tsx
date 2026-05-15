@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
 import { useSettings } from "@/lib/settings";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   fetchCompanies,
   fetchSecurityKeys,
@@ -96,6 +97,7 @@ export const Route = createFileRoute("/admin/settings")({
 function AdminSettingsPage() {
   const { t } = useSettings();
   const queryClient = useQueryClient();
+  const isMobile = useIsMobile();
   const [webhooks, setWebhooks] = useState(initialWebhooks);
   const [showKey, setShowKey] = useState<Record<number, boolean>>({});
   const [isAddKeyDialogOpen, setIsAddKeyDialogOpen] = useState(false);
@@ -270,7 +272,7 @@ function AdminSettingsPage() {
         <div className="space-y-6">
 
            <Tabs defaultValue="general" className="space-y-6">
-             <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid lg:grid-cols-3">
+             <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
                <TabsTrigger value="general" className="gap-2">
                  <Shield className="h-4 w-4" />
                  <span className="hidden sm:inline">{t("general")}</span>
@@ -515,7 +517,49 @@ function AdminSettingsPage() {
                     <div className="flex items-center justify-center p-8">
                       <div className="h-6 w-6 animate-spin rounded-full border-4 border-primary border-t-transparent" />
                     </div>
-                  ) : (
+                   ) : isMobile ? (
+                     <div className="space-y-3">
+                       {allSecurityKeys.map((key) => (
+                         <div key={key.id} className="rounded-lg border bg-card p-4 space-y-2">
+                           <div className="flex items-center justify-between">
+                             <span className="font-mono text-xs text-muted-foreground">#{key.id}</span>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               className="h-8 w-8 text-destructive shrink-0"
+                               onClick={() => handleDeleteSecurityKey(key.id)}
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </div>
+                           <p className="text-sm font-medium">{key.company_name || `#${key.company_id}`}</p>
+                           <div className="flex items-center gap-2 font-mono text-xs bg-muted/50 rounded p-2 break-all">
+                             <span className="flex-1 min-w-0">
+                               {showKey[key.id]
+                                 ? key.key
+                                 : key.key.length > 20 ? key.key.slice(0, 8) + "••••" + key.key.slice(-4) : key.key}
+                             </span>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               className="h-6 w-6 shrink-0"
+                               onClick={() => handleToggleKeyVisibility(key.id)}
+                             >
+                               {showKey[key.id] ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                             </Button>
+                             <Button
+                               variant="ghost"
+                               size="icon"
+                               className="h-6 w-6 shrink-0"
+                               onClick={() => handleCopyKey(key.key)}
+                             >
+                               <Copy className="h-3 w-3" />
+                             </Button>
+                           </div>
+                         </div>
+                       ))}
+                     </div>
+                   ) : (
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -567,7 +611,7 @@ function AdminSettingsPage() {
                         ))}
                       </TableBody>
                     </Table>
-                  )}
+                   )}
                    {allSecurityKeys.length === 0 && !isLoadingKeys && (
                      <div className="text-center py-8 text-muted-foreground">
                        <Key className="h-10 w-10 mx-auto mb-2 opacity-50" />
@@ -588,18 +632,19 @@ function AdminSettingsPage() {
                  <CardContent>
                    {(() => {
                      const token = getAdminToken();
-                     return (
-                       <div className="flex items-center gap-3">
-                         <Input
-                           readOnly
-                           value={token || "Token topilmadi"}
-                           className="font-mono text-sm"
-                           type={showAdminToken ? "text" : "password"}
-                         />
-                         <Button
-                           variant="ghost"
-                           size="icon"
-                           className="h-10 w-10"
+                      return (
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                          <Input
+                            readOnly
+                            value={token || "Token topilmadi"}
+                            className="font-mono text-sm"
+                            type={showAdminToken ? "text" : "password"}
+                          />
+                          <div className="flex gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-10 w-10 shrink-0"
                            onClick={() => setShowAdminToken(!showAdminToken)}
                          >
                            {showAdminToken ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -615,9 +660,10 @@ function AdminSettingsPage() {
                              }}
                            >
                              <Copy className="h-4 w-4" />
-                           </Button>
-                         )}
-                       </div>
+                            </Button>
+                          )}
+                          </div>
+                        </div>
                      );
                    })()}
                  </CardContent>
@@ -697,6 +743,24 @@ function AdminSettingsPage() {
                          </Badge>
                        </div>
 
+                        {isMobile ? (
+                          <div className="space-y-2">
+                            {alembicVersions.map((version) => (
+                              <div key={version.version_num} className="flex items-center justify-between rounded-lg border bg-card p-3">
+                                <Badge variant="outline" className="font-mono">{version.version_num}</Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="text-destructive shrink-0"
+                                  onClick={() => deleteAlembicMutation.mutate(version.version_num)}
+                                  disabled={deleteAlembicMutation.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -725,6 +789,7 @@ function AdminSettingsPage() {
                             ))}
                           </TableBody>
                         </Table>
+                        )}
                        {alembicVersions.length === 0 && (
                          <div className="text-center py-8 text-muted-foreground">
                            <Database className="h-10 w-10 mx-auto mb-2 opacity-50" />

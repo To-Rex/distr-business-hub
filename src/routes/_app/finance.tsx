@@ -483,9 +483,9 @@ function FinancePage() {
       )}
         </>
       )}
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/20 backdrop-blur-[2px]">
-        <div className="rounded-2xl border border-white/30 bg-white/15 px-8 py-5 shadow-lg">
-          <span className="text-3xl font-semibold tracking-wide text-foreground">{t("comingSoon")}</span>
+      <div className="absolute inset-0 z-20 flex items-start justify-center pt-32 bg-background/20 backdrop-blur-[2px]">
+        <div className="rounded-2xl px-8 py-5 shadow-lg bg-primary text-primary-foreground">
+          <span className="text-3xl font-semibold tracking-wide">{t("comingSoon")}</span>
         </div>
       </div>
     </div>

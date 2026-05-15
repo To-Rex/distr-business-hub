@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import { useSettings } from "@/lib/settings";
 import { formatWithSpaces } from "@/lib/utils";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   AlertCircle,
   ChevronDown,
@@ -105,6 +106,12 @@ function WarehousePage() {
 
   // ── ui state ──────────────────────────────────────────────────────────────
   const [viewMode, setViewMode] = useState<"cards" | "table">("table");
+  const isMobile = useIsMobile();
+
+  useEffect(() => {
+    setViewMode(isMobile ? "cards" : "table");
+  }, [isMobile]);
+
   const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set());
 
   // ── filters ───────────────────────────────────────────────────────────────
