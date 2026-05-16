@@ -44,6 +44,39 @@ async function fetchHandler(request) {
   const url = new URL(request.url, "http://localhost");
   const method = request.method;
 
+  if (url.pathname === "/proxy-1c") {
+    const encoded = url.searchParams.get("target");
+    if (!encoded) return new Response("Missing target", { status: 400 });
+
+    let targetBase;
+    try {
+      targetBase = decodeURIComponent(encoded);
+    } catch {
+      return new Response("Invalid target", { status: 400 });
+    }
+
+    const path = url.searchParams.get("path") ?? "/";
+    const targetUrl = targetBase.replace(/\/$/, "") + path;
+
+    const headers = new Headers(request.headers);
+    headers.delete("host");
+    headers.delete("connection");
+
+    try {
+      const proxyRes = await fetch(targetUrl, {
+        method: request.method,
+        headers,
+        body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+      });
+      return new Response(proxyRes.body, {
+        status: proxyRes.status,
+        headers: proxyRes.headers,
+      });
+    } catch {
+      return new Response("Proxy error", { status: 502 });
+    }
+  }
+
   // Serve static files from dist/client for GET/HEAD
   if (method === "GET" || method === "HEAD") {
     const filePath = resolve(CLIENT_DIR, url.pathname.slice(1));
