@@ -32,6 +32,7 @@ import { Route as AppProductionRouteImport } from './routes/_app/production'
 import { Route as AppOrdersRouteImport } from './routes/_app/orders'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppMarkirovkaRouteImport } from './routes/_app/markirovka'
+import { Route as AppMarkingOutputRouteImport } from './routes/_app/marking-output'
 import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
 import { Route as AppFinanceRouteImport } from './routes/_app/finance'
 import { Route as AppDevicesRouteImport } from './routes/_app/devices'
@@ -153,6 +154,11 @@ const AppMarkirovkaRoute = AppMarkirovkaRouteImport.update({
   path: '/markirovka',
   getParentRoute: () => AppRoute,
 } as any)
+const AppMarkingOutputRoute = AppMarkingOutputRouteImport.update({
+  id: '/marking-output',
+  path: '/marking-output',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLiveMapRoute = AppLiveMapRouteImport.update({
   id: '/live-map',
   path: '/live-map',
@@ -193,6 +199,7 @@ export interface FileRoutesByFullPath {
   '/devices': typeof AppDevicesRoute
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
+  '/marking-output': typeof AppMarkingOutputRoute
   '/markirovka': typeof AppMarkirovkaRoute
   '/notifications': typeof AppNotificationsRoute
   '/orders': typeof AppOrdersRoute
@@ -223,6 +230,7 @@ export interface FileRoutesByTo {
   '/devices': typeof AppDevicesRoute
   '/finance': typeof AppFinanceRoute
   '/live-map': typeof AppLiveMapRoute
+  '/marking-output': typeof AppMarkingOutputRoute
   '/markirovka': typeof AppMarkirovkaRoute
   '/notifications': typeof AppNotificationsRoute
   '/orders': typeof AppOrdersRoute
@@ -255,6 +263,7 @@ export interface FileRoutesById {
   '/_app/devices': typeof AppDevicesRoute
   '/_app/finance': typeof AppFinanceRoute
   '/_app/live-map': typeof AppLiveMapRoute
+  '/_app/marking-output': typeof AppMarkingOutputRoute
   '/_app/markirovka': typeof AppMarkirovkaRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/orders': typeof AppOrdersRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/devices'
     | '/finance'
     | '/live-map'
+    | '/marking-output'
     | '/markirovka'
     | '/notifications'
     | '/orders'
@@ -317,6 +327,7 @@ export interface FileRouteTypes {
     | '/devices'
     | '/finance'
     | '/live-map'
+    | '/marking-output'
     | '/markirovka'
     | '/notifications'
     | '/orders'
@@ -348,6 +359,7 @@ export interface FileRouteTypes {
     | '/_app/devices'
     | '/_app/finance'
     | '/_app/live-map'
+    | '/_app/marking-output'
     | '/_app/markirovka'
     | '/_app/notifications'
     | '/_app/orders'
@@ -549,6 +561,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppMarkirovkaRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/marking-output': {
+      id: '/_app/marking-output'
+      path: '/marking-output'
+      fullPath: '/marking-output'
+      preLoaderRoute: typeof AppMarkingOutputRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/live-map': {
       id: '/_app/live-map'
       path: '/live-map'
@@ -601,6 +620,7 @@ interface AppRouteChildren {
   AppDevicesRoute: typeof AppDevicesRoute
   AppFinanceRoute: typeof AppFinanceRoute
   AppLiveMapRoute: typeof AppLiveMapRoute
+  AppMarkingOutputRoute: typeof AppMarkingOutputRoute
   AppMarkirovkaRoute: typeof AppMarkirovkaRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppOrdersRoute: typeof AppOrdersRoute
@@ -620,6 +640,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDevicesRoute: AppDevicesRoute,
   AppFinanceRoute: AppFinanceRoute,
   AppLiveMapRoute: AppLiveMapRoute,
+  AppMarkingOutputRoute: AppMarkingOutputRoute,
   AppMarkirovkaRoute: AppMarkirovkaRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppOrdersRoute: AppOrdersRoute,

@@ -26,6 +26,7 @@ import {
   ClipboardList,
   Smartphone,
   Tag,
+  ArrowUpRight,
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/lib/auth";
@@ -129,6 +130,7 @@ export function AppShell() {
         { to: "/production", label: t("production"), icon: Factory },
         { to: "/devices", label: t("devices"), icon: Smartphone },
         { to: "/markirovka", label: t("markirovka"), icon: Tag },
+        { to: "/marking-output", label: t("markirovkaChiqim"), icon: ArrowUpRight },
         { to: "/live-map", label: t("liveMap"), icon: MapPin },
       ],
     },

@@ -25,6 +25,7 @@ type ApiEndpoints = {
   activationRequests: (baseUrl: string) => string;
   activationDevice: (baseUrl: string) => string;
   marksByGroup: (baseUrl: string) => string;
+  invoiceMarksByGroup: (baseUrl: string) => string;
   userManager: string;
   userManagerStatus: (userId: number) => string;
   salesByCategory: (
@@ -93,6 +94,8 @@ export const API: ApiEndpoints = {
     proxied1C(baseUrl, "/hs/manager/api/ActivationDevice"),
   marksByGroup: (baseUrl: string) =>
     proxied1C(baseUrl, "/hs/manager/api/Getmarksbygroup"),
+  invoiceMarksByGroup: (baseUrl: string) =>
+    proxied1C(baseUrl, "/hs/manager/api/GetInvoicemarksbygroup"),
   userManager: `${BASE_URL}/v1/user-manager`,
   userManagerStatus: (userId: number) => `${BASE_URL}/v1/user-manager/${userId}`,
   salesByCategory: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) =>
