@@ -38,6 +38,7 @@ import {
   Table2,
   LayoutGrid,
   Download,
+  ArrowUpDown,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_app/marking-output")({
@@ -79,6 +80,8 @@ function MarkirovkaChiqimPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [groupFilter, setGroupFilter] = useState<string>("all");
   const [view, setView] = useState<"table" | "cards">("table");
+  const [sortBy, setSortBy] = useState<string>("name");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   useEffect(() => {
     if (groups.length > 0) {
@@ -153,8 +156,20 @@ function MarkirovkaChiqimPage() {
         }))
         .filter((g) => g.products.length > 0);
     }
-    return filtered;
-  }, [groups, searchQuery, groupFilter]);
+    const dir = sortDir === "asc" ? 1 : -1;
+    return filtered.map((g) => ({
+      ...g,
+      products: [...g.products].sort((a, b) => {
+        switch (sortBy) {
+          case "name": return a.name.localeCompare(b.name) * dir;
+          case "id": return (a.id - b.id) * dir;
+          case "client": return a.client_name.localeCompare(b.client_name) * dir;
+          case "group": return g.group_name.localeCompare(g.group_name) * dir;
+          default: return 0;
+        }
+      }),
+    }));
+  }, [groups, searchQuery, groupFilter, sortBy, sortDir]);
 
   const exportToExcel = () => {
     const esc = (v: string | number | null | undefined) => (v ?? "").toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -302,7 +317,7 @@ function MarkirovkaChiqimPage() {
                     </button>
                   )}
                 </div>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Select value={groupFilter} onValueChange={setGroupFilter}>
                     <SelectTrigger className="w-full sm:w-[180px] h-9">
                       <SelectValue placeholder={t("markingBatch")} />
@@ -314,6 +329,25 @@ function MarkirovkaChiqimPage() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-full sm:w-[140px] h-9">
+                      <SelectValue placeholder="Sort" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="name">{t("name")}</SelectItem>
+                      <SelectItem value="id">ID</SelectItem>
+                      <SelectItem value="client">{t("client")}</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSortDir((d) => (d === "asc" ? "desc" : "asc"))}
+                    className="shrink-0 gap-1.5 h-9"
+                  >
+                    <ArrowUpDown className="h-3.5 w-3.5" />
+                    {sortDir === "asc" ? "ASC" : "DESC"}
+                  </Button>
                   <div className="flex border rounded-md overflow-hidden">
                     <button
                       onClick={() => setView("table")}
