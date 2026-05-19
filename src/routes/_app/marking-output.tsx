@@ -159,17 +159,19 @@ function MarkirovkaChiqimPage() {
   const exportToExcel = () => {
     const esc = (v: string | number | null | undefined) => (v ?? "").toString().replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     let html = `<table><thead><tr>`;
-    const headers = ["Guruh", "ID", "Mahsulot", "GTIN", "To'liq mark", "Mijoz", "Yuridik nom"];
+    const headers = ["Guruh ID", "Guruh", "Mahsulot ID", "Mahsulot", "GTIN", "To'liq mark", "Mijoz ID", "Mijoz", "Yuridik nom"];
     for (const h of headers) html += `<th>${esc(h)}</th>`;
     html += `</tr></thead><tbody>`;
     for (const group of groups) {
       for (const product of group.products) {
         html += `<tr>`;
+        html += `<td>${esc(group.group_id)}</td>`;
         html += `<td>${esc(group.group_name)}</td>`;
         html += `<td>${esc(product.id)}</td>`;
         html += `<td>${esc(product.name)}</td>`;
         html += `<td>${esc(product.mark)}</td>`;
         html += `<td>${esc(product.markFull)}</td>`;
+        html += `<td>${esc(product.client_id)}</td>`;
         html += `<td>${esc(product.client_name)}</td>`;
         html += `<td>${esc(product.client_yur_name)}</td>`;
         html += `</tr>`;
