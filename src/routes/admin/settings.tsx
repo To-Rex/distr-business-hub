@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminGuard } from "@/features/admin/admin-guard";
 import { AdminLayout } from "@/features/admin/admin-layout";
@@ -15,6 +15,8 @@ import {
   createAlembicVersion,
   deleteAlembicVersion,
   fetchDatabaseInfo,
+  importDatabase,
+  exportDatabase,
   getAdminToken,
   type ApiSecurityKey,
   type DatabaseInfoData,
@@ -73,9 +75,10 @@ import {
 
   Eye,
   EyeOff,
+  Upload,
+  Download,
 } from "lucide-react";
 import { toast } from "sonner";
-
 
 
 const initialWebhooks = [
@@ -190,6 +193,47 @@ function AdminSettingsPage() {
     },
     onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
   });
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleImportDatabase = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsImporting(true);
+    try {
+      const result = await importDatabase(file);
+      toast.success(result.message || "Ma'lumotlar bazasi muvaffaqiyatli import qilindi");
+    } catch (err: any) {
+      toast.error(err.message || "Import xatolik yuz berdi");
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleExportDatabase = async () => {
+    setIsExporting(true);
+    try {
+      const blob = await exportDatabase();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+      a.download = `mx_soft_db_${dateStr}.dump`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success("Ma'lumotlar bazasi eksport qilindi");
+    } catch (err: any) {
+      toast.error(err.message || "Eksport xatolik yuz berdi");
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const [generalSettings, setGeneralSettings] = useState({
     platformName: "Distr Business Hub",
@@ -802,10 +846,65 @@ function AdminSettingsPage() {
                </Card>
 
                <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Server className="h-5 w-5" />
-                    {t("databaseInfo")}
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2">
+                     <Upload className="h-5 w-5" />
+                     Ma'lumotlar bazasini import/eksport qilish
+                   </CardTitle>
+                   <CardDescription>
+                     .dump fayl orqali ma'lumotlar bazasini import qilish yoki eksport qilish
+                   </CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="p-4 rounded-lg border bg-card space-y-3">
+                       <div className="flex items-center gap-2">
+                         <Upload className="h-4 w-4 text-primary" />
+                         <span className="font-medium">Import</span>
+                       </div>
+                       <p className="text-sm text-muted-foreground">
+                         .dump fayl yuklash orqali ma'lumotlar bazasini tiklash
+                       </p>
+                       <input
+                         ref={fileInputRef}
+                         type="file"
+                         accept=".dump"
+                         onChange={handleImportDatabase}
+                         disabled={isImporting}
+                         className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer"
+                       />
+                     </div>
+                     <div className="p-4 rounded-lg border bg-card space-y-3">
+                       <div className="flex items-center gap-2">
+                         <Download className="h-4 w-4 text-primary" />
+                         <span className="font-medium">Eksport</span>
+                       </div>
+                       <p className="text-sm text-muted-foreground">
+                         Ma'lumotlar bazasini .dump fayl sifatida yuklab olish
+                       </p>
+                       <Button onClick={handleExportDatabase} disabled={isExporting} className="w-full">
+                         {isExporting ? (
+                           <>
+                             <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent mr-2" />
+                             Eksport qilinmoqda...
+                           </>
+                         ) : (
+                           <>
+                             <Download className="h-4 w-4 mr-2" />
+                             Yuklab olish
+                           </>
+                         )}
+                       </Button>
+                     </div>
+                   </div>
+                 </CardContent>
+               </Card>
+
+               <Card>
+                 <CardHeader>
+                   <CardTitle className="flex items-center gap-2">
+                     <Server className="h-5 w-5" />
+                     {t("databaseInfo")}
                   </CardTitle>
                   <CardDescription>{t("databaseInfoDesc")}</CardDescription>
                 </CardHeader>

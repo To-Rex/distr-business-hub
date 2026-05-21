@@ -699,3 +699,43 @@ export type DatabaseInfoData = {
 export async function fetchDatabaseInfo(): Promise<DatabaseInfoData> {
   return adminFetch<DatabaseInfoData>(API.databaseInfo);
 }
+
+export async function importDatabase(file: File): Promise<{ message: string }> {
+  const token = getAdminToken();
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(API.databaseImport, {
+    method: "POST",
+    headers,
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Import failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function exportDatabase(): Promise<Blob> {
+  const token = getAdminToken();
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(API.databaseExport, {
+    method: "GET",
+    headers,
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(text || `Export failed: ${res.status}`);
+  }
+
+  return res.blob();
+}
