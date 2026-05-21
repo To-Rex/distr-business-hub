@@ -22,6 +22,7 @@ import { Route as AdminLoginRouteImport } from './routes/admin/login'
 import { Route as AdminDevicesRouteImport } from './routes/admin/devices'
 import { Route as AdminDashboardRouteImport } from './routes/admin/dashboard'
 import { Route as AdminCompaniesRouteImport } from './routes/admin/companies'
+import { Route as AdminAiAgentRouteImport } from './routes/admin/ai-agent'
 import { Route as AppWarehouseRouteImport } from './routes/_app/warehouse'
 import { Route as AppStaffRouteImport } from './routes/_app/staff'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
@@ -102,6 +103,11 @@ const AdminDashboardRoute = AdminDashboardRouteImport.update({
 const AdminCompaniesRoute = AdminCompaniesRouteImport.update({
   id: '/admin/companies',
   path: '/admin/companies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAiAgentRoute = AdminAiAgentRouteImport.update({
+  id: '/admin/ai-agent',
+  path: '/admin/ai-agent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWarehouseRoute = AppWarehouseRouteImport.update({
@@ -210,6 +216,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/staff': typeof AppStaffRoute
   '/warehouse': typeof AppWarehouseRoute
+  '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/devices': typeof AdminDevicesRoute
@@ -241,6 +248,7 @@ export interface FileRoutesByTo {
   '/settings': typeof AppSettingsRoute
   '/staff': typeof AppStaffRoute
   '/warehouse': typeof AppWarehouseRoute
+  '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/devices': typeof AdminDevicesRoute
@@ -274,6 +282,7 @@ export interface FileRoutesById {
   '/_app/settings': typeof AppSettingsRoute
   '/_app/staff': typeof AppStaffRoute
   '/_app/warehouse': typeof AppWarehouseRoute
+  '/admin/ai-agent': typeof AdminAiAgentRoute
   '/admin/companies': typeof AdminCompaniesRoute
   '/admin/dashboard': typeof AdminDashboardRoute
   '/admin/devices': typeof AdminDevicesRoute
@@ -307,6 +316,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/staff'
     | '/warehouse'
+    | '/admin/ai-agent'
     | '/admin/companies'
     | '/admin/dashboard'
     | '/admin/devices'
@@ -338,6 +348,7 @@ export interface FileRouteTypes {
     | '/settings'
     | '/staff'
     | '/warehouse'
+    | '/admin/ai-agent'
     | '/admin/companies'
     | '/admin/dashboard'
     | '/admin/devices'
@@ -370,6 +381,7 @@ export interface FileRouteTypes {
     | '/_app/settings'
     | '/_app/staff'
     | '/_app/warehouse'
+    | '/admin/ai-agent'
     | '/admin/companies'
     | '/admin/dashboard'
     | '/admin/devices'
@@ -386,6 +398,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   LoginRoute: typeof LoginRoute
+  AdminAiAgentRoute: typeof AdminAiAgentRoute
   AdminCompaniesRoute: typeof AdminCompaniesRoute
   AdminDashboardRoute: typeof AdminDashboardRoute
   AdminDevicesRoute: typeof AdminDevicesRoute
@@ -489,6 +502,13 @@ declare module '@tanstack/react-router' {
       path: '/admin/companies'
       fullPath: '/admin/companies'
       preLoaderRoute: typeof AdminCompaniesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/ai-agent': {
+      id: '/admin/ai-agent'
+      path: '/admin/ai-agent'
+      fullPath: '/admin/ai-agent'
+      preLoaderRoute: typeof AdminAiAgentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/warehouse': {
@@ -659,6 +679,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
+  AdminAiAgentRoute: AdminAiAgentRoute,
   AdminCompaniesRoute: AdminCompaniesRoute,
   AdminDashboardRoute: AdminDashboardRoute,
   AdminDevicesRoute: AdminDevicesRoute,

@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
-import { Bell, Building2, Check, ChevronsLeft, ChevronsRight, Globe, LayoutDashboard, LogOut, Menu, Moon, Monitor, Search, Settings, Smartphone, Sun, Users, X } from "lucide-react";
+import { Bell, Bot, Building2, Check, ChevronsLeft, ChevronsRight, Globe, LayoutDashboard, LogOut, Menu, Moon, Monitor, Search, Settings, Smartphone, Sun, Users, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { to: "/admin/mobile-apps", labelKey: "adminMobileApps", icon: Smartphone },
   { to: "/admin/working-sessions", labelKey: "adminWorkingSessions", icon: Monitor },
   { to: "/admin/notifications", labelKey: "adminNotifications", icon: Bell },
+  { to: "/admin/ai-agent", labelKey: "adminAiAgent", icon: Bot },
   { to: "/admin/settings", labelKey: "adminSettings", icon: Settings },
 ] as const;
 

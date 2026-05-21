@@ -696,6 +696,26 @@ export type DatabaseInfoData = {
   }[];
 };
 
+export type AiQueryPayload = {
+  question: string;
+};
+
+export type AiQueryResponse = {
+  sql: string;
+  answer: string;
+  formatted: string;
+  format: string;
+  count: number;
+  data: Record<string, unknown>[];
+};
+
+export async function sendAiQuery(payload: AiQueryPayload): Promise<AiQueryResponse> {
+  return adminFetch<AiQueryResponse>(API.aiQuery, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function fetchDatabaseInfo(): Promise<DatabaseInfoData> {
   return adminFetch<DatabaseInfoData>(API.databaseInfo);
 }

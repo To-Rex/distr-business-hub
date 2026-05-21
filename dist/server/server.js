@@ -1,6 +1,6 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { H3Event, toResponse } from "h3-v2";
-import { rootRouteId, defaultSerovalPlugins, makeSerovalPlugin, createRawStreamRPCPlugin, invariant, isNotFound, isRedirect, resolveManifestAssetLink, createSerializationAdapter, isResolvedRedirect, executeRewriteInput } from "@tanstack/router-core";
+import { rootRouteId, defaultSerovalPlugins, makeSerovalPlugin, createRawStreamRPCPlugin, invariant, isNotFound, isRedirect, resolveManifestAssetLink, getStylesheetHref, createSerializationAdapter, isResolvedRedirect, executeRewriteInput } from "@tanstack/router-core";
 import { toCrossJSONStream, fromJSON, toCrossJSONAsync } from "seroval";
 import { createMemoryHistory } from "@tanstack/history";
 import { mergeHeaders } from "@tanstack/router-core/ssr/client";
@@ -73,26 +73,29 @@ function getResponse() {
 }
 var HEADERS = { TSS_SHELL: "X-TSS_SHELL" };
 async function getStartManifest(matchedRoutes) {
-  const { tsrStartManifest } = await import("./assets/_tanstack-start-manifest_v-Cpc3z_nO.js");
+  const { tsrStartManifest } = await import("./assets/_tanstack-start-manifest_v-QpeRe3Oe.js");
   const startManifest = tsrStartManifest();
   const rootRoute = startManifest.routes[rootRouteId] = startManifest.routes[rootRouteId] || {};
   rootRoute.assets = rootRoute.assets || [];
   let injectedHeadScripts;
   return {
-    manifest: { routes: Object.fromEntries(Object.entries(startManifest.routes).flatMap(([k, v]) => {
-      const result = {};
-      let hasData = false;
-      if (v.preloads && v.preloads.length > 0) {
-        result["preloads"] = v.preloads;
-        hasData = true;
-      }
-      if (v.assets && v.assets.length > 0) {
-        result["assets"] = v.assets;
-        hasData = true;
-      }
-      if (!hasData) return [];
-      return [[k, result]];
-    })) },
+    manifest: {
+      inlineCss: startManifest.inlineCss,
+      routes: Object.fromEntries(Object.entries(startManifest.routes).flatMap(([k, v]) => {
+        const result = {};
+        let hasData = false;
+        if (v.preloads && v.preloads.length > 0) {
+          result["preloads"] = v.preloads;
+          hasData = true;
+        }
+        if (v.assets && v.assets.length > 0) {
+          result["assets"] = v.assets;
+          hasData = true;
+        }
+        if (!hasData) return [];
+        return [[k, result]];
+      }))
+    },
     clientEntry: startManifest.clientEntry,
     injectedHeadScripts
   };
@@ -616,7 +619,7 @@ async function transformManifestAssets(source, transformFn, _opts) {
         crossOrigin: result.crossOrigin
       });
     }));
-    if (route.assets) {
+    if (route.assets && !source.manifest.inlineCss) {
       for (const asset of route.assets) if (asset.tag === "link" && asset.attrs?.href) {
         const rel = asset.attrs.rel;
         if (!(typeof rel === "string" ? rel.split(/\s+/) : []).includes("stylesheet")) continue;
@@ -642,13 +645,184 @@ async function transformManifestAssets(source, transformFn, _opts) {
 function buildManifestWithClientEntry(source) {
   const scriptTag = buildClientEntryScriptTag(source.clientEntry, source.injectedHeadScripts);
   const baseRootRoute = source.manifest.routes[rootRouteId];
-  return { routes: {
+  const routes = {
     ...source.manifest.routes,
     [rootRouteId]: {
       ...baseRootRoute,
       assets: [...baseRootRoute?.assets || [], scriptTag]
     }
-  } };
+  };
+  return {
+    inlineCss: source.manifest.inlineCss,
+    routes
+  };
+}
+var LINK_PARAM_TOKEN_RE = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+var PRELOAD_AS_VALUES = /* @__PURE__ */ new Set([
+  "fetch",
+  "font",
+  "image",
+  "script",
+  "style",
+  "track"
+]);
+function buildLinkParam(name, value) {
+  if (value === void 0) return name;
+  if (LINK_PARAM_TOKEN_RE.test(value)) return `${name}=${value}`;
+  return `${name}=${JSON.stringify(value)}`;
+}
+function serializeEarlyHint(hint) {
+  const parts = [`<${hint.href}>`, buildLinkParam("rel", hint.rel)];
+  if (hint.as) parts.push(buildLinkParam("as", hint.as));
+  if (hint.crossOrigin !== void 0) parts.push(buildLinkParam("crossorigin", hint.crossOrigin || void 0));
+  if (hint.type) parts.push(buildLinkParam("type", hint.type));
+  if (hint.integrity) parts.push(buildLinkParam("integrity", hint.integrity));
+  if (hint.referrerPolicy) parts.push(buildLinkParam("referrerpolicy", hint.referrerPolicy));
+  if (hint.fetchPriority) parts.push(buildLinkParam("fetchpriority", hint.fetchPriority));
+  return parts.join("; ");
+}
+function getStringAttr(attrs, name, fallbackName) {
+  const value = attrs?.[name] ?? (fallbackName ? attrs?.[fallbackName] : void 0);
+  return typeof value === "string" ? value : void 0;
+}
+function getPreloadAs(attrs) {
+  const as = getStringAttr(attrs, "as");
+  return as && PRELOAD_AS_VALUES.has(as) ? as : void 0;
+}
+function addEarlyHintFetchAttrs(hint, attrs) {
+  const crossOrigin = getStringAttr(attrs, "crossOrigin", "crossorigin");
+  const type = getStringAttr(attrs, "type");
+  const integrity = getStringAttr(attrs, "integrity");
+  const referrerPolicy = getStringAttr(attrs, "referrerPolicy", "referrerpolicy");
+  const fetchPriority = getStringAttr(attrs, "fetchPriority", "fetchpriority");
+  if (crossOrigin !== void 0) hint.crossOrigin = crossOrigin;
+  if (type) hint.type = type;
+  if (integrity) hint.integrity = integrity;
+  if (referrerPolicy) hint.referrerPolicy = referrerPolicy;
+  if (fetchPriority) hint.fetchPriority = fetchPriority;
+}
+function linkAttrsToEarlyHint(attrs) {
+  const href = getStringAttr(attrs, "href");
+  const rel = getStringAttr(attrs, "rel");
+  if (!href || !rel) return void 0;
+  const relTokens = rel.split(/\s+/);
+  let hintRel;
+  let hintAs;
+  if (relTokens.includes("modulepreload")) {
+    hintRel = "modulepreload";
+    hintAs = "script";
+  } else if (relTokens.includes("stylesheet")) {
+    hintRel = "preload";
+    hintAs = "style";
+  } else if (relTokens.includes("preload")) {
+    hintAs = getPreloadAs(attrs);
+    if (!hintAs) return void 0;
+    hintRel = "preload";
+  } else if (relTokens.includes("preconnect")) {
+    hintRel = "preconnect";
+    hintAs = void 0;
+  } else if (relTokens.includes("dns-prefetch")) {
+    hintRel = "dns-prefetch";
+    hintAs = void 0;
+  }
+  if (!hintRel) return void 0;
+  const hint = {
+    href,
+    rel: hintRel
+  };
+  if (hintAs) hint.as = hintAs;
+  addEarlyHintFetchAttrs(hint, attrs);
+  return hint;
+}
+function collectStaticHintsFromManifest(manifest2, matchedRoutes) {
+  const hints = [];
+  for (const route of matchedRoutes) {
+    const routeManifest = manifest2.routes[route.id];
+    if (!routeManifest) continue;
+    for (const link of routeManifest.preloads ?? []) {
+      const { href, crossOrigin } = resolveManifestAssetLink(link);
+      const hint = {
+        href,
+        rel: "modulepreload",
+        as: "script"
+      };
+      if (crossOrigin !== void 0) hint.crossOrigin = crossOrigin;
+      hints.push(hint);
+    }
+    for (const asset of routeManifest.assets ?? []) {
+      if (asset.tag !== "link") continue;
+      const stylesheetHref = getStylesheetHref(asset);
+      if (stylesheetHref) {
+        if (manifest2.inlineCss?.styles[stylesheetHref] !== void 0) continue;
+        const hint2 = {
+          href: stylesheetHref,
+          rel: "preload",
+          as: "style"
+        };
+        addEarlyHintFetchAttrs(hint2, asset.attrs);
+        hints.push(hint2);
+        continue;
+      }
+      const hint = linkAttrsToEarlyHint(asset.attrs);
+      if (hint) hints.push(hint);
+    }
+  }
+  return hints;
+}
+function collectDynamicHintsFromMatches(matches) {
+  const hints = [];
+  for (const match of matches) {
+    const links = match.links;
+    if (!Array.isArray(links)) continue;
+    for (const link of links) {
+      const hint = linkAttrsToEarlyHint(link);
+      if (hint) hints.push(hint);
+    }
+  }
+  return hints;
+}
+function createEarlyHintsEvent(opts) {
+  const nextHints = [];
+  const nextLinks = [];
+  for (const hint of opts.hints) {
+    const link = serializeEarlyHint(hint);
+    if (opts.sentLinks.has(link)) continue;
+    opts.sentLinks.add(link);
+    opts.sentHints.push(hint);
+    nextHints.push(hint);
+    nextLinks.push(link);
+  }
+  if (!nextHints.length && opts.phase !== "dynamic") return void 0;
+  return {
+    phase: opts.phase,
+    hints: nextHints,
+    links: nextLinks,
+    allHints: opts.sentHints.slice(),
+    allLinks: Array.from(opts.sentLinks)
+  };
+}
+function createResponseLinkHeaderEntries(opts) {
+  for (const hint of opts.hints) {
+    const link = serializeEarlyHint(hint);
+    if (opts.sentLinks.has(link)) continue;
+    opts.sentLinks.add(link);
+    opts.entries.push({
+      phase: opts.phase,
+      hint,
+      link
+    });
+  }
+}
+function getResponseLinkHeaderEntries(opts) {
+  if (!opts.filter) return opts.entries.map((entry) => entry.link);
+  try {
+    const links = [];
+    for (const entry of opts.entries) if (opts.filter(entry)) links.push(entry.link);
+    return links;
+  } catch (err) {
+    console.error("Error filtering response Link headers:", err);
+    return [];
+  }
 }
 var ServerFunctionSerializationAdapter = createSerializationAdapter({
   key: "$TSS/serverfn",
@@ -670,12 +844,65 @@ function getStartResponseHeaders(opts) {
     return match.headers;
   }));
 }
+function notifyEarlyHints(phase, event, onEarlyHints) {
+  try {
+    const result = onEarlyHints(event);
+    if (result) Promise.resolve(result).catch((err) => {
+      console.error(`Error sending ${phase} early hints:`, err);
+    });
+  } catch (err) {
+    console.error(`Error sending ${phase} early hints:`, err);
+  }
+}
+function getResponseLinkHeaderFilter(responseLinkHeader) {
+  if (typeof responseLinkHeader !== "object") return;
+  return responseLinkHeader.filter;
+}
+function appendResponseLinkHeaders(opts) {
+  if (!opts.filter) {
+    for (const entry of opts.entries) opts.responseHeaders.append("Link", entry.link);
+    return;
+  }
+  const links = getResponseLinkHeaderEntries(opts);
+  for (const link of links) opts.responseHeaders.append("Link", link);
+}
+function collectResponseLinkHeaderEntries(opts) {
+  for (let index = 0; index < opts.event.hints.length; index++) opts.entries.push({
+    phase: opts.phase,
+    hint: opts.event.hints[index],
+    link: opts.event.links[index]
+  });
+}
+function handleCollectedEarlyHints(opts) {
+  const event = opts.onEarlyHints ? createEarlyHintsEvent({
+    phase: opts.phase,
+    hints: opts.hints,
+    sentLinks: opts.sentLinks,
+    sentHints: opts.sentHints
+  }) : void 0;
+  if (event) notifyEarlyHints(opts.phase, event, opts.onEarlyHints);
+  if (!opts.responseLinkHeaderEntries) return;
+  if (event) {
+    collectResponseLinkHeaderEntries({
+      phase: opts.phase,
+      event,
+      entries: opts.responseLinkHeaderEntries
+    });
+    return;
+  }
+  createResponseLinkHeaderEntries({
+    phase: opts.phase,
+    hints: opts.hints,
+    sentLinks: opts.sentLinks,
+    entries: opts.responseLinkHeaderEntries
+  });
+}
 var entriesPromise;
 var baseManifestPromise;
 var cachedFinalManifestPromise;
 async function loadEntries() {
   const [routerEntry, startEntry, pluginAdapters] = await Promise.all([
-    import("./assets/router-CTVAwSR8.js").then((n) => n.w),
+    import("./assets/router-wmJlpXob.js").then((n) => n.t),
     import("./assets/start-HYkvq4Ni.js"),
     import("./assets/__23tanstack-start-plugin-adapters-Cwee5PKy.js")
   ]);
@@ -871,6 +1098,21 @@ function createStartHandler(cbOrOptions) {
           warmup: false,
           request
         }), cache);
+        const onEarlyHints = requestOpts?.onEarlyHints;
+        const responseLinkHeader = requestOpts?.responseLinkHeader;
+        const shouldCollectEarlyHints = !!onEarlyHints || !!responseLinkHeader;
+        const sentEarlyHintLinks = shouldCollectEarlyHints ? /* @__PURE__ */ new Set() : void 0;
+        const sentEarlyHints = onEarlyHints ? new Array() : void 0;
+        const responseLinkHeaderEntries = shouldCollectEarlyHints && responseLinkHeader ? new Array() : void 0;
+        const responseLinkHeaderFilter = shouldCollectEarlyHints ? getResponseLinkHeaderFilter(responseLinkHeader) : void 0;
+        if (shouldCollectEarlyHints && sentEarlyHintLinks && matchedRoutes?.length) handleCollectedEarlyHints({
+          phase: "static",
+          hints: collectStaticHintsFromManifest(manifest2, matchedRoutes),
+          sentLinks: sentEarlyHintLinks,
+          sentHints: sentEarlyHints,
+          onEarlyHints,
+          responseLinkHeaderEntries
+        });
         const routerInstance = await getRouter();
         attachRouterServerSsrUtils({
           router: routerInstance,
@@ -881,9 +1123,22 @@ function createStartHandler(cbOrOptions) {
         routerInstance.update({ additionalContext: { serverContext } });
         await routerInstance.load();
         if (routerInstance.state.redirect) return routerInstance.state.redirect;
+        if (shouldCollectEarlyHints && sentEarlyHintLinks) handleCollectedEarlyHints({
+          phase: "dynamic",
+          hints: collectDynamicHintsFromMatches(routerInstance.stores.matches.get()),
+          sentLinks: sentEarlyHintLinks,
+          sentHints: sentEarlyHints,
+          onEarlyHints,
+          responseLinkHeaderEntries
+        });
         const ctx = getStartContext({ throwIfNotFound: false });
         await routerInstance.serverSsr.dehydrate({ requestAssets: ctx?.requestAssets });
         const responseHeaders = getStartResponseHeaders({ router: routerInstance });
+        if (responseLinkHeaderEntries?.length) appendResponseLinkHeaders({
+          responseHeaders,
+          entries: responseLinkHeaderEntries,
+          filter: responseLinkHeaderFilter
+        });
         cbWillCleanup = true;
         return cb({
           request,
@@ -964,9 +1219,12 @@ async function handleServerRoutes({ getRouter, request, url, executeRouter, cont
     }
   }
   const server2 = foundRoute?.options.server;
+  let isHeadFallback = false;
   if (server2?.handlers && isExactMatch) {
     const handlers = typeof server2.handlers === "function" ? server2.handlers({ createHandlers: (d) => d }) : server2.handlers;
-    const handler = handlers[request.method.toUpperCase()] ?? handlers["ANY"];
+    const requestMethod = request.method.toUpperCase();
+    const handler = requestMethod === "HEAD" ? handlers["HEAD"] ?? handlers["GET"] ?? handlers["ANY"] : handlers[requestMethod] ?? handlers["ANY"];
+    isHeadFallback = requestMethod === "HEAD" && handler !== void 0 && !handlers["HEAD"];
     if (handler) {
       const mayDefer = !!foundRoute.options.component;
       if (typeof handler === "function") routeMiddlewares.push(handlerToMiddleware(handler, mayDefer));
@@ -979,13 +1237,19 @@ async function handleServerRoutes({ getRouter, request, url, executeRouter, cont
       }
     }
   }
-  routeMiddlewares.push((ctx) => executeRouter(ctx.context, matchedRoutes));
-  return (await executeMiddleware(routeMiddlewares, {
+  routeMiddlewares.push((ctx2) => executeRouter(ctx2.context, matchedRoutes));
+  const ctx = await executeMiddleware(routeMiddlewares, {
     request,
     context,
     params: routeParams,
     pathname
-  })).response;
+  });
+  if (isHeadFallback) {
+    if (!ctx.response) throwRouteHandlerError();
+    const resolved = await handleRedirectResponse(ctx.response, request, getRouter);
+    return new Response(null, resolved);
+  }
+  return ctx.response;
 }
 const LOOPS_HEADER = "x-appstore-proxy";
 const APPSERVER_URL = process.env.APPSERVER_URL || process.env.APPSTORE_API_URL || "http://127.0.0.1:8000";

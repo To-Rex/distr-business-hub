@@ -1,5 +1,5 @@
-//const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
-const BASE_URL = "https://distrbackend-backend-ik7zfv-29362a-83-149-105-190.sslip.io/api";
+const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+//const BASE_URL = "https://distrbackend-backend-ik7zfv-29362a-83-149-105-190.sslip.io/api";
 //const BASE_URL = "https://distr.mxsoft.uz/api";
 
 if (!BASE_URL) {
@@ -67,6 +67,7 @@ type ApiEndpoints = {
   activity: (lang: string) => string;
   databaseImport: string;
   databaseExport: string;
+  aiQuery: string;
 };
 
 export const API: ApiEndpoints = {
@@ -151,4 +152,5 @@ export const API: ApiEndpoints = {
   activity: (lang: string) => `${BASE_URL}/v1/activity?lang=${lang}`,
   databaseImport: `${BASE_URL}/v1/database/import`,
   databaseExport: `${BASE_URL}/v1/database/export`,
+  aiQuery: `${BASE_URL}/v1/ai-query`,
 };
