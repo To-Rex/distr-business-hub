@@ -123,7 +123,7 @@ export default defineConfig(async ({ mode }) => {
     plugins: internalPlugins,
     server: {
       host: "::",
-      port: 8085,
+      port: 8086,
       // Fix for development mode
       allowedHosts: ["distr.mxsoft.uz"],
       watch: {
@@ -135,7 +135,7 @@ export default defineConfig(async ({ mode }) => {
     },
     preview: {
       host: "::",
-      port: 8085,
+      port: 8086,
       // Fix for production (npm run preview) mode
       allowedHosts: ["distr.mxsoft.uz"],
     },
