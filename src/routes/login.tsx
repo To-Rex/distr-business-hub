@@ -1,18 +1,25 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, ShieldX, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { useSettings, LANGS } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
 function LoginPage() {
-  const { user, login } = useAuth();
+  const { user, login, logout } = useAuth();
   const { t, lang, setLang } = useSettings();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -20,8 +27,10 @@ function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [roleChecking, setRoleChecking] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
 
-  useEffect(() => { if (user) navigate({ to: "/dashboard" }); }, [user, navigate]);
+  useEffect(() => { if (user && !roleChecking) navigate({ to: "/dashboard" }); }, [user, navigate, roleChecking]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -31,11 +40,25 @@ function LoginPage() {
     const loginEmail = email.includes("@") ? email : `${email}@gmail.com`;
     try {
       await login(loginEmail, password);
+      setRoleChecking(true);
+
+      const raw = localStorage.getItem("distr.auth");
+      if (raw) {
+        const session = JSON.parse(raw);
+        const userType = session.user?.user_type;
+        if (userType && !["MANAGER", "SUPERVISOR", "CEO"].includes(userType)) {
+          logout();
+          setShowRoleDialog(true);
+          return;
+        }
+      }
+
       navigate({ to: "/dashboard" });
     } catch (err: any) {
       setError(err?.message || "Login failed");
     } finally {
       setLoading(false);
+      setRoleChecking(false);
     }
   };
 
@@ -88,6 +111,23 @@ function LoginPage() {
           </form>
         </div>
       </div>
+
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-2">
+              <ShieldX className="h-6 w-6 text-destructive" />
+            </div>
+            <DialogTitle className="text-center">Ruxsat berilmagan</DialogTitle>
+            <DialogDescription className="text-center pt-1">
+              Siz MANAGER, SUPERVISOR yoki CEO roliga ega emassiz. Tizimga faqat ushbu rolli foydalanuvchilar kirishi mumkin.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={() => setShowRoleDialog(false)} className="w-full">
+            Tushunarli
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
