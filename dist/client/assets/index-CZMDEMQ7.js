@@ -1,0 +1,1 @@
+import{j as t}from"./react-vendor-CudeMWDZ.js";import{y as r,N as s}from"./index-Ddx0NNgS.js";import"./radix-vendor-CIzJs4EE.js";import"./icons-Bwzgnmki.js";function m(){const{user:o}=r();return t.jsx(s,{to:o?"/dashboard":"/login"})}export{m as component};

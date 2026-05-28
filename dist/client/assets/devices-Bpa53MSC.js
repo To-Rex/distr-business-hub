@@ -1,0 +1,1 @@
+import{j as o}from"./react-vendor-CudeMWDZ.js";import{N as t}from"./index-Ddx0NNgS.js";import"./radix-vendor-CIzJs4EE.js";import"./icons-Bwzgnmki.js";const s=()=>o.jsx(t,{to:"/"});export{s as component};

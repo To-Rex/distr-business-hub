@@ -1,0 +1,1 @@
+import{j as o}from"./react-vendor-CudeMWDZ.js";import{N as i}from"./index-Ddx0NNgS.js";import{P as m}from"./auth-B5s33GrV.js";import"./radix-vendor-CIzJs4EE.js";import"./icons-Bwzgnmki.js";function p(){const{isAuthenticated:t}=m();return o.jsx(i,{to:t?"/admin/dashboard":"/admin/login"})}export{p as component};

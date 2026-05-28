@@ -100,6 +100,26 @@ export default defineConfig(async ({ mode }) => {
         "@tanstack/query-core",
       ],
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes("node_modules/react-dom") || id.includes("node_modules/react/")) {
+              return "react-vendor";
+            }
+            if (id.includes("node_modules/@tanstack/")) {
+              return "tanstack-vendor";
+            }
+            if (id.includes("node_modules/@radix-ui/")) {
+              return "radix-vendor";
+            }
+            if (id.includes("node_modules/lucide-react")) {
+              return "icons";
+            }
+          },
+        },
+      },
+    },
     plugins: internalPlugins,
     server: {
       host: "::",
