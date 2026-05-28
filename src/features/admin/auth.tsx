@@ -6,6 +6,7 @@ const ADMIN_AUTH_KEY = "distr.admin.auth";
 
 type StoredSession = {
   access_token: string;
+  refresh_token?: string;
   expires_in: string;
   user_id: number;
   username?: string;
@@ -67,10 +68,45 @@ export function useAdminAuth() {
       const data = await res.json();
       const next: StoredSession = {
         access_token: data.access_token,
+        refresh_token: data.refresh_token,
         expires_in: data.expires_in,
         user_id: data.user_id,
       };
       window.localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(next));
+      setSession(next);
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const refreshToken = useCallback(async (): Promise<boolean> => {
+    try {
+      const raw = localStorage.getItem(ADMIN_AUTH_KEY);
+      if (!raw) return false;
+      const current = JSON.parse(raw) as StoredSession;
+      if (!current.refresh_token) return false;
+
+      const res = await fetch(API.refreshToken, {
+        method: "POST",
+        headers: { accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: current.refresh_token }),
+      });
+
+      if (!res.ok) {
+        localStorage.removeItem(ADMIN_AUTH_KEY);
+        setSession(null);
+        return false;
+      }
+
+      const data = await res.json();
+      const next: StoredSession = {
+        ...current,
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in,
+      };
+      localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(next));
       setSession(next);
       return true;
     } catch {
@@ -90,6 +126,7 @@ export function useAdminAuth() {
     session,
     isAuthenticated: Boolean(session),
     login,
+    refreshToken,
     logout,
   };
 }

@@ -45,6 +45,7 @@ type AuthCtx = {
   user: User | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   logout: () => void;
   accessToken: string | null;
 };
@@ -57,6 +58,8 @@ import { API } from "./api";
 type LoginResponse = {
   id: number;
   access_token: string;
+  refresh_token: string;
+  token_type: string;
   expires_in: string;
   user_id: number;
   created_at: string;
@@ -85,6 +88,7 @@ type ProfileResponse = {
 type StoredSession = {
   user: User;
   access_token: string;
+  refresh_token?: string;
   expires_in: string;
   user_id: number;
 };
@@ -162,11 +166,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const session: StoredSession = {
       user: u,
       access_token: data.access_token,
+      refresh_token: data.refresh_token,
       expires_in: data.expires_in,
       user_id: data.user_id,
     };
     window.localStorage.setItem(KEY, JSON.stringify(session));
     setUser(u);
+  };
+
+  const refreshToken = async (): Promise<boolean> => {
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (!raw) return false;
+      const current = JSON.parse(raw) as StoredSession;
+      if (!current.refresh_token) return false;
+
+      const res = await fetch(API.refreshToken, {
+        method: "POST",
+        headers: { accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: current.refresh_token }),
+      });
+
+      if (!res.ok) {
+        localStorage.removeItem(KEY);
+        setUser(null);
+        setAccessToken(null);
+        return false;
+      }
+
+      const data = await res.json();
+      const accessT = data.access_token;
+      setAccessToken(accessT);
+
+      const u = await fetchProfile(accessT);
+      const updated: StoredSession = {
+        ...current,
+        user: u,
+        access_token: accessT,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in,
+      };
+      localStorage.setItem(KEY, JSON.stringify(updated));
+      setUser(u);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const logout = () => {
@@ -175,7 +220,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAccessToken(null);
   };
 
-  return <Ctx.Provider value={{ user, login, logout, accessToken, loading }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, login, refreshToken, logout, accessToken, loading }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

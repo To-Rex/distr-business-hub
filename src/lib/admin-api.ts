@@ -130,6 +130,7 @@ const MAIN_AUTH_KEY = "distr.admin.auth";
 
 type StoredSession = {
   access_token: string;
+  refresh_token?: string;
   expires_in: string;
   user_id: number;
 };
@@ -145,21 +146,65 @@ export function getAdminToken(): string | null {
   }
 }
 
+async function refreshAdminToken(): Promise<string | null> {
+  try {
+    const raw = localStorage.getItem(MAIN_AUTH_KEY);
+    if (!raw) return null;
+    const session: StoredSession = JSON.parse(raw);
+    if (!session.refresh_token) return null;
+
+    const res = await fetch(API.refreshToken, {
+      method: "POST",
+      headers: { accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: session.refresh_token }),
+    });
+
+    if (!res.ok) {
+      localStorage.removeItem(MAIN_AUTH_KEY);
+      return null;
+    }
+
+    const data = await res.json();
+    const updated: StoredSession = {
+      ...session,
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_in: data.expires_in,
+    };
+    localStorage.setItem(MAIN_AUTH_KEY, JSON.stringify(updated));
+    return data.access_token;
+  } catch {
+    return null;
+  }
+}
+
 async function adminFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = getAdminToken();
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  const doFetch = async (token: string | null): Promise<Response> => {
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+
+    if (options?.body && !(options.body instanceof FormData)) {
+      headers["Content-Type"] = "application/json";
+    }
+
+    return fetch(url, {
+      ...options,
+      headers: { ...headers, ...((options?.headers as Record<string, string>) || {}) },
+    });
   };
 
-  if (options?.body && !(options.body instanceof FormData)) {
-    headers["Content-Type"] = "application/json";
-  }
+  let token = getAdminToken();
+  let res = await doFetch(token);
 
-  const res = await fetch(url, {
-    ...options,
-    headers: { ...headers, ...((options?.headers as Record<string, string>) || {}) },
-  });
+  if (res.status === 401) {
+    const newToken = await refreshAdminToken();
+    if (newToken) {
+      token = newToken;
+      res = await doFetch(token);
+    }
+  }
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");

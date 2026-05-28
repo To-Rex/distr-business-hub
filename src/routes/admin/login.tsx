@@ -1,18 +1,26 @@
 import { createFileRoute, Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useState, type FormEvent } from "react";
-import { Eye, EyeOff, ShieldCheck, ArrowRight, ExternalLink } from "lucide-react";
+import { Eye, EyeOff, ShieldCheck, ShieldX, ArrowRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAdminAuth } from "@/features/admin/auth";
 import { useSettings } from "@/lib/settings";
+import { fetchProfile } from "@/lib/admin-api";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/admin/login")({
   component: AdminLoginPage,
 });
 
 function AdminLoginPage() {
-  const { isAuthenticated, login } = useAdminAuth();
+  const { isAuthenticated, login, logout } = useAdminAuth();
   const { t } = useSettings();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
@@ -20,21 +28,40 @@ function AdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [roleChecking, setRoleChecking] = useState(false);
+  const [showRoleDialog, setShowRoleDialog] = useState(false);
 
-  if (isAuthenticated) return <Navigate to="/admin/users" />;
+  if (isAuthenticated && !roleChecking) return <Navigate to="/admin/users" />;
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    const ok = await login(username, password);
-    setIsLoading(false);
 
+    const ok = await login(username, password);
     if (!ok) {
+      setIsLoading(false);
       setError(t("adminLoginRequired") || "Xato login yoki parol");
       return;
     }
-    navigate({ to: "/admin/users" });
+
+    setRoleChecking(true);
+    try {
+      const profile = await fetchProfile();
+      const userType = profile.user_type;
+      if (userType !== "ADMIN" && userType !== "SUPERADMIN") {
+        await logout();
+        setShowRoleDialog(true);
+        return;
+      }
+      navigate({ to: "/admin/users" });
+    } catch {
+      await logout();
+      setError("Profilni tekshirishda xatolik yuz berdi");
+    } finally {
+      setIsLoading(false);
+      setRoleChecking(false);
+    }
   };
 
   return (
@@ -149,6 +176,23 @@ function AdminLoginPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={showRoleDialog} onOpenChange={setShowRoleDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-2">
+              <ShieldX className="h-6 w-6 text-destructive" />
+            </div>
+            <DialogTitle className="text-center">Ruxsat berilmagan</DialogTitle>
+            <DialogDescription className="text-center pt-1">
+              Siz ADMIN yoki SUPERADMIN roliga ega emassiz. Admin panelga faqat ADMIN va SUPERADMIN rolli foydalanuvchilar kirishi mumkin.
+            </DialogDescription>
+          </DialogHeader>
+          <Button onClick={() => setShowRoleDialog(false)} className="w-full">
+            Tushunarli
+          </Button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

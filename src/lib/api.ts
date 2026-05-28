@@ -1,6 +1,6 @@
-//const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 //const BASE_URL = "https://distrbackend-backend-ik7zfv-29362a-83-149-105-190.sslip.io/api";
-const BASE_URL = "https://distr.mxsoft.uz/api";
+//const BASE_URL = "https://distr.mxsoft.uz/api";
 
 if (!BASE_URL) {
   throw new Error("VITE_API_BASE_URL is not defined");
@@ -12,6 +12,7 @@ const proxied1C = (baseUrl: string, path: string) =>
 
 type ApiEndpoints = {
   login: string;
+  refreshToken: string;
   profile: string;
   logout: string;
   wsLocations: (token: string) => string;
@@ -72,6 +73,7 @@ type ApiEndpoints = {
 
 export const API: ApiEndpoints = {
   login: `${BASE_URL}/v1/authentication/login`,
+  refreshToken: `${BASE_URL}/v1/authentication/refresh-token`,
   logout: `${BASE_URL}/v1/authentication/logout`,
   profile: `${BASE_URL}/v1/authentication/profile`,
   wsLocations: (token: string) => `${WS_BASE}/v1/locations/ws/admvs?token=${token}`,

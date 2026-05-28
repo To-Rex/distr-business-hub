@@ -170,13 +170,14 @@ function AdminUsersPage() {
     queryFn: () => fetchCompanies(),
   });
 
-  const users: (AdminUser & { _apiUser?: ApiUser })[] = useMemo(() => {
+  const users: (AdminUser & { _apiUser?: ApiUser; rawRole: string })[] = useMemo(() => {
     return apiUsers.map((u) => ({
       id: u.id,
       fullName: getUserFullName(u),
       email: u.email || "",
       phone: u.phone_number || "",
       role: getUserTypeLabel(u.user_type) as UserRole,
+      rawRole: u.user_type,
       status: getUserStatusLabel(u.user_status) as UserStatus,
       companyId: u.company_id,
       companyName: u.company_rel?.name || null,
@@ -291,7 +292,7 @@ function AdminUsersPage() {
 
     // Role filter
     if (roleFilter !== "all") {
-      result = result.filter((user) => user.role === roleFilter);
+      result = result.filter((user) => user.rawRole === roleFilter);
     }
 
     // Status filter
