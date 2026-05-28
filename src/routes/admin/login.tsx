@@ -183,13 +183,13 @@ function AdminLoginPage() {
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destructive/10 mb-2">
               <ShieldX className="h-6 w-6 text-destructive" />
             </div>
-            <DialogTitle className="text-center">Ruxsat berilmagan</DialogTitle>
+            <DialogTitle className="text-center">{t("roleNotAllowed")}</DialogTitle>
             <DialogDescription className="text-center pt-1">
-              Siz ADMIN yoki SUPERADMIN roliga ega emassiz. Admin panelga faqat ADMIN va SUPERADMIN rolli foydalanuvchilar kirishi mumkin.
+              {t("adminRoleNotAllowedDesc")}
             </DialogDescription>
           </DialogHeader>
           <Button onClick={() => setShowRoleDialog(false)} className="w-full">
-            Tushunarli
+            {t("roleNotAllowedClose")}
           </Button>
         </DialogContent>
       </Dialog>

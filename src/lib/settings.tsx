@@ -376,6 +376,10 @@ const dict = {
     adminLoginSubtitle: "Admin panelga kirish uchun login qiling",
     adminLoginRequired: "Login yoki parol kiriting.",
     goToMainSite: "Asosiy saytga o'tish",
+    roleNotAllowed: "Ruxsat berilmagan",
+    roleNotAllowedClose: "Tushunarli",
+    adminRoleNotAllowedDesc: "Siz ADMIN yoki SUPERADMIN roliga ega emassiz. Admin panelga faqat ADMIN va SUPERADMIN rolli foydalanuvchilar kirishi mumkin.",
+    mainRoleNotAllowedDesc: "Siz MANAGER, SUPERVISOR yoki CEO roliga ega emassiz. Tizimga faqat ushbu rolli foydalanuvchilar kirishi mumkin.",
     adminPanel: "Admin Panel",
     // Admin settings new keys
     export: "Eksport",
@@ -853,6 +857,10 @@ const dict = {
     adminLoginSubtitle: "Войдите для доступа к админ-панели",
     adminLoginRequired: "Введите логин или пароль.",
     goToMainSite: "Перейти на основной сайт",
+    roleNotAllowed: "Доступ запрещен",
+    roleNotAllowedClose: "Понятно",
+    adminRoleNotAllowedDesc: "У вас нет роли ADMIN или SUPERADMIN. В админ-панель могут входить только пользователи с ролями ADMIN и SUPERADMIN.",
+    mainRoleNotAllowedDesc: "У вас нет роли MANAGER, SUPERVISOR или CEO. В систему могут входить только пользователи с этими ролями.",
     adminPanel: "Админ Панель",
     // Admin settings new keys
     export: "Экспорт",
@@ -1330,6 +1338,10 @@ const dict = {
     adminLoginSubtitle: "Sign in to access admin panel",
     adminLoginRequired: "Enter login or password.",
     goToMainSite: "Go to main site",
+    roleNotAllowed: "Access denied",
+    roleNotAllowedClose: "Got it",
+    adminRoleNotAllowedDesc: "You do not have ADMIN or SUPERADMIN role. Only ADMIN and SUPERADMIN users can access the admin panel.",
+    mainRoleNotAllowedDesc: "You do not have MANAGER, SUPERVISOR or CEO role. Only users with these roles can access the system.",
     adminPanel: "Admin Panel",
     // Admin settings new keys
     export: "Export",

@@ -1,0 +1,1 @@
+import{at as n,N as a}from"./index-C2kdy3bj.js";import{P as o}from"./auth-Df6zaJiI.js";function m(){const{isAuthenticated:t}=o();return n.jsx(a,{to:t?"/admin/dashboard":"/admin/login"})}export{m as component};
