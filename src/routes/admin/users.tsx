@@ -206,6 +206,7 @@ function AdminUsersPage() {
   const [companyFilter, setCompanyFilter] = useState<string>("all");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [branchFilter, setBranchFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [viewMode, setViewMode] = useState<ViewMode>("table");
@@ -261,6 +262,11 @@ function AdminUsersPage() {
     return apiBranches.filter((b) => b.company_id === companyId);
   }, [apiBranches, formData.companyId]);
 
+  const branchFilterOptions = useMemo(() => {
+    if (companyFilter === "all" || companyFilter === "no-company") return apiBranches;
+    return apiBranches.filter((b) => b.company_id === Number(companyFilter));
+  }, [apiBranches, companyFilter]);
+
   // Available permissions
   const availablePermissions = [
     { id: "users.read", label: "Foydalanuvchilarni ko'rish" },
@@ -310,6 +316,11 @@ function AdminUsersPage() {
       result = result.filter((user) => user._apiUser?.user_type === roleFilter);
     }
 
+    // Branch filter
+    if (branchFilter !== "all") {
+      result = result.filter((user) => user.branchId === Number(branchFilter));
+    }
+
     // Status filter
     if (statusFilter !== "all") {
       result = result.filter((user) => user.status === statusFilter);
@@ -340,7 +351,7 @@ function AdminUsersPage() {
     });
 
     return result;
-  }, [users, searchQuery, sortField, sortOrder, companyFilter, roleFilter, statusFilter, dateFrom, dateTo]);
+  }, [users, searchQuery, sortField, sortOrder, companyFilter, roleFilter, branchFilter, statusFilter, dateFrom, dateTo]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -850,7 +861,18 @@ function AdminUsersPage() {
 
           {/* Filters Row */}
           <div className="flex flex-wrap gap-4">
-            <Select value={companyFilter} onValueChange={setCompanyFilter}>
+            <Select
+              value={companyFilter}
+              onValueChange={(v) => {
+                setCompanyFilter(v);
+                if (v !== "all" && v !== "no-company") {
+                  const branchInCompany = apiBranches.some(
+                    (b) => b.id === Number(branchFilter) && b.company_id === Number(v),
+                  );
+                  if (!branchInCompany) setBranchFilter("all");
+                }
+              }}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Kompaniya" />
               </SelectTrigger>
@@ -862,6 +884,26 @@ function AdminUsersPage() {
                   </SelectItem>
                 ))}
                 <SelectItem value="no-company">Kompaniyasi yo'q</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={branchFilter}
+              onValueChange={(v) => {
+                setBranchFilter(v);
+              }}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filial" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Barcha filiallar</SelectItem>
+                {branchFilterOptions.length > 0 &&
+                  branchFilterOptions.map((branch) => (
+                    <SelectItem key={branch.id} value={branch.id.toString()}>
+                      {branch.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
 
