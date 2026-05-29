@@ -1,1 +1,0 @@
-import{o as a,B as i,m as s}from"./PieChart-jNfHU6Dy.js";import{X as t,Y as r}from"./YAxis-4YfqJS0A.js";var p=a({chartName:"BarChart",GraphicalChild:i,defaultTooltipEventType:"axis",validateTooltipEventTypes:["axis","item"],axisComponents:[{axisType:"xAxis",AxisComp:t},{axisType:"yAxis",AxisComp:r}],formatAxisMap:s});export{p as B};
