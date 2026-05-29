@@ -291,7 +291,7 @@ function AdminUsersPage() {
 
     // Role filter
     if (roleFilter !== "all") {
-      result = result.filter((user) => user.role === roleFilter);
+      result = result.filter((user) => user._apiUser?.user_type === roleFilter);
     }
 
     // Status filter
