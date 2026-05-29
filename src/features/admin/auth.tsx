@@ -27,6 +27,10 @@ function readAdminSession(): StoredSession | null {
 
 export function useAdminAuth() {
   const [session, setSession] = useState<StoredSession | null>(() => readAdminSession());
+  const [profileLoading, setProfileLoading] = useState(() => {
+    const s = readAdminSession();
+    return !!s?.access_token && !s?.user_type;
+  });
 
   useEffect(() => {
     const onStorage = () => setSession(readAdminSession());
@@ -35,7 +39,15 @@ export function useAdminAuth() {
   }, []);
 
   useEffect(() => {
-    if (!session?.access_token) return;
+    if (!session?.access_token) {
+      setProfileLoading(false);
+      return;
+    }
+    if (session.user_type) {
+      setProfileLoading(false);
+      return;
+    }
+    setProfileLoading(true);
     fetchProfile()
       .then((profile) => {
         setSession((prev) => {
@@ -49,8 +61,9 @@ export function useAdminAuth() {
           return next;
         });
       })
-      .catch(() => {});
-  }, [session?.access_token]);
+      .catch(() => {})
+      .finally(() => setProfileLoading(false));
+  }, [session?.access_token, session?.user_type]);
 
   const login = useCallback(async (email: string, password: string) => {
     try {
@@ -61,7 +74,7 @@ export function useAdminAuth() {
       });
 
       if (!res.ok) {
-        return false;
+        return { ok: false as const, reason: "credentials" as const };
       }
 
       const data = await res.json();
@@ -72,9 +85,9 @@ export function useAdminAuth() {
       };
       window.localStorage.setItem(ADMIN_AUTH_KEY, JSON.stringify(next));
       setSession(next);
-      return true;
+      return { ok: true as const };
     } catch {
-      return false;
+      return { ok: false as const, reason: "credentials" as const };
     }
   }, []);
 
@@ -89,6 +102,7 @@ export function useAdminAuth() {
   return {
     session,
     isAuthenticated: Boolean(session),
+    profileLoading,
     login,
     logout,
   };

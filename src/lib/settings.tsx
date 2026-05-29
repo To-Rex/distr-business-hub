@@ -484,6 +484,10 @@ const dict = {
     returnedSummaLabel: "Qaytgan summa",
     returnLabel: "Qaytgan",
     territoriesLabel: "Hududlar",
+    backToLogin: "Login sahifasiga qaytish",
+    adminNoAccessTitle: "Ruxsat yo'q",
+    adminNoAccessDesc:
+      "Sizda admin panelga kirish uchun ruxsat yo'q. Iltimos, administrator bilan bog'lanishingizni so'raymiz.",
   },
   ru: {
     appTagline: "Единая платформа для управления дистрибьюторским бизнесом",
@@ -961,6 +965,10 @@ const dict = {
     returnedSummaLabel: "Возврат (сумма)",
     returnLabel: "Возврат",
     territoriesLabel: "Территории",
+    backToLogin: "Вернуться на страницу входа",
+    adminNoAccessTitle: "Нет доступа",
+    adminNoAccessDesc:
+      "У вас нет доступа к административной панели. Пожалуйста, свяжитесь с администратором.",
   },
   en: {
     appTagline: "One platform to run your entire distribution business",
@@ -1438,6 +1446,10 @@ const dict = {
     returnedSummaLabel: "Returned amount",
     returnLabel: "Returned",
     territoriesLabel: "Territories",
+    backToLogin: "Back to login",
+    adminNoAccessTitle: "Access denied",
+    adminNoAccessDesc:
+      "You do not have permission to access the admin panel. Please contact your administrator.",
   },
 };
 

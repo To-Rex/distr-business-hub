@@ -27,10 +27,10 @@ function AdminLoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    const ok = await login(username, password);
+    const result = await login(username, password);
     setIsLoading(false);
 
-    if (!ok) {
+    if (!result.ok) {
       setError(t("adminLoginRequired") || "Xato login yoki parol");
       return;
     }
