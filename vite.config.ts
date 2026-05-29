@@ -84,6 +84,8 @@ export default defineConfig(async ({ mode }) => {
     envDefine[`import.meta.env.${key}`] = JSON.stringify(value);
   }
 
+  const port = parseInt(process.env.PORT || loadedEnv.VITE_PORT || "8086", 10);
+
   return {
     base: "/",
     define: envDefine,
@@ -103,7 +105,7 @@ export default defineConfig(async ({ mode }) => {
     plugins: internalPlugins,
     server: {
       host: "::",
-      port: 8086,
+      port,
       // Fix for development mode
       allowedHosts: ["distr.mxsoft.uz"],
       watch: {
@@ -115,7 +117,7 @@ export default defineConfig(async ({ mode }) => {
     },
     preview: {
       host: "::",
-      port: 8086,
+      port,
       // Fix for production (npm run preview) mode
       allowedHosts: ["distr.mxsoft.uz"],
     },
