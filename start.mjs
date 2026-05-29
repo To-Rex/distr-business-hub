@@ -12,7 +12,7 @@ if (!existsSync(resolve(__dirname, "dist/server/server.js"))) {
 
 const { default: server } = await import("./dist/server/server.js");
 
-const PORT = parseInt(process.env.PORT || "8085", 10);
+const PORT = parseInt(process.env.PORT || "8086", 10);
 const HOST = process.env.HOST || "0.0.0.0";
 const CLIENT_DIR = resolve(__dirname, "dist/client");
 
