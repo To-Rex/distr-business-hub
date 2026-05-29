@@ -379,19 +379,21 @@ function LiveMapPage() {
     navSearchTarget === "client" && normalizedNavSearch
       ? clients.filter((c) => c.name.toLowerCase().includes(normalizedNavSearch))
       : [];
-  const prioritizedUsers =
-    userSearchMatches.length > 0
-      ? [...roleFilteredUsers].sort((a, b) => {
-          const aMatched = `${a.first_name} ${a.last_name}`
-            .toLowerCase()
-            .includes(normalizedNavSearch);
-          const bMatched = `${b.first_name} ${b.last_name}`
-            .toLowerCase()
-            .includes(normalizedNavSearch);
-          if (aMatched === bMatched) return 0;
-          return aMatched ? -1 : 1;
-        })
-      : roleFilteredUsers;
+  const prioritizedUsers = [...roleFilteredUsers].sort((a, b) => {
+    if (a.status !== b.status) {
+      return a.status === "online" ? -1 : 1;
+    }
+    if (userSearchMatches.length > 0) {
+      const aMatched = `${a.first_name} ${a.last_name}`
+        .toLowerCase()
+        .includes(normalizedNavSearch);
+      const bMatched = `${b.first_name} ${b.last_name}`
+        .toLowerCase()
+        .includes(normalizedNavSearch);
+      if (aMatched !== bMatched) return aMatched ? -1 : 1;
+    }
+    return 0;
+  });
   const activeListTarget = navSearchTarget;
   const shouldShowClientList = activeListTarget === "client";
   const prioritizedClients =
