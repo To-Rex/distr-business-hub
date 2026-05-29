@@ -488,6 +488,10 @@ const dict = {
     adminNoAccessTitle: "Ruxsat yo'q",
     adminNoAccessDesc:
       "Sizda admin panelga kirish uchun ruxsat yo'q. Iltimos, administrator bilan bog'lanishingizni so'raymiz.",
+    noAccessTitle: "Ruxsat yo'q",
+    noAccessDesc:
+      "Sizda ushbu tizimga kirish uchun ruxsat yo'q. Iltimos, administrator bilan bog'lanishingizni so'raymiz.",
+    backToLoginPage: "Login sahifasiga qaytish",
   },
   ru: {
     appTagline: "Единая платформа для управления дистрибьюторским бизнесом",
@@ -969,6 +973,10 @@ const dict = {
     adminNoAccessTitle: "Нет доступа",
     adminNoAccessDesc:
       "У вас нет доступа к административной панели. Пожалуйста, свяжитесь с администратором.",
+    noAccessTitle: "Нет доступа",
+    noAccessDesc:
+      "У вас нет доступа к этой системе. Пожалуйста, свяжитесь с администратором.",
+    backToLoginPage: "Вернуться на страницу входа",
   },
   en: {
     appTagline: "One platform to run your entire distribution business",
@@ -1450,6 +1458,10 @@ const dict = {
     adminNoAccessTitle: "Access denied",
     adminNoAccessDesc:
       "You do not have permission to access the admin panel. Please contact your administrator.",
+    noAccessTitle: "Access denied",
+    noAccessDesc:
+      "You do not have permission to access this system. Please contact your administrator.",
+    backToLoginPage: "Back to login",
   },
 };
 
