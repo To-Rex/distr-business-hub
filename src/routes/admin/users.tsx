@@ -40,7 +40,8 @@ export interface AdminUser {
   createdAt: string;
   permissions: string[];
   twoFactorEnabled: boolean;
-  department?: string;
+  branchId?: number | null;
+  branchName?: string | null;
   address?: string;
 }
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -54,10 +55,12 @@ import {
   getUserTypeLabel,
   getUserStatusLabel,
   fetchUserLocationHistory,
+  fetchBranches,
   type ApiUser,
   type ApiUserType,
   type ApiUserStatus,
   type ApiLocationHistory,
+  type ApiBranch,
 } from "@/lib/admin-api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -170,6 +173,11 @@ function AdminUsersPage() {
     queryFn: () => fetchCompanies(),
   });
 
+  const { data: apiBranches = [] } = useQuery({
+    queryKey: ["admin-branches"],
+    queryFn: () => fetchBranches(0, 1000),
+  });
+
   const users: (AdminUser & { _apiUser?: ApiUser })[] = useMemo(() => {
     return apiUsers.map((u) => ({
       id: u.id,
@@ -185,7 +193,8 @@ function AdminUsersPage() {
       createdAt: new Date(u.created_at).toISOString().split("T")[0],
       permissions: [],
       twoFactorEnabled: false,
-      department: "",
+      branchId: u.branch_id,
+      branchName: u.branch_rel?.name || null,
       address: "",
       _apiUser: u,
     }));
@@ -224,7 +233,8 @@ function AdminUsersPage() {
     status: "Kutilmoqda",
     companyId: null,
     companyName: null,
-    department: "",
+    branchId: null,
+    branchName: null,
     address: "",
     twoFactorEnabled: false,
     permissions: [],
@@ -244,6 +254,12 @@ function AdminUsersPage() {
       return m.company_id === companyId;
     });
   }, [managers, formData.companyId]);
+
+  const filteredBranches = useMemo(() => {
+    const companyId = formData.companyId;
+    if (!companyId) return apiBranches;
+    return apiBranches.filter((b) => b.company_id === companyId);
+  }, [apiBranches, formData.companyId]);
 
   // Available permissions
   const availablePermissions = [
@@ -280,7 +296,7 @@ function AdminUsersPage() {
           user.phone.includes(query) ||
           user.role.toLowerCase().includes(query) ||
           (user.companyName && user.companyName.toLowerCase().includes(query)) ||
-          (user.department && user.department.toLowerCase().includes(query)),
+          (user.branchName && user.branchName.toLowerCase().includes(query)),
       );
     }
 
@@ -357,7 +373,8 @@ function AdminUsersPage() {
       status: apiStatusToForm[apiUser?.user_status || ""] || user.status,
       companyId: apiUser?.company_id ?? user.companyId,
       companyName: apiUser?.company_rel?.name ?? user.companyName,
-      department: user.department || "",
+      branchId: apiUser?.branch_id ?? user.branchId ?? null,
+      branchName: apiUser?.branch_rel?.name ?? user.branchName ?? null,
       address: user.address || "",
       twoFactorEnabled: user.twoFactorEnabled,
       permissions: user.permissions,
@@ -422,7 +439,8 @@ function AdminUsersPage() {
       status: "Kutilmoqda",
       companyId: null,
       companyName: null,
-      department: "",
+      branchId: null,
+      branchName: null,
       address: "",
       twoFactorEnabled: false,
       permissions: [],
@@ -531,6 +549,7 @@ function AdminUsersPage() {
       if (userType) editData.user_type = userType;
       if (userStatus) editData.user_status = userStatus;
       if (formData.companyId) editData.company_id = formData.companyId;
+      if (formData.branchId) editData.branch_id = Number(formData.branchId);
       if (formData.managerId) editData.manager_id = Number(formData.managerId);
       if (formData.password) editData.password = formData.password;
       if (formData.user1cId !== undefined && formData.user1cId !== "")
@@ -550,6 +569,7 @@ function AdminUsersPage() {
         phone_number: formData.phone,
         user_type: userType,
         ...(formData.companyId ? { company_id: Number(formData.companyId) } : {}),
+        ...(formData.branchId ? { branch_id: Number(formData.branchId) } : {}),
         ...(formData.photoUrl ? { photo: formData.photoUrl } : {}),
         ...(formData.managerId ? { manager_id: Number(formData.managerId) } : {}),
         ...(formData.user1cId !== undefined && formData.user1cId !== ""
@@ -771,10 +791,10 @@ function AdminUsersPage() {
             </div>
           )}
 
-          {user.department && (
+          {user.branchName && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Users className="h-4 w-4" />
-              <span>{user.department}</span>
+              <span>{user.branchName}</span>
             </div>
           )}
 
@@ -976,7 +996,7 @@ function AdminUsersPage() {
                       </Button>
                     </TableHead>
                     <TableHead>Kompaniya</TableHead>
-                    <TableHead>Bo'lim</TableHead>
+                    <TableHead>Filial</TableHead>
                     <TableHead>
                       <Button
                         variant="ghost"
@@ -1035,7 +1055,7 @@ function AdminUsersPage() {
                           <span className="text-muted-foreground">—</span>
                         )}
                       </TableCell>
-                      <TableCell>{user.department || "—"}</TableCell>
+                      <TableCell>{user.branchName || "—"}</TableCell>
                       <TableCell>
                         {user.lastLogin ? (
                           <span className="text-sm">{user.lastLogin}</span>
@@ -1201,8 +1221,8 @@ function AdminUsersPage() {
                         <p className="font-medium">{selectedUser.companyName || "—"}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-muted-foreground">Bo'lim</p>
-                        <p className="font-medium">{selectedUser.department || "—"}</p>
+                        <p className="text-xs text-muted-foreground">Filial</p>
+                        <p className="font-medium">{selectedUser.branchName || "—"}</p>
                       </div>
                       <div>
                         <p className="text-xs text-muted-foreground">Ro'yxatdan o'tgan</p>
@@ -1508,13 +1528,22 @@ function AdminUsersPage() {
                               ...formData,
                               companyId: null,
                               companyName: null,
+                              branchId: null,
+                              branchName: null,
                             });
                           } else {
                             const company = apiCompanies.find((c) => c.id === Number(v));
+                            const currentBranch = formData.branchId
+                              ? apiBranches.find(
+                                  (b) => b.id === formData.branchId && b.company_id === company?.id,
+                                )
+                              : null;
                             setFormData({
                               ...formData,
                               companyId: company ? company.id : null,
                               companyName: company ? company.name : null,
+                              branchId: currentBranch ? currentBranch.id : null,
+                              branchName: currentBranch ? currentBranch.name : null,
                             });
                           }
                         }}
@@ -1533,16 +1562,40 @@ function AdminUsersPage() {
                       </Select>
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="department" className="text-xs font-medium">
-                        Bo'lim
+                      <Label htmlFor="branch" className="text-xs font-medium">
+                        Filial
                       </Label>
-                      <Input
-                        id="department"
-                        value={formData.department}
-                        onChange={(e) => setFormData({ ...formData, department: e.target.value })}
-                        placeholder="Bo'lim nomi"
-                        className="h-9"
-                      />
+                      <Select
+                        value={formData.branchId?.toString() || "none"}
+                        onValueChange={(v) => {
+                          if (v === "none") {
+                            setFormData({
+                              ...formData,
+                              branchId: null,
+                              branchName: null,
+                            });
+                          } else {
+                            const branch = apiBranches.find((b) => b.id === Number(v));
+                            setFormData({
+                              ...formData,
+                              branchId: branch ? branch.id : null,
+                              branchName: branch ? branch.name : null,
+                            });
+                          }
+                        }}
+                      >
+                        <SelectTrigger className="h-9">
+                          <SelectValue placeholder="Tanlanmagan" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Tanlanmagan</SelectItem>
+                          {filteredBranches.map((branch) => (
+                            <SelectItem key={branch.id} value={branch.id.toString()}>
+                              {branch.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
                   <div className="space-y-2">

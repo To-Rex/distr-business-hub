@@ -70,6 +70,8 @@ export type ApiUser = {
     created_at: string;
   } | null;
   manager_id: number | null;
+  branch_id: number | null;
+  branch_rel: ApiBranch | null;
   user_1c_id: number | null;
   user_1c_login: string | null;
   user_1c_password: string | null;
@@ -198,6 +200,7 @@ export type CreateUserPayload = {
   user_type?: ApiUserType;
   company_id?: number;
   manager_id?: number;
+  branch_id?: number;
   user_1c_id?: number;
   user_1c_login?: string;
   user_1c_password?: string;
@@ -222,6 +225,7 @@ export type UpdateUserPayload = {
   user_status?: ApiUserStatus;
   company_id?: number;
   manager_id?: number;
+  branch_id?: number;
 };
 
 export async function updateUser(userId: number, data: UpdateUserPayload): Promise<ApiUser> {
@@ -303,6 +307,14 @@ export type CreateBranchPayload = {
   name: string;
   company_id: number;
 };
+
+export async function fetchBranches(skip?: number, limit?: number): Promise<ApiBranch[]> {
+  const params = new URLSearchParams();
+  if (skip !== undefined) params.set("skip", String(skip));
+  if (limit !== undefined) params.set("limit", String(limit));
+  const qs = params.toString();
+  return adminFetch<ApiBranch[]>(qs ? `${API.branches}?${qs}` : API.branches);
+}
 
 export async function createBranch(data: CreateBranchPayload): Promise<ApiBranch> {
   return adminFetch<ApiBranch>(API.branches, {

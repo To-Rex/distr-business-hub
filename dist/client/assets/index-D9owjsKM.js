@@ -1,0 +1,1 @@
+import{au as n,N as a}from"./index-Do-X-RIa.js";import{S as o}from"./auth-CEdAp0Dj.js";function m(){const{isAuthenticated:t}=o();return n.jsx(a,{to:t?"/admin/dashboard":"/admin/login"})}export{m as component};
