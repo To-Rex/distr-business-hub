@@ -23,6 +23,13 @@ export type ApiUserType =
   | "MERCHANDISER";
 export type ApiUserStatus = "ACTIVE" | "INACTIVE" | "PENDING" | "BLOCKED";
 
+export type ApiBranch = {
+  id: number;
+  name: string;
+  company_id: number;
+  created_at: string;
+};
+
 export type ApiCompany = {
   id: number;
   name: string;
@@ -30,6 +37,7 @@ export type ApiCompany = {
   base_url: string;
   asl_belgi_token: string;
   created_at?: string;
+  branches?: ApiBranch[];
 };
 
 export type ApiSecurityKey = {
@@ -289,6 +297,32 @@ export async function updateCompany(
 
 export async function deleteCompany(companyId: number): Promise<void> {
   return adminFetch<void>(API.companyById(companyId), { method: "DELETE" });
+}
+
+export type CreateBranchPayload = {
+  name: string;
+  company_id: number;
+};
+
+export async function createBranch(data: CreateBranchPayload): Promise<ApiBranch> {
+  return adminFetch<ApiBranch>(API.branches, {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateBranch(
+  branchId: number,
+  data: { name?: string; company_id?: number },
+): Promise<ApiBranch> {
+  return adminFetch<ApiBranch>(API.branchById(branchId), {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteBranch(branchId: number): Promise<void> {
+  return adminFetch<void>(API.branchById(branchId), { method: "DELETE" });
 }
 
 export async function fetchSecurityKeys(companyId: number): Promise<ApiSecurityKey[]> {

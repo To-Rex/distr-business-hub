@@ -1,6 +1,6 @@
-//const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+const BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 //const BASE_URL = "https://distrbackend-backend-ik7zfv-29362a-83-149-105-190.sslip.io/api";
-const BASE_URL = "https://distr.mxsoft.uz/api";
+//const BASE_URL = "https://distr.mxsoft.uz/api";
 
 if (!BASE_URL) {
   throw new Error("VITE_API_BASE_URL is not defined");
@@ -40,6 +40,8 @@ type ApiEndpoints = {
   ordersAll: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
   companyById: (id: number) => string;
   companies: string;
+  branches: string;
+  branchById: (id: number) => string;
   companySecurityKeys: (id: number) => string;
   securityKeyById: (id: number) => string;
   notifications: string;
@@ -124,6 +126,8 @@ export const API: ApiEndpoints = {
     ),
   companyById: (id: number) => `${BASE_URL}/v1/companies/${id}`,
   companies: `${BASE_URL}/v1/companies/`,
+  branches: `${BASE_URL}/v1/branches/`,
+  branchById: (id: number) => `${BASE_URL}/v1/branches/${id}`,
   companySecurityKeys: (id: number) => `${BASE_URL}/v1/companies/${id}/security-keys`,
   securityKeyById: (id: number) => `${BASE_URL}/v1/companies/security-keys/${id}`,
   notifications: `${BASE_URL}/v1/notifications`,

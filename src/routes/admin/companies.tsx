@@ -11,9 +11,14 @@ import {
   fetchSecurityKeys,
   createSecurityKey,
   deleteSecurityKey,
+  createBranch,
+  updateBranch,
+  deleteBranch,
   type ApiCompany,
+  type ApiBranch,
   type CreateCompanyPayload,
   type UpdateCompanyPayload,
+  type CreateBranchPayload,
 } from "@/lib/admin-api";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useSettings } from "@/lib/settings";
@@ -71,6 +76,8 @@ import {
   Globe,
   Hash,
   Copy,
+  GitBranch,
+  Pencil,
 } from "lucide-react";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
@@ -136,12 +143,14 @@ function CompanyCard({
   onDelete,
   onView,
   onKeys,
+  t,
 }: {
   company: ApiCompany;
   onEdit: (c: ApiCompany) => void;
   onDelete: (c: ApiCompany) => void;
   onView: (c: ApiCompany) => void;
   onKeys: (c: ApiCompany) => void;
+  t: (k: any) => string;
 }) {
   return (
     <div className="group relative rounded-xl border bg-card p-5 transition-all hover:shadow-md hover:border-primary/20">
@@ -168,39 +177,59 @@ function CompanyCard({
           <DropdownMenuContent align="end" className="w-44">
             <DropdownMenuItem onClick={() => onView(company)}>
               <Eye className="h-4 w-4 mr-2" />
-              Ko'rish
+              {t("adminCompanyView")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onEdit(company)}>
               <Edit className="h-4 w-4 mr-2" />
-              Tahrirlash
+              {t("edit")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onKeys(company)}>
               <Key className="h-4 w-4 mr-2" />
-              Kalitlar
+              {t("adminCompanyKeys")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => onDelete(company)} className="text-red-600 focus:text-red-600">
               <Trash2 className="h-4 w-4 mr-2" />
-              O'chirish
+              {t("adminCompanyDelete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
 
       <div className="mt-4 space-y-2">
-        {company.inn && (
-          <div className="flex items-center gap-2 text-sm">
-            <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="text-muted-foreground">INN:</span>
-            <span className="font-mono text-xs">{company.inn}</span>
-          </div>
-        )}
-        {company.base_url && (
-          <div className="flex items-center gap-2 text-sm">
-            <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <span className="truncate text-xs text-muted-foreground">{company.base_url}</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2 text-sm">
+          <Hash className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className="text-muted-foreground">INN:</span>
+          <span className={cn("font-mono text-xs", !company.inn && "text-muted-foreground/50 italic")}>
+            {company.inn || t("adminCompanyNotSet")}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 text-sm">
+          <Globe className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+          <span className={cn("truncate text-xs", !company.base_url && "text-muted-foreground/50 italic")}>
+            {company.base_url || t("notAvailable")}
+          </span>
+        </div>
+        <div className="pt-2">
+          <p className="text-xs text-muted-foreground font-medium mb-1.5 flex items-center gap-1">
+            <GitBranch className="h-3 w-3" />
+            {t("adminCompanyBranches")}
+          </p>
+          {company.branches && company.branches.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {company.branches.map((branch) => (
+                <span
+                  key={branch.id}
+                  className="inline-flex items-center gap-1 text-xs bg-secondary/50 px-2 py-0.5 rounded-full"
+                >
+                  {branch.name}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-muted-foreground/50 italic">{t("notAvailable")}</span>
+          )}
+        </div>
       </div>
 
       <div className="mt-4 flex items-center gap-2 pt-3 border-t">
@@ -211,7 +240,7 @@ function CompanyCard({
           onClick={() => onView(company)}
         >
           <Eye className="h-3.5 w-3.5 mr-1.5" />
-          Ko'rish
+          {t("adminCompanyView")}
         </Button>
         <Button
           variant="ghost"
@@ -220,7 +249,7 @@ function CompanyCard({
           onClick={() => onEdit(company)}
         >
           <Edit className="h-3.5 w-3.5 mr-1.5" />
-          Tahrirlash
+          {t("edit")}
         </Button>
       </div>
     </div>
@@ -237,11 +266,11 @@ function AdminCompaniesPage() {
   });
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    setViewMode(isMobile ? "grid" : "table");
+    if (isMobile) setViewMode("grid");
   }, [isMobile]);
 
   const [sortField, setSortField] = useState<SortField>("id");
@@ -255,6 +284,11 @@ function AdminCompaniesPage() {
   const [isAddKeyDialogOpen, setIsAddKeyDialogOpen] = useState(false);
   const [newKeyName, setNewKeyName] = useState("");
   const [formData, setFormData] = useState<CompanyFormData>(emptyForm);
+  const [isAddBranchDialogOpen, setIsAddBranchDialogOpen] = useState(false);
+  const [isEditBranchDialogOpen, setIsEditBranchDialogOpen] = useState(false);
+  const [isDeleteBranchDialogOpen, setIsDeleteBranchDialogOpen] = useState(false);
+  const [selectedBranch, setSelectedBranch] = useState<ApiBranch | null>(null);
+  const [branchName, setBranchName] = useState("");
 
   const { data: securityKeys = [] } = useQuery({
     queryKey: ["admin-security-keys", selectedCompany?.id],
@@ -269,7 +303,8 @@ function AdminCompaniesPage() {
       return (
         c.name.toLowerCase().includes(q) ||
         (c.inn && c.inn.toLowerCase().includes(q)) ||
-        (c.base_url && c.base_url.toLowerCase().includes(q))
+        (c.base_url && c.base_url.toLowerCase().includes(q)) ||
+        (c.branches && c.branches.some((b) => b.name.toLowerCase().includes(q)))
       );
     });
 
@@ -301,34 +336,34 @@ function AdminCompaniesPage() {
     mutationFn: createCompany,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
-      toast.success("Kompaniya muvaffaqiyatli yaratildi");
+      toast.success(t("adminCompanyCreated"));
       setIsAddDialogOpen(false);
       setFormData(emptyForm);
     },
-    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: UpdateCompanyPayload }) => updateCompany(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
-      toast.success("Kompaniya muvaffaqiyatli yangilandi");
+      toast.success(t("adminCompanyUpdated"));
       setIsEditDialogOpen(false);
       setSelectedCompany(null);
       setFormData(emptyForm);
     },
-    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteCompany,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
-      toast.success("Kompaniya muvaffaqiyatli o'chirildi");
+      toast.success(t("adminCompanyDeleted"));
       setIsDeleteDialogOpen(false);
       setSelectedCompany(null);
     },
-    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
   });
 
   const createKeyMutation = useMutation({
@@ -336,20 +371,55 @@ function AdminCompaniesPage() {
       createSecurityKey(companyId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-security-keys", selectedCompany?.id] });
-      toast.success("Xavfsizlik kaliti qo'shildi");
+      toast.success(t("adminKeyAdded"));
       setIsAddKeyDialogOpen(false);
       setNewKeyName("");
     },
-    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
   });
 
   const deleteKeyMutation = useMutation({
     mutationFn: deleteSecurityKey,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-security-keys", selectedCompany?.id] });
-      toast.success("Xavfsizlik kaliti o'chirildi");
+      toast.success(t("adminKeyDeleted"));
     },
-    onError: (err: any) => toast.error(err.message || "Xatolik yuz berdi"),
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
+  });
+
+  const createBranchMutation = useMutation({
+    mutationFn: createBranch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      toast.success(t("adminBranchAdded"));
+      setIsAddBranchDialogOpen(false);
+      setBranchName("");
+    },
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
+  });
+
+  const updateBranchMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: { name?: string; company_id?: number } }) =>
+      updateBranch(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      toast.success(t("adminBranchUpdated"));
+      setIsEditBranchDialogOpen(false);
+      setSelectedBranch(null);
+      setBranchName("");
+    },
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
+  });
+
+  const deleteBranchMutation = useMutation({
+    mutationFn: deleteBranch,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-companies"] });
+      toast.success(t("adminBranchDeleted"));
+      setIsDeleteBranchDialogOpen(false);
+      setSelectedBranch(null);
+    },
+    onError: (err: any) => toast.error(err.message || t("adminErrorOccurred")),
   });
 
   const handleAdd = () => {
@@ -383,9 +453,47 @@ function AdminCompaniesPage() {
     setIsKeysDialogOpen(true);
   };
 
+  const handleAddBranch = () => {
+    setBranchName("");
+    setIsAddBranchDialogOpen(true);
+  };
+
+  const handleEditBranch = (branch: ApiBranch) => {
+    setSelectedBranch(branch);
+    setBranchName(branch.name);
+    setIsEditBranchDialogOpen(true);
+  };
+
+  const handleDeleteBranch = (branch: ApiBranch) => {
+    setSelectedBranch(branch);
+    setIsDeleteBranchDialogOpen(true);
+  };
+
+  const confirmAddBranch = () => {
+    if (!branchName.trim() || !selectedCompany) {
+      toast.error(t("adminBranchNameRequired") || "Filial nomi majburiy");
+      return;
+    }
+    createBranchMutation.mutate({ name: branchName, company_id: selectedCompany.id });
+  };
+
+  const confirmEditBranch = () => {
+    if (!branchName.trim() || !selectedBranch) {
+      toast.error(t("adminBranchNameRequired") || "Filial nomi majburiy");
+      return;
+    }
+    updateBranchMutation.mutate({ id: selectedBranch.id, data: { name: branchName, company_id: selectedBranch.company_id } });
+  };
+
+  const confirmDeleteBranch = () => {
+    if (selectedBranch) {
+      deleteBranchMutation.mutate(selectedBranch.id);
+    }
+  };
+
   const handleSaveCreate = () => {
     if (!formData.name.trim()) {
-      toast.error("Kompaniya nomi majburiy");
+      toast.error(t("adminCompanyNameRequired"));
       return;
     }
     const payload: CreateCompanyPayload = { name: formData.name };
@@ -407,7 +515,7 @@ function AdminCompaniesPage() {
 
   const handleAddKey = () => {
     if (!selectedCompany || !newKeyName.trim()) {
-      toast.error("Kalit nomini kiriting");
+      toast.error(t("adminEnterKeyName"));
       return;
     }
     createKeyMutation.mutate({
@@ -424,7 +532,7 @@ function AdminCompaniesPage() {
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast.success("Nusxalandi");
+    toast.success(t("adminCopied"));
   };
 
   return (
@@ -440,7 +548,7 @@ function AdminCompaniesPage() {
           <div className="relative flex-1 max-w-sm">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Qidirish (nomi, INN, URL)..."
+              placeholder={t("adminSearchCompanies")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 bg-card"
@@ -448,7 +556,7 @@ function AdminCompaniesPage() {
           </div>
           <div className="flex items-center gap-3">
             <div className="text-xs text-muted-foreground tabular-nums">
-              {filteredCompanies.length} ta
+              {t("adminItemsCount").replace("{n}", String(filteredCompanies.length))}
             </div>
             <div className="h-4 w-px bg-border" />
             <ToggleGroup
@@ -458,10 +566,10 @@ function AdminCompaniesPage() {
               variant="outline"
               size="sm"
             >
-              <ToggleGroupItem value="table" aria-label="Jadval ko'rinishi">
+              <ToggleGroupItem value="table" aria-label={t("adminTableView")}>
                 <List className="h-4 w-4" />
               </ToggleGroupItem>
-              <ToggleGroupItem value="grid" aria-label="Karta ko'rinishi">
+              <ToggleGroupItem value="grid" aria-label={t("adminGridView")}>
                 <LayoutGrid className="h-4 w-4" />
               </ToggleGroupItem>
             </ToggleGroup>
@@ -478,18 +586,19 @@ function AdminCompaniesPage() {
               <TableHeader>
                 <TableRow className="hover:bg-transparent border-b">
                   <TableHead className="py-3">
-                    <SortableHeader label="ID" field="id" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label={t("id")} field="id" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
                   <TableHead className="py-3">
-                    <SortableHeader label="Nomi" field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label={t("adminCompanyName")} field="name" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
                   <TableHead className="py-3">
                     <SortableHeader label="INN" field="inn" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
                   <TableHead className="py-3">
-                    <SortableHeader label="Base URL" field="base_url" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
+                    <SortableHeader label={t("adminBaseUrl")} field="base_url" sortField={sortField} sortDir={sortDir} onSort={handleSort} />
                   </TableHead>
-                  <TableHead className="py-3 hidden lg:table-cell">Token</TableHead>
+                  <TableHead className="py-3 hidden lg:table-cell">{t("adminToken")}</TableHead>
+                  <TableHead className="py-3 hidden md:table-cell w-[160px]">{t("adminCompanyBranches")}</TableHead>
                   <TableHead className="w-[60px] py-3" />
                 </TableRow>
               </TableHeader>
@@ -520,6 +629,22 @@ function AdminCompaniesPage() {
                         <span className="text-muted-foreground">—</span>
                       )}
                     </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                      {company.branches && company.branches.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {company.branches.map((branch) => (
+                            <span
+                              key={branch.id}
+                              className="inline-flex items-center text-xs bg-secondary/50 px-1.5 py-0.5 rounded-full"
+                            >
+                              {branch.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -535,15 +660,15 @@ function AdminCompaniesPage() {
                         <DropdownMenuContent align="end" className="w-44">
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleView(company); }}>
                             <Eye className="h-4 w-4 mr-2" />
-                            Ko'rish
+                            {t("adminCompanyView")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleEdit(company); }}>
                             <Edit className="h-4 w-4 mr-2" />
-                            Tahrirlash
+                            {t("edit")}
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleKeys(company); }}>
                             <Key className="h-4 w-4 mr-2" />
-                            Xavfsizlik kalitlari
+                            {t("securityKeys")}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -551,7 +676,7 @@ function AdminCompaniesPage() {
                             className="text-red-600 focus:text-red-600"
                           >
                             <Trash2 className="h-4 w-4 mr-2" />
-                            O'chirish
+                            {t("adminCompanyDelete")}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -563,7 +688,7 @@ function AdminCompaniesPage() {
             {filteredCompanies.length === 0 && !isLoading && (
               <div className="text-center py-16 text-muted-foreground">
                 <Building2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Kompaniyalar topilmadi</p>
+                <p className="text-sm">{t("adminCompaniesNotFound")}</p>
               </div>
             )}
           </div>
@@ -572,7 +697,7 @@ function AdminCompaniesPage() {
             {filteredCompanies.length === 0 && !isLoading ? (
               <div className="text-center py-16 text-muted-foreground">
                 <Building2 className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Kompaniyalar topilmadi</p>
+                <p className="text-sm">{t("adminCompaniesNotFound")}</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -584,6 +709,7 @@ function AdminCompaniesPage() {
                     onDelete={handleDelete}
                     onView={handleView}
                     onKeys={handleKeys}
+                    t={t}
                   />
                 ))}
               </div>
@@ -598,19 +724,19 @@ function AdminCompaniesPage() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                   <Building2 className="h-4 w-4" />
                 </div>
-                Kompaniya ma'lumotlari
+                {t("adminCompanyDetails")}
               </DialogTitle>
-              <DialogDescription>Kompaniya haqida to'liq ma'lumot</DialogDescription>
+              <DialogDescription>{t("adminCompanyDetailsDesc")}</DialogDescription>
             </DialogHeader>
             {selectedCompany && (
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">ID</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">{t("id")}</p>
                     <p className="font-mono text-sm font-medium">{selectedCompany.id}</p>
                   </div>
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Nomi</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">{t("adminCompanyName")}</p>
                     <p className="text-sm font-medium">{selectedCompany.name}</p>
                   </div>
                   <div className="rounded-lg bg-muted/50 p-3">
@@ -618,13 +744,13 @@ function AdminCompaniesPage() {
                     <p className="font-mono text-sm font-medium">{selectedCompany.inn || "—"}</p>
                   </div>
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Base URL</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">{t("adminBaseUrl")}</p>
                     <p className="text-sm font-medium break-all">{selectedCompany.base_url || "—"}</p>
                   </div>
                 </div>
                 {selectedCompany.asl_belgi_token && (
                   <div className="rounded-lg bg-muted/50 p-3">
-                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">Asl Belgi Token</p>
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-1">{t("adminAslBelgiToken")}</p>
                     <div className="flex items-start gap-2">
                       <p className="font-mono text-sm break-all flex-1">{selectedCompany.asl_belgi_token}</p>
                       <Button
@@ -638,37 +764,154 @@ function AdminCompaniesPage() {
                     </div>
                   </div>
                 )}
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                      <GitBranch className="h-3 w-3" />
+                      {t("adminCompanyBranches")}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={handleAddBranch}
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  {selectedCompany.branches && selectedCompany.branches.length > 0 ? (
+                    <div className="space-y-1.5 mt-1">
+                      {selectedCompany.branches.map((branch) => (
+                        <div
+                          key={branch.id}
+                          className="flex items-center justify-between rounded-md bg-background/50 px-2.5 py-1.5"
+                        >
+                          <span className="text-xs font-medium">{branch.name}</span>
+                          <div className="flex items-center gap-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleEditBranch(branch)}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-red-500 hover:text-red-600"
+                              onClick={() => handleDeleteBranch(branch)}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-muted-foreground/60 italic">{t("notAvailable")}</span>
+                  )}
+                </div>
               </div>
             )}
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsViewDialogOpen(false)}>
-                Yopish
+                {t("adminClose")}
               </Button>
               <Button onClick={() => { setIsViewDialogOpen(false); handleEdit(selectedCompany!); }}>
-                Tahrirlash
+                {t("edit")}
               </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog open={isAddBranchDialogOpen} onOpenChange={(open) => { if (!open) { setIsAddBranchDialogOpen(false); setBranchName(""); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("adminAddBranch")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="branch-name">{t("adminBranchName")}</Label>
+                <Input
+                  id="branch-name"
+                  value={branchName}
+                  onChange={(e) => setBranchName(e.target.value)}
+                  placeholder={t("adminBranchNamePlaceholder")}
+                  onKeyDown={(e) => { if (e.key === "Enter") confirmAddBranch(); }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsAddBranchDialogOpen(false); setBranchName(""); }}>
+                {t("cancel")}
+              </Button>
+              <Button onClick={confirmAddBranch}>{t("add")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isEditBranchDialogOpen} onOpenChange={(open) => { if (!open) { setIsEditBranchDialogOpen(false); setSelectedBranch(null); setBranchName(""); } }}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{t("adminEditBranch")}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="edit-branch-name">{t("adminBranchName")}</Label>
+                <Input
+                  id="edit-branch-name"
+                  value={branchName}
+                  onChange={(e) => setBranchName(e.target.value)}
+                  placeholder={t("adminBranchNamePlaceholder")}
+                  onKeyDown={(e) => { if (e.key === "Enter") confirmEditBranch(); }}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setIsEditBranchDialogOpen(false); setSelectedBranch(null); setBranchName(""); }}>
+                {t("cancel")}
+              </Button>
+              <Button onClick={confirmEditBranch}>{t("save")}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <AlertDialog open={isDeleteBranchDialogOpen} onOpenChange={(open) => { if (!open) { setIsDeleteBranchDialogOpen(false); setSelectedBranch(null); } }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t("adminDeleteBranch")}</AlertDialogTitle>
+              <AlertDialogDescription>
+                {t("adminBranchDeleteConfirm").replace("{name}", selectedBranch?.name || "")}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteBranch} className="bg-red-600 hover:bg-red-700">
+                {t("adminCompanyDelete")}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <Dialog open={isAddDialogOpen || isEditDialogOpen} onOpenChange={(open) => {
           if (!open) { setIsAddDialogOpen(false); setIsEditDialogOpen(false); setFormData(emptyForm); }
         }}>
           <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>{isEditDialogOpen ? "Kompaniyani tahrirlash" : "Yangi kompaniya qo'shish"}</DialogTitle>
+              <DialogTitle>{isEditDialogOpen ? t("adminCompanyEdit") : t("adminCompanyAdd")}</DialogTitle>
               <DialogDescription>
-                {isEditDialogOpen ? "Kompaniya ma'lumotlarini tahrirlang" : "Yangi kompaniya qo'shish uchun ma'lumotlarni kiriting"}
+                {isEditDialogOpen ? t("adminCompanyEditDesc") : t("adminCompanyAddDesc")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label htmlFor="company-name">Nomi *</Label>
+                <Label htmlFor="company-name">{t("adminCompanyNameLabel")}</Label>
                 <Input
                   id="company-name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Kompaniya nomi"
+                  placeholder={t("adminCompanyNamePlaceholder")}
                 />
               </div>
               <div className="space-y-2">
@@ -677,11 +920,11 @@ function AdminCompaniesPage() {
                   id="company-inn"
                   value={formData.inn}
                   onChange={(e) => setFormData({ ...formData, inn: e.target.value })}
-                  placeholder="INN raqami"
+                  placeholder={t("adminInnNumber")}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="company-url">Base URL</Label>
+                <Label htmlFor="company-url">{t("adminBaseUrl")}</Label>
                 <Input
                   id="company-url"
                   value={formData.base_url}
@@ -690,18 +933,18 @@ function AdminCompaniesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="company-token">Asl Belgi Token</Label>
+                <Label htmlFor="company-token">{t("adminAslBelgiToken")}</Label>
                 <Input
                   id="company-token"
                   value={formData.asl_belgi_token}
                   onChange={(e) => setFormData({ ...formData, asl_belgi_token: e.target.value })}
-                  placeholder="Token"
+                  placeholder={t("adminToken")}
                 />
               </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setIsAddDialogOpen(false); setIsEditDialogOpen(false); setFormData(emptyForm); }}>
-                Bekor qilish
+                {t("cancel")}
               </Button>
               <Button onClick={isEditDialogOpen ? handleSaveEdit : handleSaveCreate}>
                 {t("save")}
@@ -713,17 +956,17 @@ function AdminCompaniesPage() {
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Kompaniyani o'chirish</AlertDialogTitle>
+              <AlertDialogTitle>{t("adminDeleteCompany")}</AlertDialogTitle>
               <AlertDialogDescription>
-                Haqiqatan ham <strong>{selectedCompany?.name}</strong> kompaniyasini o'chirmoqchimisiz?
+                {t("adminDeleteConfirm").replace("{name}", selectedCompany?.name || "")}
                 <br />
-                <span className="text-red-600">Bu amalni qaytarib bo'lmaydi.</span>
+                <span className="text-red-600">{t("adminIrreversible")}</span>
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Bekor qilish</AlertDialogCancel>
+              <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
               <AlertDialogAction onClick={confirmDelete} className="bg-red-600 hover:bg-red-700">
-                O'chirish
+                {t("adminCompanyDelete")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -732,28 +975,28 @@ function AdminCompaniesPage() {
         <Dialog open={isKeysDialogOpen} onOpenChange={(open) => { setIsKeysDialogOpen(open); if (!open) setSelectedCompany(null); }}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
-              <DialogTitle>Xavfsizlik kalitlari — {selectedCompany?.name}</DialogTitle>
-              <DialogDescription>Kompaniya xavfsizlik kalitlarini boshqarish</DialogDescription>
+              <DialogTitle>{t("securityKeys")} — {selectedCompany?.name}</DialogTitle>
+              <DialogDescription>{t("adminManageKeys")}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
               <div className="flex justify-end">
                 <Button size="sm" onClick={() => setIsAddKeyDialogOpen(true)}>
                   <Plus className="h-4 w-4 mr-2" />
-                  Kalit qo'shish
+                  {t("addKey")}
                 </Button>
               </div>
               {securityKeys.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Key className="h-10 w-10 mx-auto mb-2 opacity-50" />
-                  <p>Xavfsizlik kalitlari topilmadi</p>
+                  <p>{t("adminKeysNotFound")}</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Kalit</TableHead>
-                      <TableHead>Amallar</TableHead>
+                      <TableHead>{t("id")}</TableHead>
+                      <TableHead>{t("keyName")}</TableHead>
+                      <TableHead>{t("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -778,29 +1021,29 @@ function AdminCompaniesPage() {
               )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsKeysDialogOpen(false)}>Yopish</Button>
+              <Button variant="outline" onClick={() => setIsKeysDialogOpen(false)}>{t("adminClose")}</Button>
             </DialogFooter>
           </DialogContent>
 
           <Dialog open={isAddKeyDialogOpen} onOpenChange={(open) => { setIsAddKeyDialogOpen(open); if (!open) setNewKeyName(""); }}>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Yangi xavfsizlik kaliti</DialogTitle>
-                <DialogDescription>Kompaniya uchun yangi kalit yarating</DialogDescription>
+                <DialogTitle>{t("adminNewKey")}</DialogTitle>
+                <DialogDescription>{t("adminNewKeyDesc")}</DialogDescription>
               </DialogHeader>
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="key-value">Kalit qiymati</Label>
+                  <Label htmlFor="key-value">{t("adminKeyDetails")}</Label>
                   <Input
                     id="key-value"
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="Kalit qiymatini kiriting"
+                    placeholder={t("adminKeyDetailsPlaceholder")}
                   />
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsAddKeyDialogOpen(false)}>Bekor qilish</Button>
+                <Button variant="outline" onClick={() => setIsAddKeyDialogOpen(false)}>{t("cancel")}</Button>
                 <Button onClick={handleAddKey}>{t("create")}</Button>
               </DialogFooter>
             </DialogContent>
