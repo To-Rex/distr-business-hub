@@ -317,6 +317,7 @@ function LiveMapPage() {
   const { t, theme } = useSettings();
   const { accessToken, user } = useAuth();
   const [users, setUsers] = useState<WsUser[]>([]);
+  const [blockedUserIds, setBlockedUserIds] = useState<Set<number>>(new Set());
   const [wsStatus, setWsStatus] = useState<"connecting" | "connected" | "disconnected">(
     "disconnected",
   );
@@ -367,8 +368,9 @@ function LiveMapPage() {
   const [liveMapSuggestion, setLiveMapSuggestion] = useState("");
   const suppressedSuggestionQueryRef = useRef<string | null>(null);
 
+  const activeUsers = users.filter((u) => !blockedUserIds.has(u.id));
   const normalizedNavSearch = navSearchQuery.trim().toLowerCase();
-  const roleFilteredUsers = roleFilter === "ALL" ? users : users.filter((u) => u.role === roleFilter);
+  const roleFilteredUsers = roleFilter === "ALL" ? activeUsers : activeUsers.filter((u) => u.role === roleFilter);
   const userSearchMatches =
     navSearchTarget === "user" && normalizedNavSearch
       ? roleFilteredUsers.filter((u) =>
@@ -591,7 +593,7 @@ function LiveMapPage() {
 
     const filteredIds = new Set<number>(roleFilteredUsers.map((u) => u.id));
 
-    users.forEach((u) => {
+    activeUsers.forEach((u) => {
       const { latitude, longitude } = u.last_location;
       if (latitude === 0 && longitude === 0) return;
 
@@ -652,7 +654,7 @@ function LiveMapPage() {
         markersRef.current.delete(id);
       }
     }
-  }, [users, roleFilteredUsers, selected, mapContainerKey, theme]);
+  }, [users, roleFilteredUsers, blockedUserIds, selected, mapContainerKey, theme]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -815,7 +817,7 @@ function LiveMapPage() {
       const fullName = customEvent.detail?.fullName?.trim().toLowerCase();
       if (!fullName) return;
 
-      const matchedUser = users.find(
+      const matchedUser = activeUsers.find(
         (u) => `${u.first_name} ${u.last_name}`.trim().toLowerCase() === fullName,
       );
       if (!matchedUser) return;
@@ -834,7 +836,7 @@ function LiveMapPage() {
         "live-map-search-select-user",
         onSelectUserFromSearch as EventListener,
       );
-  }, [users]);
+  }, [users, blockedUserIds]);
 
   useEffect(() => {
     const onSelectClientFromSearch = (event: Event) => {
@@ -1022,7 +1024,7 @@ function LiveMapPage() {
     if (selected === null) return;
 
     const userId = selected;
-    const user = users.find((u) => u.id === userId);
+    const user = activeUsers.find((u) => u.id === userId);
     const color = user ? ROLE_COLORS[user.role] || "#3b82f6" : "#3b82f6";
 
     fetch(API.userHistory(userId), {
@@ -1136,7 +1138,7 @@ function LiveMapPage() {
         },
       )
       .catch(() => {});
-  }, [selected, accessToken, users, mapContainerKey]);
+  }, [selected, accessToken, users, blockedUserIds, mapContainerKey]);
 
   useEffect(() => {
     if (!accessToken || selected === null) {
@@ -1145,7 +1147,7 @@ function LiveMapPage() {
     }
 
     const userId = selected;
-    const selUser = users.find((u) => u.id === userId);
+    const selUser = activeUsers.find((u) => u.id === userId);
 
     fetch(API.workingSession(userId, selUser?.role), {
       headers: {
@@ -1169,7 +1171,7 @@ function LiveMapPage() {
       .catch(() => {
         if (selectedRef.current === userId) setWorkSession(null);
       });
-  }, [selected, accessToken, users]);
+  }, [selected, accessToken, users, blockedUserIds]);
 
   useEffect(() => {
     if (selected === null || !accessToken) {
@@ -1398,6 +1400,22 @@ function LiveMapPage() {
   }, [user]);
 
   useEffect(() => {
+    if (!accessToken) return;
+    fetch(API.userManager, {
+      headers: { accept: "application/json", Authorization: `Bearer ${accessToken}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed");
+        return res.json() as Promise<{ id: number; user_status: string | null }[]>;
+      })
+      .then((data) => {
+        const blocked = new Set(data.filter((u) => u.user_status === "BLOCKED").map((u) => u.id));
+        setBlockedUserIds(blocked);
+      })
+      .catch(() => {});
+  }, [accessToken]);
+
+  useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (styleOpen && !(e.target as HTMLElement).closest("[data-style-picker]")) {
         setStyleOpen(false);
@@ -1595,7 +1613,7 @@ function LiveMapPage() {
               },
             ] as const
           ).map(({ key, label, Icon, color }) => {
-            const count = key === "ALL" ? users.length : users.filter((u) => u.role === key).length;
+            const count = key === "ALL" ? activeUsers.length : activeUsers.filter((u) => u.role === key).length;
             const active = roleFilter === key;
             return (
               <button
@@ -1921,7 +1939,7 @@ function LiveMapPage() {
             {selected !== null &&
               selectedClient === null &&
               (() => {
-                const selUser = users.find((u) => u.id === selected);
+                const selUser = activeUsers.find((u) => u.id === selected);
                 if (!selUser) return null;
                 const color = ROLE_COLORS[selUser.role] || "#3b82f6";
                 const speedMs = selUser.speed || 0;
