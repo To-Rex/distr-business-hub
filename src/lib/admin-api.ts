@@ -565,7 +565,7 @@ export const USER_TYPE_LABELS: Record<ApiUserType, string> = {
   SUPERVISOR: "Supervizor",
   AGENT: "Agent",
   DELIVERER: "Yetkazib beruvchi",
-  VENDOR_AGENT: "Vendor Agent",
+  VENDOR_AGENT: "Agent Vansel",
   CLIENT: "Klient",
   DEALER: "Dealer",
   FACTORY: "Fabrika",

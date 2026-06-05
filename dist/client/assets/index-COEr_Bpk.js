@@ -1,0 +1,1 @@
+import{au as n,N as o}from"./index-Ccgeu-3D.js";import{u as a}from"./auth-ChKTKP16.js";import"./admin-api-C0wkkg_b.js";function s(){const{isAuthenticated:t}=a();return n.jsx(o,{to:t?"/admin/dashboard":"/admin/login"})}export{s as component};

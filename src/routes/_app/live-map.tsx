@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
+import { type ApiUserType, USER_TYPE_LABELS } from "@/lib/admin-api";
 import {
   Crosshair,
   MapPin,
@@ -28,6 +29,21 @@ import {
   Camera,
   CameraOff,
   Wallet,
+  Shield,
+  ShieldCheck,
+  Briefcase,
+  Building2,
+  Handshake,
+  Factory,
+  Crown,
+  DollarSign,
+  Package,
+  ShoppingBag,
+  CreditCard,
+  UserRound,
+  Megaphone,
+  Globe,
+  Tag,
 } from "lucide-react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -40,7 +56,7 @@ type WsUser = {
   id: number;
   first_name: string;
   last_name: string;
-  role: "SUPERVISOR" | "AGENT" | "DELIVERER";
+  role: ApiUserType;
   user_1c_id: number;
   status: "online" | "offline";
   speed: number;
@@ -60,11 +76,11 @@ type WsMessage =
         id: number;
         first_name: string;
         last_name: string;
-        role: "SUPERVISOR" | "AGENT" | "DELIVERER";
+        role: ApiUserType;
         user_1c_id: number;
         phone_number: string;
       };
-      role: "SUPERVISOR" | "AGENT" | "DELIVERER";
+      role: ApiUserType;
       location: {
         latitude: number;
         longitude: number;
@@ -176,19 +192,70 @@ function formatServerDate(value?: string) {
   });
 }
 
-const ROLE_COLORS: Record<WsUser["role"], string> = {
+const ROLE_COLORS: Record<ApiUserType, string> = {
+  USER: "#6b7280",
+  SUPERADMIN: "#dc2626",
+  ADMIN: "#ef4444",
+  MANAGER: "#2563eb",
   SUPERVISOR: "#8b5cf6",
   AGENT: "#22c55e",
   DELIVERER: "#f59e0b",
+  VENDOR_AGENT: "#84cc16",
+  CLIENT: "#06b6d4",
+  DEALER: "#6366f1",
+  FACTORY: "#78716c",
+  CEO: "#ea580c",
+  FINANCIST: "#14b8a6",
+  WAREHOUSE: "#a855f7",
+  SALESMAN: "#ec4899",
+  CASHIER: "#eab308",
+  HR: "#3b82f6",
+  MARKETING: "#d946ef",
+  EXTERNAL_SELLER: "#10b981",
+  MERCHANDISER: "#f43f5e",
 };
 
-const ROLE_ICONS: Record<WsUser["role"], string> = {
+const ROLE_ICONS: Record<ApiUserType, string> = {
+  USER:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  SUPERADMIN:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+  ADMIN:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>',
+  MANAGER:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
   SUPERVISOR:
     '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
   AGENT:
     '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
   DELIVERER:
     '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M5 18H3c-.6 0-1-.4-1-1V7c0-.6.4-1 1-1h10c.6 0 1 .4 1 1v11"/><path d="M14 9h4l4 4v4c0 .6-.4 1-1 1h-2"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg>',
+  VENDOR_AGENT:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/></svg>',
+  CLIENT:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><rect width="16" height="20" x="4" y="2" rx="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg>',
+  DEALER:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  FACTORY:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/></svg>',
+  CEO:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="m2 4 3 12h14l3-12-6 7-4-7-4 7-6-7z"/><path d="M3 20h18"/></svg>',
+  FINANCIST:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>',
+  WAREHOUSE:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="m12 3-8 4.5v9L12 21l8-4.5v-9Z"/><path d="M12 12v9"/><path d="M12 12 20 7.5"/><path d="M12 12 4 7.5"/></svg>',
+  SALESMAN:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>',
+  CASHIER:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+  HR:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 1 0-16 0"/></svg>',
+  MARKETING:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="m3 11 18-5v12L3 14v-3z"/><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"/></svg>',
+  EXTERNAL_SELLER:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><circle cx="12" cy="12" r="10"/><line x1="2" x2="22" y1="12" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>',
+  MERCHANDISER:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:18px;height:18px"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>',
 };
 
 const CLIENT_COLOR = "#ef4444";
@@ -245,13 +312,13 @@ const pulseIcon = L.divIcon({
 function createUserIcon(
   firstName: string,
   lastName: string,
-  role: WsUser["role"],
+  role: ApiUserType,
   isOnline: boolean,
   isSelected: boolean,
   isDarkTheme: boolean,
 ) {
   const color = ROLE_COLORS[role] || "#3b82f6";
-  const icon = ROLE_ICONS[role] || ROLE_ICONS.AGENT;
+  const icon = ROLE_ICONS[role] || ROLE_ICONS.USER;
   const size = isSelected ? 44 : 38;
   const inner = size - 10;
   const fullName = `${firstName} ${lastName}`;
@@ -351,7 +418,7 @@ function LiveMapPage() {
   );
   const [mapStyle, setMapStyle] = useState<MapStyleKey>("standard");
   const [styleOpen, setStyleOpen] = useState(false);
-  const [roleFilter, setRoleFilter] = useState<"ALL" | WsUser["role"]>("ALL");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | ApiUserType>("ALL");
   const [updatedIds, setUpdatedIds] = useState<Set<number>>(new Set());
   const historyLayerRef = useRef<L.LayerGroup | null>(null);
   const historyPolylineRef = useRef<L.Polyline | null>(null);
@@ -1493,27 +1560,36 @@ function LiveMapPage() {
     setMapContainerKey((k) => k + 1);
   }, []);
 
-  const roleLabel = (role: "SUPERVISOR" | "AGENT" | "DELIVERER") => {
-    switch (role) {
-      case "SUPERVISOR":
-        return t("supervisor");
-      case "DELIVERER":
-        return t("deliverer");
-      case "AGENT":
-        return "Agent";
-    }
+  const roleLabel = (role: ApiUserType) => {
+    if (role === "SUPERVISOR") return t("supervisor");
+    if (role === "DELIVERER") return t("deliverer");
+    if (role === "AGENT") return "Agent";
+    return USER_TYPE_LABELS[role] || role;
   };
 
-  const RoleIcon = ({ role }: { role: WsUser["role"] }) => {
+  const RoleIcon = ({ role }: { role: ApiUserType }) => {
     switch (role) {
-      case "SUPERVISOR":
-        return <Users className="h-4 w-4 text-white" />;
-      case "AGENT":
-        return <User className="h-4 w-4 text-white" />;
-      case "DELIVERER":
-        return <Truck className="h-4 w-4 text-white" />;
-      default:
-        return <MapPin className="h-4 w-4 text-white" />;
+      case "USER":            return <User className="h-4 w-4 text-white" />;
+      case "SUPERADMIN":     return <Shield className="h-4 w-4 text-white" />;
+      case "ADMIN":          return <ShieldCheck className="h-4 w-4 text-white" />;
+      case "MANAGER":        return <Briefcase className="h-4 w-4 text-white" />;
+      case "SUPERVISOR":     return <Users className="h-4 w-4 text-white" />;
+      case "AGENT":          return <User className="h-4 w-4 text-white" />;
+      case "DELIVERER":      return <Truck className="h-4 w-4 text-white" />;
+      case "VENDOR_AGENT":   return <ShoppingCart className="h-4 w-4 text-white" />;
+      case "CLIENT":         return <Building2 className="h-4 w-4 text-white" />;
+      case "DEALER":         return <Handshake className="h-4 w-4 text-white" />;
+      case "FACTORY":        return <Factory className="h-4 w-4 text-white" />;
+      case "CEO":            return <Crown className="h-4 w-4 text-white" />;
+      case "FINANCIST":      return <DollarSign className="h-4 w-4 text-white" />;
+      case "WAREHOUSE":      return <Package className="h-4 w-4 text-white" />;
+      case "SALESMAN":       return <ShoppingBag className="h-4 w-4 text-white" />;
+      case "CASHIER":        return <CreditCard className="h-4 w-4 text-white" />;
+      case "HR":             return <UserRound className="h-4 w-4 text-white" />;
+      case "MARKETING":      return <Megaphone className="h-4 w-4 text-white" />;
+      case "EXTERNAL_SELLER": return <Globe className="h-4 w-4 text-white" />;
+      case "MERCHANDISER":   return <Tag className="h-4 w-4 text-white" />;
+      default:               return <MapPin className="h-4 w-4 text-white" />;
     }
   };
 
@@ -1585,59 +1661,47 @@ function LiveMapPage() {
         </span>
         <div className="h-4 w-px bg-border" />
         <div className="flex flex-wrap gap-1.5">
-          {(
-            [
-              {
-                key: "ALL" as const,
-                label: t("allRoles"),
-                Icon: MapPin,
-                color: "#6b7280",
-              },
-              {
-                key: "AGENT" as const,
-                label: t("agents"),
-                Icon: User,
-                color: ROLE_COLORS.AGENT,
-              },
-              {
-                key: "SUPERVISOR" as const,
-                label: t("supervisors"),
-                Icon: Users,
-                color: ROLE_COLORS.SUPERVISOR,
-              },
-              {
-                key: "DELIVERER" as const,
-                label: t("deliverers"),
-                Icon: Truck,
-                color: ROLE_COLORS.DELIVERER,
-              },
-            ] as const
-          ).map(({ key, label, Icon, color }) => {
-            const count = key === "ALL" ? activeUsers.length : activeUsers.filter((u) => u.role === key).length;
-            const active = roleFilter === key;
-            return (
-              <button
-                key={key}
-                onClick={() => setRoleFilter(key)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 border ${
-                  active
-                    ? "text-white shadow-sm"
-                    : "bg-card text-muted-foreground hover:text-foreground"
-                }`}
-                style={active ? { backgroundColor: color, borderColor: color } : undefined}
-              >
-                <Icon className="h-3.5 w-3.5" />
-                <span>{label}</span>
-                <span
-                  className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
-                    active ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
+          {(() => {
+            type FilterItem = { key: "ALL" | ApiUserType; label: string; Icon: React.ComponentType<{ className?: string }>; color: string };
+            const primaryRoles: ApiUserType[] = ["SUPERVISOR", "AGENT", "DELIVERER"];
+            const presentRoles = [...new Set(activeUsers.map((u) => u.role))].filter((r) => !primaryRoles.includes(r));
+            const items: FilterItem[] = [
+              { key: "ALL", label: t("allRoles"), Icon: MapPin, color: "#6b7280" },
+            ];
+            for (const r of primaryRoles) {
+              items.push({ key: r, label: roleLabel(r), Icon: (() => { switch(r) { case "SUPERVISOR": return Users; case "AGENT": return User; case "DELIVERER": return Truck; default: return MapPin; } })(), color: ROLE_COLORS[r] });
+            }
+            for (const r of presentRoles) {
+              const RIcon = ({ className }: { className?: string }) => <RoleIcon role={r} />;
+              items.push({ key: r, label: roleLabel(r), Icon: RIcon, color: ROLE_COLORS[r] });
+            }
+            return items.map(({ key, label, Icon, color }) => {
+              const count = key === "ALL" ? activeUsers.length : activeUsers.filter((u) => u.role === key).length;
+              const active = roleFilter === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => setRoleFilter(key)}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all duration-200 border ${
+                    active
+                      ? "text-white shadow-sm"
+                      : "bg-card text-muted-foreground hover:text-foreground"
                   }`}
+                  style={active ? { backgroundColor: color, borderColor: color } : undefined}
                 >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{label}</span>
+                  <span
+                    className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none ${
+                      active ? "bg-white/25 text-white" : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            });
+          })()}
         </div>
         {clients.length > 0 && (
           <>

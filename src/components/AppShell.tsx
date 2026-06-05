@@ -42,6 +42,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { ServerClock } from "@/components/ServerClock";
 
 const COLLAPSED_KEY = "sidebar_collapsed";
 
@@ -398,6 +399,8 @@ export function AppShell() {
                 </Button>
                 <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-destructive" />
               </Link>
+              <div className="w-px h-6 bg-border mx-1" />
+              <ServerClock />
             </div>
           </header>
           <main className="flex-1 p-4 lg:p-8 overflow-y-auto min-h-0 animate-fade-in" key={path}>
