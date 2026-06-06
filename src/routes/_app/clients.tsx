@@ -138,7 +138,7 @@ function formatDebt(debt: { UZS: number; USD: number }): {
   const isNegative = debt.UZS < 0 || debt.USD < 0;
   return {
     text: parts.join(" / "),
-    color: isNegative ? "text-red-500" : "text-green-600",
+    color: isNegative ? "text-green-600" : "text-red-500",
   };
 }
 
@@ -158,6 +158,22 @@ function monthStartIso(): string {
 function formatDisplayDate(iso: string): string {
   const [y, m, d] = iso.split("-");
   return `${d}.${m}.${y}`;
+}
+
+function parseSaleDate(value: string): number {
+  if (!value) return 0;
+  const chunks = value.split(".");
+  if (chunks.length !== 3) return 0;
+  const [day, month, year] = chunks;
+  return Date.parse(`${year}-${month}-${day}T00:00:00Z`) || 0;
+}
+
+function saleStatus(client: ClientItem): "new" | "active" | "passive" {
+  if (!client.PoslednayaProdaja) return "new";
+  const ms = parseSaleDate(client.PoslednayaProdaja);
+  if (!ms) return "new";
+  const days = (Date.now() - ms) / (1000 * 60 * 60 * 24);
+  return days <= 15 ? "active" : "passive";
 }
 
 function ClientsPage() {
@@ -182,6 +198,7 @@ function ClientsPage() {
   const [filterDebt, setFilterDebt] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterAgent, setFilterAgent] = useState("all");
+  const [filterSaleStatus, setFilterSaleStatus] = useState("all");
 
   useEffect(() => {
     if (!user?.company_rel?.base_url || !user?.user_1c_login || !user?.user_1c_password) {
@@ -263,7 +280,14 @@ function ClientsPage() {
       base = base
         .map((g) => ({
           ...g,
-          clients: g.clients.filter((c) => c.debt.UZS > 0 || c.debt.USD > 0 || c.debt.UZS < 0 || c.debt.USD < 0),
+          clients: g.clients.filter((c) => c.debt.UZS > 0 || c.debt.USD > 0),
+        }))
+        .filter((g) => g.clients.length > 0);
+    } else if (filterDebt === "credit") {
+      base = base
+        .map((g) => ({
+          ...g,
+          clients: g.clients.filter((c) => c.debt.UZS < 0 || c.debt.USD < 0),
         }))
         .filter((g) => g.clients.length > 0);
     } else if (filterDebt === "no") {
@@ -293,8 +317,17 @@ function ClientsPage() {
         .filter((g) => g.clients.length > 0);
     }
 
+    if (filterSaleStatus !== "all") {
+      base = base
+        .map((g) => ({
+          ...g,
+          clients: g.clients.filter((c) => saleStatus(c) === filterSaleStatus),
+        }))
+        .filter((g) => g.clients.length > 0);
+    }
+
     return base;
-  }, [groups, q, filterStatus, filterDebt, filterCategory, filterAgent]);
+  }, [groups, q, filterStatus, filterDebt, filterCategory, filterAgent, filterSaleStatus]);
 
   const sortedGroups = useMemo(() => {
     return filteredGroups.map((group) => {
@@ -415,6 +448,7 @@ function ClientsPage() {
           >
             <option value="all">{t("debt")}: {t("all")}</option>
             <option value="with">{t("withDebt")}</option>
+            <option value="credit">{t("withCredit")}</option>
             <option value="no">{t("noDebt")}</option>
           </select>
           <select
@@ -438,7 +472,18 @@ function ClientsPage() {
             ))}
           </select>
 
-          {(filterStatus !== "all" || filterDebt !== "all" || filterCategory !== "all" || filterAgent !== "all") && (
+          <select
+            value={filterSaleStatus}
+            onChange={(e) => setFilterSaleStatus(e.target.value)}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+          >
+            <option value="all">{t("lastSale")}: {t("all")}</option>
+            <option value="active">{t("saleStatusActive")}</option>
+            <option value="passive">{t("saleStatusPassive")}</option>
+            <option value="new">{t("saleStatusNew")}</option>
+          </select>
+
+          {(filterStatus !== "all" || filterDebt !== "all" || filterCategory !== "all" || filterAgent !== "all" || filterSaleStatus !== "all") && (
             <button
               type="button"
               onClick={() => {
@@ -446,6 +491,7 @@ function ClientsPage() {
                 setFilterDebt("all");
                 setFilterCategory("all");
                 setFilterAgent("all");
+                setFilterSaleStatus("all");
               }}
               className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -586,6 +632,16 @@ function ClientsPage() {
                                   {client.status_name}
                                 </Badge>
                               )}
+                              {(() => {
+                                const ss = saleStatus(client);
+                                const label = ss === "new" ? t("saleStatusNew") : ss === "active" ? t("saleStatusActive") : t("saleStatusPassive");
+                                const color = ss === "new" ? "border-muted-foreground/30 text-muted-foreground" : ss === "active" ? "border-green-500/30 bg-green-500/10 text-green-600" : "border-red-500/30 bg-red-500/10 text-red-500";
+                                return (
+                                  <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 py-0 ${color}`}>
+                                    {label}
+                                  </Badge>
+                                );
+                              })()}
                             </div>
 
                             <div className="space-y-1.5 text-xs text-muted-foreground">
@@ -675,6 +731,16 @@ function ClientsPage() {
                                         {client.status_name}
                                       </Badge>
                                     )}
+                                    {(() => {
+                                      const ss = saleStatus(client);
+                                      const label = ss === "new" ? t("saleStatusNew") : ss === "active" ? t("saleStatusActive") : t("saleStatusPassive");
+                                      const color = ss === "new" ? "border-muted-foreground/30 text-muted-foreground" : ss === "active" ? "border-green-500/30 bg-green-500/10 text-green-600" : "border-red-500/30 bg-red-500/10 text-red-500";
+                                      return (
+                                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${color}`}>
+                                          {label}
+                                        </Badge>
+                                      );
+                                    })()}
                                   </div>
                                 </TableCell>
                                 <TableCell className="min-w-[160px]">
