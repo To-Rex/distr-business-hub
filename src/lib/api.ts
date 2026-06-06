@@ -38,6 +38,7 @@ type ApiEndpoints = {
   reportByClient: (baseUrl: string, branchId: number, dateBegin: string, dateEnd: string) => string;
   financeOrders: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
   ordersAll: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
+  aktSverka: (baseUrl: string, clientId: number, branchId: number, valyutaId: number, dateBegin: string, dateEnd: string) => string;
   companyById: (id: number) => string;
   companies: string;
   branches: string;
@@ -123,6 +124,11 @@ export const API: ApiEndpoints = {
     proxied1C(
       baseUrl,
       `/hs/manager/api/GetlistordersAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
+    ),
+  aktSverka: (baseUrl: string, clientId: number, branchId: number, valyutaId: number, dateBegin: string, dateEnd: string) =>
+    proxied1C(
+      baseUrl,
+      `/hs/manager/api/akt_sverka?valyuta_id=${valyutaId}&branch_id=${branchId}&date_begin=${dateBegin}&date_end=${dateEnd}&client_id=${clientId}`,
     ),
   companyById: (id: number) => `${BASE_URL}/v1/companies/${id}`,
   companies: `${BASE_URL}/v1/companies/`,
