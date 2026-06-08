@@ -46,6 +46,7 @@ type ApiEndpoints = {
   companySecurityKeys: (id: number) => string;
   securityKeyById: (id: number) => string;
   notifications: string;
+  notificationsUser: string;
   notificationsCreate: string;
   notificationById: (id: number) => string;
   notificationRead: (id: number) => string;
@@ -71,6 +72,9 @@ type ApiEndpoints = {
   databaseImport: string;
   databaseExport: string;
   aiQuery: string;
+  photoReports: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
+  paymentsAll: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
+  rejectsAll: (baseUrl: string, dateBegin: string, dateEnd: string) => string;
 };
 
 export const API: ApiEndpoints = {
@@ -137,6 +141,7 @@ export const API: ApiEndpoints = {
   companySecurityKeys: (id: number) => `${BASE_URL}/v1/companies/${id}/security-keys`,
   securityKeyById: (id: number) => `${BASE_URL}/v1/companies/security-keys/${id}`,
   notifications: `${BASE_URL}/v1/notifications`,
+  notificationsUser: `${BASE_URL}/v1/notifications/user`,
   notificationsCreate: `${BASE_URL}/v1/notifications/create`,
   notificationById: (id: number) => `${BASE_URL}/v1/notifications/${id}`,
   notificationRead: (id: number) => `${BASE_URL}/v1/notifications/${id}/read`,
@@ -163,4 +168,19 @@ export const API: ApiEndpoints = {
   databaseImport: `${BASE_URL}/v1/database/import`,
   databaseExport: `${BASE_URL}/v1/database/export`,
   aiQuery: `${BASE_URL}/v1/ai-query`,
+  photoReports: (baseUrl: string, dateBegin: string, dateEnd: string) =>
+    proxied1C(
+      baseUrl,
+      `/hs/manager/api/GetlistPhotoAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
+    ),
+  paymentsAll: (baseUrl: string, dateBegin: string, dateEnd: string) =>
+    proxied1C(
+      baseUrl,
+      `/hs/manager/api/GetlistPaymentsAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
+    ),
+  rejectsAll: (baseUrl: string, dateBegin: string, dateEnd: string) =>
+    proxied1C(
+      baseUrl,
+      `/hs/manager/api/GetlistRejectedAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
+    ),
 };

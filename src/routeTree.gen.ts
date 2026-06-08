@@ -37,6 +37,7 @@ import { Route as AppNotificationsRouteImport } from './routes/_app/notification
 import { Route as AppMarkirovkaRouteImport } from './routes/_app/markirovka'
 import { Route as AppMarkingOutputRouteImport } from './routes/_app/marking-output'
 import { Route as AppLiveMapRouteImport } from './routes/_app/live-map'
+import { Route as AppFotoreportRouteImport } from './routes/_app/fotoreport'
 import { Route as AppFinanceRouteImport } from './routes/_app/finance'
 import { Route as AppDevicesRouteImport } from './routes/_app/devices'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
@@ -182,6 +183,11 @@ const AppLiveMapRoute = AppLiveMapRouteImport.update({
   path: '/live-map',
   getParentRoute: () => AppRoute,
 } as any)
+const AppFotoreportRoute = AppFotoreportRouteImport.update({
+  id: '/fotoreport',
+  path: '/fotoreport',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppFinanceRoute = AppFinanceRouteImport.update({
   id: '/finance',
   path: '/finance',
@@ -217,6 +223,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/devices': typeof AppDevicesRoute
   '/finance': typeof AppFinanceRoute
+  '/fotoreport': typeof AppFotoreportRoute
   '/live-map': typeof AppLiveMapRoute
   '/marking-output': typeof AppMarkingOutputRoute
   '/markirovka': typeof AppMarkirovkaRoute
@@ -251,6 +258,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/devices': typeof AppDevicesRoute
   '/finance': typeof AppFinanceRoute
+  '/fotoreport': typeof AppFotoreportRoute
   '/live-map': typeof AppLiveMapRoute
   '/marking-output': typeof AppMarkingOutputRoute
   '/markirovka': typeof AppMarkirovkaRoute
@@ -287,6 +295,7 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/devices': typeof AppDevicesRoute
   '/_app/finance': typeof AppFinanceRoute
+  '/_app/fotoreport': typeof AppFotoreportRoute
   '/_app/live-map': typeof AppLiveMapRoute
   '/_app/marking-output': typeof AppMarkingOutputRoute
   '/_app/markirovka': typeof AppMarkirovkaRoute
@@ -323,6 +332,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/devices'
     | '/finance'
+    | '/fotoreport'
     | '/live-map'
     | '/marking-output'
     | '/markirovka'
@@ -357,6 +367,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/devices'
     | '/finance'
+    | '/fotoreport'
     | '/live-map'
     | '/marking-output'
     | '/markirovka'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/_app/dashboard'
     | '/_app/devices'
     | '/_app/finance'
+    | '/_app/fotoreport'
     | '/_app/live-map'
     | '/_app/marking-output'
     | '/_app/markirovka'
@@ -635,6 +647,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppLiveMapRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/fotoreport': {
+      id: '/_app/fotoreport'
+      path: '/fotoreport'
+      fullPath: '/fotoreport'
+      preLoaderRoute: typeof AppFotoreportRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/finance': {
       id: '/_app/finance'
       path: '/finance'
@@ -679,6 +698,7 @@ interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppDevicesRoute: typeof AppDevicesRoute
   AppFinanceRoute: typeof AppFinanceRoute
+  AppFotoreportRoute: typeof AppFotoreportRoute
   AppLiveMapRoute: typeof AppLiveMapRoute
   AppMarkingOutputRoute: typeof AppMarkingOutputRoute
   AppMarkirovkaRoute: typeof AppMarkirovkaRoute
@@ -699,6 +719,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppDevicesRoute: AppDevicesRoute,
   AppFinanceRoute: AppFinanceRoute,
+  AppFotoreportRoute: AppFotoreportRoute,
   AppLiveMapRoute: AppLiveMapRoute,
   AppMarkingOutputRoute: AppMarkingOutputRoute,
   AppMarkirovkaRoute: AppMarkirovkaRoute,

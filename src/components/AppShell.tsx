@@ -27,8 +27,9 @@ import {
   Smartphone,
   Tag,
   ArrowUpRight,
+  Camera,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSettings, LANGS } from "@/lib/settings";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,187 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { ServerClock } from "@/components/ServerClock";
 
 const COLLAPSED_KEY = "sidebar_collapsed";
+const SCROLL_KEY = "sidebar_scroll";
+
+interface SidebarUser {
+  name?: string | null;
+  email?: string | null;
+  user_type?: string | null;
+  company_rel?: { name?: string | null } | null;
+}
+
+type NavItem = {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+type NavGroup = {
+  label: string;
+  items: readonly NavItem[];
+};
+
+interface SidebarContentProps {
+  isCompact?: boolean;
+  navGroups: readonly NavGroup[];
+  path: string;
+  user: SidebarUser | null;
+  onNavigate: () => void;
+  onLogout: () => void;
+  t: (key: string) => string;
+  scrollKey?: string;
+}
+
+function SidebarContent({
+  isCompact = false,
+  navGroups,
+  path,
+  user,
+  onNavigate,
+  onLogout,
+  t,
+  scrollKey,
+}: SidebarContentProps) {
+  const navRef = useRef<HTMLElement>(null);
+
+  useLayoutEffect(() => {
+    if (!scrollKey) return;
+    const el = navRef.current;
+    if (!el) return;
+    const saved = sessionStorage.getItem(scrollKey);
+    if (saved) {
+      el.scrollTop = Number(saved);
+    }
+  });
+
+  const handleScroll = useCallback(() => {
+    if (!scrollKey) return;
+    const el = navRef.current;
+    if (el) {
+      sessionStorage.setItem(scrollKey, String(el.scrollTop));
+    }
+  }, [scrollKey]);
+
+  return (
+    <>
+      <div
+        className={`flex items-center border-b ${isCompact ? "h-16 justify-center px-2" : "h-16 gap-2.5 px-6"}`}
+      >
+        <img
+          src="/logo.png"
+          alt="Distr"
+          className="h-9 w-9 rounded-xl object-contain flex-shrink-0"
+        />
+        {!isCompact && (
+          <div className="flex flex-col overflow-hidden">
+            <span className="text-base font-semibold tracking-tight leading-none">Distr</span>
+            <span className="text-[10px] text-muted-foreground mt-0.5 truncate">
+              {user?.company_rel?.name ?? "Business OS"}
+            </span>
+          </div>
+        )}
+      </div>
+      <nav
+        ref={navRef}
+        onScroll={handleScroll}
+        className="flex-1 px-2 py-4 overflow-y-auto overflow-x-hidden"
+      >
+        {navGroups.map((g) => (
+          <div key={g.label} className="mb-4">
+            {!isCompact && (
+              <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                {g.label}
+              </div>
+            )}
+            <div className={isCompact ? "space-y-1" : "space-y-0.5"}>
+              {g.items.map((item) => {
+                const active = path === item.to;
+                const Icon = item.icon;
+                const link = (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    onClick={onNavigate}
+                    className={`flex items-center rounded-lg text-sm font-medium transition-all ${
+                      isCompact ? "justify-center h-10 w-10 mx-auto" : "gap-3 px-3 py-2"
+                    } ${
+                      active
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    {!isCompact && <span className="truncate">{item.label}</span>}
+                  </Link>
+                );
+                if (isCompact) {
+                  return (
+                    <Tooltip key={item.to} delayDuration={0}>
+                      <TooltipTrigger asChild>{link}</TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={8}>
+                        {item.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                }
+                return link;
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+      <div className={`border-t ${isCompact ? "p-2" : "p-3"}`}>
+        {isCompact ? (
+          <div className="flex flex-col items-center gap-1">
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold cursor-default">
+                  {(user?.name?.[0] || "U").toUpperCase()}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                <div className="text-sm font-medium capitalize">{user?.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {user?.user_type ?? user?.email}
+                </div>
+              </TooltipContent>
+            </Tooltip>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onLogout}
+              aria-label={t("logout")}
+              className="h-8 w-8"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 px-2 py-2">
+            <div className="h-9 w-9 rounded-full bg-primary/10 flex items-center justify-center text-primary text-sm font-semibold">
+              {(user?.name?.[0] || "U").toUpperCase()}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium truncate capitalize">{user?.name}</div>
+              <div className="text-xs text-muted-foreground truncate">
+                {user?.user_type ?? user?.email}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onLogout}
+              aria-label={t("logout")}
+              className="h-8 w-8"
+            >
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
 
 export function AppShell() {
   const { user, logout } = useAuth();
@@ -133,6 +315,7 @@ export function AppShell() {
         { to: "/markirovka", label: t("markirovka"), icon: Tag },
         { to: "/marking-output", label: t("markirovkaChiqim"), icon: ArrowUpRight },
         { to: "/live-map", label: t("liveMap"), icon: MapPin },
+        { to: "/fotoreport", label: t("fotoreport"), icon: Camera },
       ],
     },
     {
