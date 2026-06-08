@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSettings } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { API } from "@/lib/api";
+import { getProxiedImageUrl } from "@/lib/utils";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -631,7 +632,7 @@ function FotoreportPage() {
                 >
                   <div className="aspect-square w-full overflow-hidden bg-muted">
                     <img
-                      src={p.url}
+                      src={getProxiedImageUrl(p.url)}
                       alt={p.client}
                       loading="lazy"
                       className="h-full w-full object-cover transition-transform group-hover:scale-105"
@@ -951,7 +952,7 @@ function FotoreportPage() {
                           onClick={() => setPreviewUrl(p.click_proto_url)}
                         >
                           <img
-                            src={p.click_proto_url}
+                            src={getProxiedImageUrl(p.click_proto_url)}
                             alt=""
                             loading="lazy"
                             className="h-full w-full object-cover absolute inset-0 transition-transform group-hover:scale-105"
@@ -1046,7 +1047,7 @@ function FotoreportPage() {
           </button>
           {previewUrl && (
             <img
-              src={previewUrl}
+              src={getProxiedImageUrl(previewUrl)}
               alt=""
               className="max-h-[85vh] w-full rounded-lg object-contain"
             />
