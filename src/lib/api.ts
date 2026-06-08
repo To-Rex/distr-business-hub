@@ -184,3 +184,4 @@ export const API: ApiEndpoints = {
       `/hs/manager/api/GetlistRejectedAll?date_begin=${dateBegin}&date_end=${dateEnd}`,
     ),
 };
+
