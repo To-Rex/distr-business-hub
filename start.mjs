@@ -67,13 +67,20 @@ async function fetchHandler(request) {
         method: request.method,
         headers,
         body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+        signal: AbortSignal.timeout(30_000),
       });
+
+      const resHeaders = new Headers(proxyRes.headers);
+      resHeaders.delete("content-encoding");
+      resHeaders.delete("transfer-encoding");
+
       return new Response(proxyRes.body, {
         status: proxyRes.status,
-        headers: proxyRes.headers,
+        headers: resHeaders,
       });
-    } catch {
-      return new Response("Proxy error", { status: 502 });
+    } catch (err) {
+      console.error("[proxy-1c] fetch failed:", err.message || err, "target:", targetUrl);
+      return new Response(`Proxy error: ${err.message || "unknown"}`, { status: 502 });
     }
   }
 
