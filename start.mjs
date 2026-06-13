@@ -63,10 +63,11 @@ async function fetchHandler(request) {
     headers.delete("connection");
 
     try {
+      const hasBody = request.method !== "GET" && request.method !== "HEAD";
       const proxyRes = await fetch(targetUrl, {
         method: request.method,
         headers,
-        body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+        ...(hasBody ? { body: request.body, duplex: "half" } : {}),
         signal: AbortSignal.timeout(30_000),
       });
 
