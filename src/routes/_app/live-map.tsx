@@ -410,6 +410,10 @@ function LiveMapPage() {
   const [workSession, setWorkSession] = useState<{ session: string; device_name: string } | null>(
     null,
   );
+  const [workStartTime, setWorkStartTime] = useState<{
+    session: string;
+    is_yesterday: boolean;
+  } | null>(null);
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const userAccuracyRef = useRef<L.Circle | null>(null);
@@ -771,6 +775,7 @@ function LiveMapPage() {
           selectedRef.current = null;
           setSelected(null);
           setWorkSession(null);
+          setWorkStartTime(null);
           setDistanceKm(null);
           setSelectedClient((prev) => (prev === c.id ? null : c.id));
           setClientInfoOpen(false);
@@ -1239,6 +1244,37 @@ function LiveMapPage() {
         if (selectedRef.current === userId) setWorkSession(null);
       });
   }, [selected, accessToken, users, blockedUserIds]);
+
+  useEffect(() => {
+    if (!accessToken || selected === null) {
+      setWorkStartTime(null);
+      return;
+    }
+
+    const userId = selected;
+
+    fetch(API.workingSessionStartTime(userId), {
+      headers: {
+        accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+      },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error(`Failed: ${res.status}`);
+        return res.json();
+      })
+      .then((data: unknown) => {
+        if (selectedRef.current !== userId) return;
+        if (data && typeof data === "object" && "session" in (data as Record<string, unknown>)) {
+          setWorkStartTime(data as { session: string; is_yesterday: boolean });
+        } else {
+          setWorkStartTime(null);
+        }
+      })
+      .catch(() => {
+        if (selectedRef.current === userId) setWorkStartTime(null);
+      });
+  }, [selected, accessToken]);
 
   useEffect(() => {
     if (selected === null || !accessToken) {
@@ -1917,6 +1953,7 @@ function LiveMapPage() {
                           selectedRef.current = null;
                           setSelected(null);
                           setWorkSession(null);
+                          setWorkStartTime(null);
                           setDistanceKm(null);
                           setSelectedClient(newId);
                           setClientInfoOpen(false);
@@ -1969,6 +2006,7 @@ function LiveMapPage() {
                           setClientInfoOpen(false);
                           if (newId === null) {
                             setWorkSession(null);
+                            setWorkStartTime(null);
                             setDistanceKm(null);
                           }
                         }}
@@ -2010,13 +2048,15 @@ function LiveMapPage() {
                 const speedKmh = Math.round(speedMs * 3.6 * 10) / 10;
 
                 let sessionTime: string | null = null;
-                if (workSession?.session) {
+                let isYesterday = false;
+                if (workStartTime?.session) {
                   try {
-                    const d = new Date(workSession.session);
+                    const d = new Date(workStartTime.session);
                     sessionTime = d.toLocaleTimeString("uz-UZ", {
                       hour: "2-digit",
                       minute: "2-digit",
                     });
+                    isYesterday = workStartTime.is_yesterday === true;
                   } catch {
                     sessionTime = null;
                   }
@@ -2047,6 +2087,7 @@ function LiveMapPage() {
                           selectedRef.current = null;
                           setSelected(null);
                           setWorkSession(null);
+                          setWorkStartTime(null);
                           setDistanceKm(null);
                         }}
                       >
@@ -2071,7 +2112,16 @@ function LiveMapPage() {
                           {t("workStartTime")}
                         </div>
                         <div className="text-sm font-bold leading-tight">
-                          {sessionTime ?? (
+                          {sessionTime ? (
+                            <>
+                              {isYesterday && (
+                                <span className="text-[10px] font-normal text-amber-600 mr-1">
+                                  Kecha
+                                </span>
+                              )}
+                              {sessionTime}
+                            </>
+                          ) : (
                             <span className="text-muted-foreground text-xs font-normal">—</span>
                           )}
                         </div>

@@ -17,6 +17,7 @@ type ApiEndpoints = {
   wsLocations: (token: string) => string;
   userHistory: (userId: number) => string;
   workingSession: (userId: number, role?: string) => string;
+  workingSessionStartTime: (userId: number) => string;
   clientLocations: (baseUrl: string) => string;
   clientInfo: (baseUrl: string, clientId: number) => string;
   clientVisitData: (baseUrl: string, clientId: number) => string;
@@ -91,6 +92,8 @@ export const API: ApiEndpoints = {
       : "agent";
     return `${BASE_URL}/v1/working-sessions/user/${userId}?app=mx-${appRole}&is_testing=false`;
   },
+  workingSessionStartTime: (userId: number) =>
+    `${BASE_URL}/v1/working-sessions/user/${userId}/start-time`,
   clientLocations: (baseUrl: string) => proxied1C(baseUrl, "/hs/manager/api/get_location_all"),
   clientInfo: (baseUrl: string, clientId: number) =>
     proxied1C(baseUrl, `/hs/manager/api/get_client_info?client_id=${clientId}`),

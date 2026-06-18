@@ -21,10 +21,11 @@ export default async (req: Request) => {
 
   
   try {
+    const hasBody = req.method !== "GET" && req.method !== "HEAD";
     const proxyRes = await fetch(targetUrl, {
       method: req.method,
       headers,
-      body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+      ...(hasBody ? { body: req.body, duplex: "half" } : {}),
     });
 
     const resHeaders = new Headers(proxyRes.headers);

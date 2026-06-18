@@ -1,1 +1,0 @@
-import{au as n,N as o}from"./index-ycJ60WMJ.js";import{u as a}from"./auth-OJjozI1S.js";import"./admin-api-Df_SuBRE.js";function s(){const{isAuthenticated:t}=a();return n.jsx(o,{to:t?"/admin/dashboard":"/admin/login"})}export{s as component};

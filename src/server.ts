@@ -30,13 +30,11 @@ async function proxyAppStore(request: Request): Promise<Response> {
   headers.set(LOOPS_HEADER, "1");
 
   try {
+    const hasBody = request.method !== "GET" && request.method !== "HEAD" && request.body;
     const proxyRes = await fetch(targetUrl, {
       method: request.method,
       headers,
-      body:
-        request.method !== "GET" && request.method !== "HEAD" && request.body
-          ? request.body
-          : null,
+      ...(hasBody ? { body: request.body, duplex: "half" } : {}),
       redirect: "manual",
     });
     return new Response(proxyRes.body, {
