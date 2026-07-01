@@ -159,6 +159,7 @@ const emptyVersionForm: VersionFormData = {
   title: "",
 };
 
+
 const emptyAppStoreAppForm: AppStoreAppFormData = {
   name: "",
   shortDescription: "",
