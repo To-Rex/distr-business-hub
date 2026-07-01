@@ -6,7 +6,10 @@ const APPSTORE_BASE = BACKEND_HOST + "/appstore";
 
 export function getAppStoreAssetUrl(path: string): string {
   if (!path) return "";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    const url = new URL(path);
+    return BACKEND_HOST + url.pathname + url.search + url.hash;
+  }
   return BACKEND_HOST + (path.startsWith("/") ? path : "/" + path);
 }
 
